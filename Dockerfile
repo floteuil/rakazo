@@ -2,6 +2,7 @@ FROM node:22-bookworm
 RUN corepack enable
 WORKDIR /app
 COPY . .
+ENV NODE_ENV=development
 RUN pnpm install --frozen-lockfile=false
 RUN pnpm --filter @rakazo/db generate
 RUN RAKAZO_ALLOW_DEV_SECRETS=1 pnpm --filter @rakazo/web build

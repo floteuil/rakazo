@@ -28,6 +28,9 @@
     "compose:up": "docker compose --env-file .env -f infra/compose/docker-compose.yml up --build",
     "compose:down": "docker compose --env-file .env -f infra/compose/docker-compose.yml down -v"
   },
+  "dependencies": {
+    "tsx": "^4.20.5"
+  },
   "devDependencies": {
     "@biomejs/biome": "^2.5.8",
     "@types/node": "^24.3.0",
