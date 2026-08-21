@@ -79,23 +79,8 @@ export class PiAgentRuntime implements AgentRuntime {
         const agent = new Agent({
           streamFn: (m, ctx, options) => {
             const sanitized: Record<string, unknown> = { ...options };
-            if (
-              sanitized.reasoning &&
-              typeof sanitized.reasoning === "object" &&
-              (sanitized.reasoning as { effort?: unknown }).effort === "none"
-            ) {
-              delete sanitized.reasoning;
-            }
-            if (
-              sanitized.thinking &&
-              typeof sanitized.thinking === "object" &&
-              (sanitized.thinking as { effort?: unknown }).effort === "none"
-            ) {
-              delete sanitized.thinking;
-            }
-            if (sanitized.thinkingLevel === "off" || sanitized.thinkingLevel === "none") {
-              delete sanitized.thinkingLevel;
-            }
+            sanitized.reasoning = { effort: "low" };
+            sanitized.thinking = { effort: "low" };
             return models.streamSimple(m, ctx, sanitized);
           },
           getApiKey: async () => apiKey,
@@ -421,23 +406,8 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
   const nested = new Agent({
     streamFn: (m, ctx, options) => {
       const sanitized: Record<string, unknown> = { ...options };
-      if (
-        sanitized.reasoning &&
-        typeof sanitized.reasoning === "object" &&
-        (sanitized.reasoning as { effort?: unknown }).effort === "none"
-      ) {
-        delete sanitized.reasoning;
-      }
-      if (
-        sanitized.thinking &&
-        typeof sanitized.thinking === "object" &&
-        (sanitized.thinking as { effort?: unknown }).effort === "none"
-      ) {
-        delete sanitized.thinking;
-      }
-      if (sanitized.thinkingLevel === "off" || sanitized.thinkingLevel === "none") {
-        delete sanitized.thinkingLevel;
-      }
+      sanitized.reasoning = { effort: "low" };
+      sanitized.thinking = { effort: "low" };
       return host.models.streamSimple(m, ctx, sanitized);
     },
     getApiKey: async () => host.apiKey,
