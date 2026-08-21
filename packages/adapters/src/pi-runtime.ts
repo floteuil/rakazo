@@ -77,7 +77,27 @@ export class PiAgentRuntime implements AgentRuntime {
         const history = toHistory(request.history, request.prompt);
 
         const agent = new Agent({
-          streamFn: (m, ctx, options) => models.streamSimple(m, ctx, options),
+          streamFn: (m, ctx, options) => {
+            const sanitized: Record<string, unknown> = { ...options };
+            if (
+              sanitized.reasoning &&
+              typeof sanitized.reasoning === "object" &&
+              (sanitized.reasoning as { effort?: unknown }).effort === "none"
+            ) {
+              delete sanitized.reasoning;
+            }
+            if (
+              sanitized.thinking &&
+              typeof sanitized.thinking === "object" &&
+              (sanitized.thinking as { effort?: unknown }).effort === "none"
+            ) {
+              delete sanitized.thinking;
+            }
+            if (sanitized.thinkingLevel === "off" || sanitized.thinkingLevel === "none") {
+              delete sanitized.thinkingLevel;
+            }
+            return models.streamSimple(m, ctx, sanitized);
+          },
           getApiKey: async () => apiKey,
           transformContext: async (messages) => pruneComputerScreenshotContext(messages),
           initialState: {
@@ -399,7 +419,27 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
   );
   const nestedHost: ToolHost = { ...host, depth: 1 };
   const nested = new Agent({
-    streamFn: (m, ctx, options) => host.models.streamSimple(m, ctx, options),
+    streamFn: (m, ctx, options) => {
+      const sanitized: Record<string, unknown> = { ...options };
+      if (
+        sanitized.reasoning &&
+        typeof sanitized.reasoning === "object" &&
+        (sanitized.reasoning as { effort?: unknown }).effort === "none"
+      ) {
+        delete sanitized.reasoning;
+      }
+      if (
+        sanitized.thinking &&
+        typeof sanitized.thinking === "object" &&
+        (sanitized.thinking as { effort?: unknown }).effort === "none"
+      ) {
+        delete sanitized.thinking;
+      }
+      if (sanitized.thinkingLevel === "off" || sanitized.thinkingLevel === "none") {
+        delete sanitized.thinkingLevel;
+      }
+      return host.models.streamSimple(m, ctx, sanitized);
+    },
     getApiKey: async () => host.apiKey,
     transformContext: async (messages) => pruneComputerScreenshotContext(messages),
     initialState: {
