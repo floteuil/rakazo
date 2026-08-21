@@ -77,12 +77,22 @@ export class PiAgentRuntime implements AgentRuntime {
         const history = toHistory(request.history, request.prompt);
 
         const agent = new Agent({
-          streamFn: (m, ctx, options) => {
-            const sanitized: Record<string, unknown> = { ...options };
-            sanitized.reasoning = { effort: "low" };
-            sanitized.thinking = { effort: "low" };
-            return models.streamSimple(m, ctx, sanitized);
-          },
+          streamFn: (m, ctx, options) =>
+            models.streamSimple(m, ctx, {
+              ...options,
+              reasoning: options?.reasoning ?? "low",
+              onPayload: (payload: unknown) => {
+                if (
+                  payload &&
+                  typeof payload === "object" &&
+                  "reasoning" in payload &&
+                  (payload as { reasoning?: { effort?: unknown } }).reasoning?.effort === "none"
+                ) {
+                  delete (payload as { reasoning?: unknown }).reasoning;
+                }
+                return payload;
+              },
+            }),
           getApiKey: async () => apiKey,
           transformContext: async (messages) => pruneComputerScreenshotContext(messages),
           initialState: {
@@ -92,6 +102,7 @@ export class PiAgentRuntime implements AgentRuntime {
                 ? "You are a Rakazo bot with a real computer. Use computer_observe and computer_act to operate its visible desktop, including browsers and installed applications. Use shell and the file tools for precise terminal and filesystem work. The user may interact with the same desktop while you run, so re-observe when the screen may have changed. Be concise."
                 : "You are a Rakazo bot with a persistent sandbox filesystem and shell. Be concise."),
             model,
+            thinkingLevel: "low",
             tools,
             messages: history,
           },
@@ -404,12 +415,22 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
   );
   const nestedHost: ToolHost = { ...host, depth: 1 };
   const nested = new Agent({
-    streamFn: (m, ctx, options) => {
-      const sanitized: Record<string, unknown> = { ...options };
-      sanitized.reasoning = { effort: "low" };
-      sanitized.thinking = { effort: "low" };
-      return host.models.streamSimple(m, ctx, sanitized);
-    },
+    streamFn: (m, ctx, options) =>
+      host.models.streamSimple(m, ctx, {
+        ...options,
+        reasoning: options?.reasoning ?? "low",
+        onPayload: (payload: unknown) => {
+          if (
+            payload &&
+            typeof payload === "object" &&
+            "reasoning" in payload &&
+            (payload as { reasoning?: { effort?: unknown } }).reasoning?.effort === "none"
+          ) {
+            delete (payload as { reasoning?: unknown }).reasoning;
+          }
+          return payload;
+        },
+      }),
     getApiKey: async () => host.apiKey,
     transformContext: async (messages) => pruneComputerScreenshotContext(messages),
     initialState: {
@@ -422,6 +443,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
         .filter(Boolean)
         .join(" "),
       model: host.model,
+      thinkingLevel: "low",
       tools: toAgentTools(childDefs, nestedHost),
       messages: [],
     },
