@@ -1,0 +1,134 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    pids_limit: 200
+    mem_limit: 256m
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-rakazo}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-rakazo}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-rakazo} -d ${POSTGRES_DB:-rakazo}"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+    restart: unless-stopped
+    command:
+      - bash
+      - -lc
+      - pnpm --filter @rakazo/db exec prisma migrate deploy && pnpm --filter @rakazo/api start
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 256
+    mem_limit: 384m
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=256"
+      DATABASE_URL: ${DATABASE_URL}
+      DATA_DIR: /data
+      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-docker}
+      WAKEUP_DRIVER: ${WAKEUP_DRIVER:-graphile}
+      AGENT_RUNTIME: ${AGENT_RUNTIME:-pi}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${BETTER_AUTH_URL}
+      API_URL: ${API_URL}
+      WEB_ORIGIN: ${WEB_ORIGIN}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      PI_DEFAULT_PROVIDER: ${PI_DEFAULT_PROVIDER:-openrouter}
+      PI_DEFAULT_MODEL: ${PI_DEFAULT_MODEL:-openai/gpt-oss-120b}
+      GIT_SHA: ${GIT_SHA:-}
+    expose:
+      - "3100"
+    volumes:
+      - appdata:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - node
+        - -e
+        - fetch('http://127.0.0.1:3100/health').then(r=>{if(!r.ok)process.exit(1)}).catch(()=>process.exit(1))
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
+  worker:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["pnpm", "--filter", "@rakazo/worker", "start"]
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 512
+    mem_limit: 384m
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=256"
+      DATABASE_URL: ${DATABASE_URL}
+      DATA_DIR: /data
+      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-docker}
+      WAKEUP_DRIVER: ${WAKEUP_DRIVER:-graphile}
+      AGENT_RUNTIME: ${AGENT_RUNTIME:-pi}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      PI_DEFAULT_PROVIDER: ${PI_DEFAULT_PROVIDER:-openrouter}
+      PI_DEFAULT_MODEL: ${PI_DEFAULT_MODEL:-openai/gpt-oss-120b}
+    volumes:
+      - appdata:/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["pnpm", "--filter", "@rakazo/web", "preview", "--host", "0.0.0.0", "--port", "5173"]
+    init: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 192m
+    environment:
+      NODE_ENV: production
+      NODE_OPTIONS: "--max-old-space-size=128"
+      API_PROXY_TARGET: http://api:3100
+      RAKAZO_HOST: ${RAKAZO_HOST:-agents.workspacegroupefloteuil.eu}
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+    ports:
+      - "5173"
+    depends_on:
+      api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  appdata:
