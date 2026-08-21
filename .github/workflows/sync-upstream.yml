@@ -1,0 +1,75 @@
+name: Synchronisation Amont Sécurisée
+
+on:
+  schedule:
+    # Exécution automatique quotidienne à 04:00 UTC
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    # Déclenchement manuel possible à tout moment depuis l'interface GitHub Actions
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Sync avec le dépôt original (elie222/rakazo)
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout du dépôt personnel
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Configuration de l'identité Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Ajouter le dépôt amont (upstream)
+        run: |
+          git remote add upstream https://github.com/elie222/rakazo.git || git remote set-url upstream https://github.com/elie222/rakazo.git
+          git fetch upstream main
+
+      - name: Vérifier les nouveaux commits amont
+        id: check_commits
+        run: |
+          NEW_COMMITS=$(git log --oneline main..upstream/main)
+          if [ -z "$NEW_COMMITS" ]; then
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "Aucune nouvelle mise à jour disponible sur le dépôt amont."
+          else
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "Nouveaux commits détectés sur l'amont :"
+            echo "$NEW_COMMITS"
+          fi
+
+      - name: Tenter une fusion propre préservant les personnalisations
+        if: steps.check_commits.outputs.has_commits == 'true'
+        id: merge_step
+        run: |
+          # Tentative de merge de upstream/main dans main
+          if git merge upstream/main -m "chore(sync): synchronisation automatique avec elie222/rakazo" ; then
+            echo "merge_success=true" >> $GITHUB_OUTPUT
+            git push origin main
+            echo "Fusion réussie et poussée sur origin/main."
+          else
+            echo "merge_success=false" >> $GITHUB_OUTPUT
+            echo "Conflit de fusion détecté. Annulation du merge local pour préserver le code."
+            git merge --abort
+          fi
+
+      - name: Créer une Pull Request en cas de conflit pour protéger le code
+        if: steps.check_commits.outputs.has_commits == 'true' && steps.merge_step.outputs.merge_success == 'false'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: upstream-sync-conflict
+          title: "⚠️ Mise à jour amont disponible (Revue de fusion requise)"
+          body: |
+            Le dépôt original `elie222/rakazo` contient de nouvelles mises à jour nécessitant une vérification afin de ne pas écraser les traductions françaises, le champ d'instructions personnalisées ou la configuration Coolify.
+            
+            Veuillez fusionner cette PR après avoir vérifié la non-régression.
+          labels: "sync, upstream"
