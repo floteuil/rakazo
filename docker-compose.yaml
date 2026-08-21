@@ -123,11 +123,26 @@ services:
       API_PROXY_TARGET: http://api:3100
       RAKAZO_HOST: ${RAKAZO_HOST:-agents.workspacegroupefloteuil.eu}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
-    ports:
+    expose:
       - "5173"
     depends_on:
       api:
         condition: service_healthy
+    labels:
+      - "traefik.enable=true"
+      - "traefik.docker.network=s1253nc0yc4uu89lp6692r1s"
+      - "traefik.http.middlewares.gzip.compress=true"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.entryPoints=http"
+      - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.middlewares=redirect-to-https"
+      - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`agents.workspacegroupefloteuil.eu`) && PathPrefix(`/`)"
+      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.entryPoints=https"
+      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.middlewares=gzip"
+      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`agents.workspacegroupefloteuil.eu`) && PathPrefix(`/`)"
+      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.tls.certresolver=letsencrypt"
+      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.tls=true"
+      - "traefik.http.services.https-0-s1253nc0yc4uu89lp6692r1s-web.loadbalancer.server.port=5173"
+      - "traefik.http.services.http-0-s1253nc0yc4uu89lp6692r1s-web.loadbalancer.server.port=5173"
 
 volumes:
   pgdata:
