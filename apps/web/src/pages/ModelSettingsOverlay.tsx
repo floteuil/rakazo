@@ -80,7 +80,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void refresh()
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Could not load model settings"),
+        setError(err instanceof Error ? err.message : "Impossible de charger les paramètres des modèles"),
       )
       .finally(() => setLoading(false));
     return () => cancelOAuthAttempt(false);
@@ -99,24 +99,29 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
       entries,
     }));
   }, [catalog]);
+
   const filteredGroups = useMemo(() => {
     const query = providerQuery.trim().toLowerCase();
     if (!query) return groups;
-    return groups.filter((group) =>
-      [group.id, group.name, ...group.entries.flatMap((entry) => [entry.id, entry.label])]
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
+    return groups.filter(
+      (group) =>
+        group.name.toLowerCase().includes(query) ||
+        group.id.toLowerCase().includes(query) ||
+        group.entries.some((entry) => entry.label.toLowerCase().includes(query)),
     );
   }, [groups, providerQuery]);
-  const modelsForProvider = catalog.filter((entry) => entry.provider === provider);
-  const selected = modelsForProvider.find((entry) => entry.id === modelId) ?? modelsForProvider[0];
+
+  const selected = catalog.find((entry) => entry.provider === provider && entry.id === modelId);
+  const modelsForProvider = useMemo(
+    () => catalog.filter((entry) => entry.provider === provider),
+    [catalog, provider],
+  );
   const credential = credentials.find((entry) => entry.provider === provider);
   const currentEntry = catalog.find(
     (entry) => entry.provider === me?.defaultProvider && entry.id === me?.defaultModel,
   );
-  const isActive = me?.defaultProvider === selected?.provider && me?.defaultModel === selected?.id;
-  const acceptsKey = selected?.auth !== "oauth";
+  const isActive = selected?.provider === me?.defaultProvider && selected?.id === me?.defaultModel;
+  const acceptsKey = selected?.auth === "api-key" || selected?.auth === "either";
   const deviceSignIn = selected?.signIn === "device-code";
   const busy = pending !== null || oauthPending;
 
@@ -138,9 +143,9 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
     try {
       await rpc.models.setDefault({ provider: selected.provider, modelId: selected.id });
       await refresh();
-      setNotice(`Now using ${selected.label}.`);
+      setNotice(`Modèle par défaut défini sur ${selected.label}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not change the default model");
+      setError(err instanceof Error ? err.message : "Impossible de changer le modèle par défaut");
     } finally {
       setPending(null);
     }
@@ -160,9 +165,9 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
       });
       setApiKey("");
       await refresh();
-      setNotice(`Connected and using ${selected.label}.`);
+      setNotice(`Connecté et configuré sur ${selected.label}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not connect this provider");
+      setError(err instanceof Error ? err.message : "Impossible de connecter ce fournisseur");
     } finally {
       setPending(null);
     }
@@ -196,13 +201,13 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
       setOauth(null);
       await refresh();
       if (controller.signal.aborted) return;
-      setNotice(`Connected and using ${selected.label}.`);
+      setNotice(`Connecté et configuré sur ${selected.label}.`);
     } catch (err) {
       if (controller.signal.aborted) return;
       const loginId = oauthLoginIdRef.current;
       oauthLoginIdRef.current = null;
       if (loginId) void rpc.models.cancelOAuth({ loginId }).catch(() => undefined);
-      setError(err instanceof Error ? err.message : "Could not start sign-in");
+      setError(err instanceof Error ? err.message : "Impossible de démarrer la connexion");
       setOauth(null);
     } finally {
       finishModelOAuthAttempt(oauthAbortRef, controller, () => setOauthPending(false));
@@ -219,14 +224,14 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
       <div className="flex h-[min(760px,100%)] w-[1080px] max-w-full flex-col overflow-hidden rounded-[26px] border border-[#232326] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)]">
         <div className="flex items-start justify-between px-6 pt-6 sm:px-8 sm:pt-7">
           <div>
-            <div className="text-2xl font-medium text-[#F1F1F2]">Models</div>
+            <div className="text-2xl font-medium text-[#F1F1F2]">Modèles d'IA</div>
             <p className="mt-1 text-[13.5px] text-[#7A7A80]">
-              {loading ? "Loading model catalog…" : "Choose which connected model Rakazo uses."}
+              {loading ? "Chargement du catalogue des modèles…" : "Choisissez les modèles IA connectés pour vos agents."}
             </p>
           </div>
           <button
             type="button"
-            aria-label="Close model settings"
+            aria-label="Fermer les paramètres des modèles"
             onClick={handleClose}
             className="text-[#85858A]"
           >
@@ -236,27 +241,27 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
 
         <div className="mx-6 mt-5 rounded-[14px] border border-[#26262A] bg-[#101012] px-4 py-3 sm:mx-8">
           <div className="text-[12.5px] uppercase tracking-[0.08em] text-[#6C6C70]">
-            Active model
+            Modèle actif
           </div>
           <div className="mt-1 text-[16px] text-[#F1F1F2]">
-            {currentEntry?.label ?? me?.defaultModel ?? "Deployment default"}
+            {currentEntry?.label ?? me?.defaultModel ?? "Modèle par défaut"}
           </div>
           <div className="mt-1 text-[13px] text-[#85858A]">
-            {currentEntry?.providerName ?? me?.defaultProvider ?? "Configured by deployment"}
+            {currentEntry?.providerName ?? me?.defaultProvider ?? "Configuré sur le serveur"}
           </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
           <div className="flex min-h-0 shrink-0 flex-col md:w-[310px]">
-            <div className="mb-3 text-[13.5px] text-[#85858A]">Providers</div>
+            <div className="mb-3 text-[13.5px] text-[#85858A]">Fournisseurs</div>
             <label className="sr-only" htmlFor="model-provider-search">
-              Search providers
+              Rechercher un fournisseur
             </label>
             <input
               id="model-provider-search"
               value={providerQuery}
               onChange={(event) => setProviderQuery(event.target.value)}
-              placeholder="Search providers"
+              placeholder="Rechercher un fournisseur"
               className="w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[14px] text-[#ECECEE] outline-none placeholder:text-[#6C6C70] focus:border-[#4A4A50]"
             />
             <div className="rk-scroll mt-3 max-h-[240px] overflow-y-auto rounded-[13px] border border-[#26262A] md:min-h-0 md:max-h-none md:flex-1">
@@ -277,18 +282,18 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                           {group.name}
                         </span>
                         <span className="mt-0.5 block text-[12px] text-[#6C6C70]">
-                          {group.entries.length} model{group.entries.length === 1 ? "" : "s"} ·{" "}
+                          {group.entries.length} modèle{group.entries.length === 1 ? "" : "s"} ·{" "}
                           {providerHint(group.entries[0]!)}
                         </span>
                       </span>
                       {connected ? (
-                        <span className="text-[12px] text-[#4ECB71]">Connected</span>
+                        <span className="text-[12px] text-[#4ECB71]">Connecté</span>
                       ) : null}
                     </button>
                   );
                 })
               ) : (
-                <p className="px-3.5 py-4 text-[13px] text-[#85858A]">No providers found.</p>
+                <p className="px-3.5 py-4 text-[13px] text-[#85858A]">Aucun fournisseur trouvé.</p>
               )}
             </div>
           </div>
@@ -299,7 +304,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
             {selected ? (
               <>
                 <div className="block text-[13.5px] text-[#85858A]">
-                  <span>Model</span>
+                  <span>Modèle</span>
                   <ModelPicker
                     options={modelsForProvider}
                     value={selected.id}
@@ -315,15 +320,15 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
 
                 <div className="mt-5 rounded-[13px] border border-[#26262A] px-4 py-3">
                   <div className="text-[12.5px] uppercase tracking-[0.08em] text-[#6C6C70]">
-                    Personal credential
+                    Identifiant personnel
                   </div>
                   <div className="mt-1 text-[15px] text-[#ECECEE]">
-                    {credential ? `Connected · ${credential.label}` : "Not connected"}
+                    {credential ? `Connecté · ${credential.label}` : "Non connecté"}
                   </div>
                   <div className="mt-1 text-[13px] text-[#85858A]">
                     {credential
-                      ? "Your key or subscription token is stored securely and is never shown here."
-                      : "Connect this provider to use it as your personal model."}
+                      ? "Votre clé API est enregistrée en toute sécurité sur le serveur."
+                      : "Connectez ce fournisseur pour l'utiliser avec vos agents."}
                   </div>
                 </div>
 
@@ -332,7 +337,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                     {oauth ? (
                       <div className="rounded-[13px] border border-[#26262A] px-4 py-3">
                         <p className="text-sm leading-[1.5] text-[#85858A]">
-                          Enter this code at{" "}
+                          Entrez ce code sur{" "}
                           <a
                             href={oauth.verificationUri}
                             target="_blank"
@@ -345,7 +350,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                         <p className="mt-2 font-mono text-[22px] tracking-[0.2em] text-[#F1F1F2]">
                           {oauth.userCode}
                         </p>
-                        <p className="mt-2 text-sm text-[#85858A]">Waiting for sign-in…</p>
+                        <p className="mt-2 text-sm text-[#85858A]">En attente de connexion…</p>
                       </div>
                     ) : (
                       <Button
@@ -355,7 +360,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                         disabled={busy}
                         onClick={() => void startDeviceSignIn()}
                       >
-                        {oauthPending ? "Starting…" : (selected.oauthLabel ?? "Sign in")}
+                        {oauthPending ? "Démarrage…" : (selected.oauthLabel ?? "Se connecter")}
                       </Button>
                     )}
                   </div>
@@ -365,10 +370,10 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                   <div className="mt-5">
                     <label className="block text-[13.5px] text-[#85858A]">
                       {credential
-                        ? "Replace API key"
+                        ? "Remplacer la clé API"
                         : deviceSignIn
-                          ? "Or connect an API key"
-                          : "API key"}
+                          ? "Ou connecter une clé API"
+                          : "Clé API"}
                       <input
                         value={apiKey}
                         onChange={(event) => setApiKey(event.target.value)}
@@ -387,19 +392,12 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                       className="mt-3"
                     >
                       {pending === "connect"
-                        ? "Saving…"
+                        ? "Enregistrement…"
                         : credential
-                          ? "Replace API key"
-                          : "Connect API key"}
+                          ? "Remplacer la clé API"
+                          : "Connecter la clé API"}
                     </Button>
                   </div>
-                ) : null}
-
-                {selected.auth === "oauth" && !deviceSignIn ? (
-                  <p className="mt-5 text-sm leading-[1.5] text-[#85858A]">
-                    This subscription sign-in is not available in Rakazo yet. Use a deployment
-                    credential or choose another provider.
-                  </p>
                 ) : null}
 
                 {credential ? (
@@ -412,18 +410,18 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                       onClick={() => void setModelDefault()}
                     >
                       {isActive
-                        ? "Active model"
+                        ? "Modèle actif"
                         : pending === "default"
-                          ? "Switching…"
-                          : "Use this model"}
+                          ? "Modification…"
+                          : "Utiliser ce modèle"}
                     </Button>
                   </div>
                 ) : null}
               </>
             ) : loading ? (
-              <p className="text-[#85858A]">Loading model catalog…</p>
+              <p className="text-[#85858A]">Chargement du catalogue des modèles…</p>
             ) : (
-              <p className="text-[#85858A]">No model catalog is available.</p>
+              <p className="text-[#85858A]">Aucun catalogue de modèle disponible.</p>
             )}
           </div>
         </div>
@@ -530,7 +528,7 @@ function ModelPicker({
         ref={triggerRef}
         type="button"
         role="combobox"
-        aria-label="Model"
+        aria-label="Modèle"
         aria-controls={listboxId}
         aria-expanded={open}
         aria-haspopup="listbox"
@@ -547,7 +545,7 @@ function ModelPicker({
         <div
           id={listboxId}
           role="listbox"
-          aria-label="Model options"
+          aria-label="Options de modèle"
           className="rk-scroll absolute left-0 right-0 top-full z-20 mt-2 max-h-60 overflow-y-auto rounded-[11px] border border-[#26262A] bg-[#101012] p-1 shadow-[0_20px_45px_rgba(0,0,0,.55)]"
         >
           {options.map((option, index) => (

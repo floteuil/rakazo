@@ -41,7 +41,7 @@ services:
       NODE_OPTIONS: "--max-old-space-size=256"
       DATABASE_URL: ${DATABASE_URL}
       DATA_DIR: /data
-      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-docker}
+      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-desktop}
       WAKEUP_DRIVER: ${WAKEUP_DRIVER:-graphile}
       AGENT_RUNTIME: ${AGENT_RUNTIME:-pi}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
@@ -88,7 +88,7 @@ services:
       NODE_OPTIONS: "--max-old-space-size=256"
       DATABASE_URL: ${DATABASE_URL}
       DATA_DIR: /data
-      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-docker}
+      SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-desktop}
       WAKEUP_DRIVER: ${WAKEUP_DRIVER:-graphile}
       AGENT_RUNTIME: ${AGENT_RUNTIME:-pi}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}

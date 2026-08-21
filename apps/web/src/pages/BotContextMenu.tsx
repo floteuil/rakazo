@@ -64,21 +64,21 @@ export function BotContextMenu({
         <MenuItem
           buttonRef={firstItem}
           icon={<PinIcon />}
-          label={bot.pinned ? "Unpin" : "Pin"}
+          label={bot.pinned ? "Désépingler" : "Épingler"}
           onSelect={onTogglePinned}
         />
         <MenuItem
           icon={<ReadStatusIcon unread={bot.unread} />}
-          label={bot.unread ? "Mark as Read" : "Mark as Unread"}
+          label={bot.unread ? "Marquer comme lu" : "Marquer comme non lu"}
           onSelect={onToggleUnread}
         />
         <div className="my-1 border-t border-[#343438]" />
-        <MenuItem icon={<EditIcon />} label="Edit Profile" onSelect={onEdit} />
-        <MenuItem icon={<DuplicateIcon />} label="Duplicate" onSelect={onDuplicate} />
+        <MenuItem icon={<EditIcon />} label="Modifier le profil & instructions" onSelect={onEdit} />
+        <MenuItem icon={<DuplicateIcon />} label="Dupliquer l'agent" onSelect={onDuplicate} />
         <div className="my-1 border-t border-[#343438]" />
-        <MenuItem icon={<ClearIcon />} label="Clear conversation" onSelect={onClear} />
-        <MenuItem icon={<ArchiveIcon />} label="Archive" onSelect={onArchive} />
-        <MenuItem icon={<TrashIcon />} label="Delete" tone="danger" onSelect={onDelete} />
+        <MenuItem icon={<ClearIcon />} label="Effacer la conversation" onSelect={onClear} />
+        <MenuItem icon={<ArchiveIcon />} label="Archiver" onSelect={onArchive} />
+        <MenuItem icon={<TrashIcon />} label="Supprimer" tone="danger" onSelect={onDelete} />
       </div>
     </div>
   );

@@ -9,7 +9,7 @@ export function AuthPage({ mode }: { mode: "in" | "up" }) {
   const [name, setName] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
-  const title = mode === "in" ? "Sign in to Rakazo" : "Create your Rakazo";
+  const title = mode === "in" ? "Connexion à Rakazo" : "Créer votre compte Rakazo";
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -20,12 +20,12 @@ export function AuthPage({ mode }: { mode: "in" | "up" }) {
         ? await authClient.signUp.email({
             email,
             password,
-            name: name || email.split("@")[0] || "User",
+            name: name || email.split("@")[0] || "Utilisateur",
           })
         : await authClient.signIn.email({ email, password });
     setPending(false);
     if (result.error) {
-      setError(result.error.message ?? "Could not continue");
+      setError(result.error.message ?? "Impossible de continuer");
       return;
     }
     navigate(mode === "up" ? "/onboarding" : "/app");
@@ -41,32 +41,32 @@ export function AuthPage({ mode }: { mode: "in" | "up" }) {
         <h1 className="mb-[38px] mt-[30px] text-[38px] tracking-[-0.02em]">{title}</h1>
         {mode === "up" ? (
           <label className="mb-4 w-full text-[16px] text-[#6E6E68]">
-            Name
+            Nom complet
             <input
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="Your name"
+              placeholder="Votre nom"
               className="mt-2 w-full rounded-[13px] border border-[#E4E4DE] bg-[#F1F1ED] px-[18px] py-[17px] text-[17px] text-[#1B1B1E] outline-none"
             />
           </label>
         ) : null}
         <label className="w-full text-[16px] text-[#6E6E68]">
-          Email
+          Adresse email
           <input
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            placeholder="Your email address"
+            placeholder="votre.email@exemple.com"
             type="email"
             required
             className="mt-2 w-full rounded-[13px] border border-[#E4E4DE] bg-[#F1F1ED] px-[18px] py-[17px] text-[17px] text-[#1B1B1E] outline-none"
           />
         </label>
         <label className="mt-4 w-full text-[16px] text-[#6E6E68]">
-          Password
+          Mot de passe
           <input
             value={password}
             onChange={(e) => setPassword(e.target.value)}
-            placeholder="Password"
+            placeholder="Mot de passe"
             type="password"
             required
             minLength={8}
@@ -79,21 +79,21 @@ export function AuthPage({ mode }: { mode: "in" | "up" }) {
           disabled={pending}
           className="mt-3 w-full rounded-[13px] bg-[#121215] py-[18px] text-center text-[17px] font-medium text-[#FBFBF9] hover:bg-[#26262B]"
         >
-          {pending ? "Working…" : mode === "in" ? "Continue with email" : "Create account"}
+          {pending ? "Chargement…" : mode === "in" ? "Se connecter" : "Créer le compte"}
         </button>
         <p className="mt-[30px] text-[16px] text-[#8C8C86]">
           {mode === "in" ? (
             <>
-              Don’t have an account?{" "}
+              Pas encore de compte ?{" "}
               <Link to="/sign-up" className="font-medium text-[#1B1B1E]">
-                Sign up
+                S'inscrire
               </Link>
             </>
           ) : (
             <>
-              Already have an account?{" "}
+              Déjà un compte ?{" "}
               <Link to="/sign-in" className="font-medium text-[#1B1B1E]">
-                Sign in
+                Se connecter
               </Link>
             </>
           )}

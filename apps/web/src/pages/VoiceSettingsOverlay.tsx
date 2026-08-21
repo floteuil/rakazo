@@ -42,7 +42,7 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void refresh()
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Could not load voice settings"),
+        setError(err instanceof Error ? err.message : "Impossible de charger les paramètres vocaux"),
       )
       .finally(() => setLoading(false));
   }, []);
@@ -68,9 +68,9 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
       });
       setApiKey("");
       await refresh(selected.id);
-      setNotice(`Connected ${selected.name}.`);
+      setNotice(`Connecté à ${selected.name}.`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not connect this voice provider");
+      setError(err instanceof Error ? err.message : "Impossible de connecter ce fournisseur vocal");
     } finally {
       setPending(null);
     }
@@ -85,7 +85,7 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
       await rpc.voice.setVoice({ voiceId: nextVoiceId, provider: selected?.id });
       await refresh(selected?.id);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save that voice");
+      setError(err instanceof Error ? err.message : "Impossible d'enregistrer cette voix");
     } finally {
       setPending(null);
     }
@@ -97,14 +97,14 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
     setPending("test");
     try {
       const { speaker } = await import("../lib/tts.js");
-      await speaker.speak("Hi, this is how I'll sound when I read replies out loud.");
+      await speaker.speak("Bonjour, voici comment je parlerai lorsque je lirai les réponses à voix haute.");
       if (speaker.state.error) {
         setError(speaker.state.error);
         return;
       }
-      setNotice("If you heard that, voice is ready.");
+      setNotice("Si vous avez entendu ce message, la synthèse vocale est opérationnelle.");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not play a test clip");
+      setError(err instanceof Error ? err.message : "Impossible de jouer l'extrait sonore");
     } finally {
       setPending(null);
     }
@@ -118,16 +118,16 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
       >
         <div className="flex items-start justify-between px-6 pt-6 sm:px-8 sm:pt-7">
           <div>
-            <div className="text-2xl font-medium text-[#F1F1F2]">Voice</div>
+            <div className="text-2xl font-medium text-[#F1F1F2]">Synthèse vocale</div>
             <p className="mt-1 text-[13.5px] text-[#7A7A80]">
               {loading
-                ? "Loading voice providers…"
-                : "Bring your own key. The provider is swappable; your bots keep the same speak and call buttons."}
+                ? "Chargement des fournisseurs vocaux…"
+                : "Utilisez votre propre clé API. Vous pouvez changer de fournisseur à tout moment."}
             </p>
           </div>
           <button
             type="button"
-            aria-label="Close voice settings"
+            aria-label="Fermer les paramètres vocaux"
             onClick={onClose}
             className="text-[#85858A]"
           >
@@ -137,23 +137,23 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
 
         <div className="mx-6 mt-5 rounded-[14px] border border-[#26262A] bg-[#101012] px-4 py-3 sm:mx-8">
           <div className="text-[12.5px] uppercase tracking-[0.08em] text-[#6C6C70]">
-            Active voice
+            Voix active
           </div>
           <div className="mt-1 text-[16px] text-[#F1F1F2]">
             {status?.ready
               ? voiceOptions.find((voice) => voice.id === status.voiceId)?.label || status.voiceId
               : status?.configured
-                ? "Pick a voice"
-                : "Not configured"}
+                ? "Choisir une voix"
+                : "Non configuré"}
           </div>
           <div className="mt-1 text-[13px] text-[#85858A]">
-            {selected?.name ?? status?.provider ?? "Connect ElevenLabs, OpenAI, or Cartesia"}
+            {selected?.name ?? status?.provider ?? "Connecter ElevenLabs, OpenAI ou Cartesia"}
           </div>
         </div>
 
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
           <div className="flex min-h-0 shrink-0 flex-col md:w-[280px]">
-            <div className="mb-3 text-[13.5px] text-[#85858A]">Providers</div>
+            <div className="mb-3 text-[13.5px] text-[#85858A]">Fournisseurs</div>
             <div className="rk-scroll overflow-y-auto rounded-[13px] border border-[#26262A]">
               {catalog.map((entry) => {
                 const connected = credentials.some((cred) => cred.provider === entry.id);
@@ -177,11 +177,11 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                         {entry.name}
                       </span>
                       <span className="mt-0.5 block text-[12px] text-[#6C6C70]">
-                        {entry.transcribe ? "Speak + transcribe" : "Speak only"}
+                        {entry.transcribe ? "Parole + transcription" : "Parole uniquement"}
                       </span>
                     </span>
                     {connected ? (
-                      <span className="text-[12px] text-[#4ECB71]">Connected</span>
+                      <span className="text-[12px] text-[#4ECB71]">Connecté</span>
                     ) : null}
                   </button>
                 );
@@ -197,23 +197,23 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                 <p className="text-[13.5px] leading-[1.5] text-[#85858A]">{selected.description}</p>
                 <div className="mt-5 rounded-[13px] border border-[#26262A] px-4 py-3">
                   <div className="text-[12.5px] uppercase tracking-[0.08em] text-[#6C6C70]">
-                    Personal credential
+                    Identifiants personnels
                   </div>
                   <div className="mt-1 text-[15px] text-[#ECECEE]">
-                    {credential ? `Connected · ${selected.name}` : "Not connected"}
+                    {credential ? `Connecté · ${selected.name}` : "Non connecté"}
                   </div>
                   <div className="mt-1 text-[13px] text-[#85858A]">
-                    Keys stay on the server. The app only learns whether a provider is configured.
+                    Les clés restent sécurisées sur votre serveur.
                   </div>
                 </div>
 
                 <label className="mt-5 block text-[13.5px] text-[#85858A]">
-                  API key
+                  Clé API
                   <input
                     type="password"
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
-                    placeholder={credential ? "Paste a replacement key" : "Paste your API key"}
+                    placeholder={credential ? "Coller une clé de remplacement" : "Coller votre clé API"}
                     className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[14px] text-[#ECECEE] outline-none"
                   />
                 </label>
@@ -223,13 +223,13 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                   disabled={busy || apiKey.trim().length < 8}
                   onClick={() => void connectKey()}
                 >
-                  {pending === "connect" ? "Connecting…" : credential ? "Replace key" : "Connect"}
+                  {pending === "connect" ? "Connexion…" : credential ? "Remplacer la clé" : "Connecter"}
                 </Button>
 
                 {credential ? (
                   <>
                     <label className="mt-6 block text-[13.5px] text-[#85858A]">
-                      Voice
+                      Voix
                       <select
                         value={voiceId}
                         onChange={(event) => void chooseVoice(event.target.value)}
@@ -249,7 +249,7 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                       onClick={() => void testVoice()}
                       className="mt-4 text-[14px] text-[#C9C9CE] disabled:opacity-40"
                     >
-                      {pending === "test" ? "Playing…" : "Hear a sample"}
+                      {pending === "test" ? "Lecture…" : "Écouter un extrait"}
                     </button>
                   </>
                 ) : null}

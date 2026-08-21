@@ -829,13 +829,14 @@ export function ShellPage() {
     name: string;
     title: string;
     description: string;
+    instructions?: string;
     computerMode: ComputerMode;
   }) {
     const bot = await rpc.bots.create({
       name: input.name.trim(),
       title: input.title,
       description: input.description,
-      instructions: input.description,
+      instructions: input.instructions?.trim() || input.description,
       notifyOnFinish: true,
       computerMode: input.computerMode,
     });
@@ -984,7 +985,7 @@ export function ShellPage() {
             type="button"
             onClick={() => setPanel("create")}
             className="app-no-drag text-[21px] text-[#7A7A80] hover:text-[#C9C9CE]"
-            title="New bot"
+            title="Nouvel agent"
           >
             +
           </button>
@@ -994,7 +995,7 @@ export function ShellPage() {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search"
+            placeholder="Rechercher…"
             className="w-full bg-transparent outline-none"
           />
         </div>
@@ -1029,10 +1030,10 @@ export function ShellPage() {
                       }`}
                     >
                       {bot.name}
-                      {bot.unread ? <span className="sr-only"> (unread)</span> : null}
+                      {bot.unread ? <span className="sr-only"> (non lu)</span> : null}
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-[#6C6C70]">
-                      {bot.status === "idle" ? "" : bot.status}
+                      {bot.status === "idle" ? "" : bot.status === "running" ? "en cours" : bot.status === "queued" ? "en attente" : bot.status}
                       {bot.unread ? (
                         <span
                           aria-hidden="true"
@@ -1060,7 +1061,7 @@ export function ShellPage() {
                 onClick={() => setArchivedOpen((open) => !open)}
                 className="flex w-full items-center justify-between rounded-lg px-2.5 py-2 text-[13.5px] text-[#85858A] hover:bg-[#131315]"
               >
-                <span>Archived</span>
+                <span>Archivés</span>
                 <span>{archivedBots.length}</span>
               </button>
               {archivedOpen
@@ -1077,15 +1078,15 @@ export function ShellPage() {
                         }
                         className="text-[12.5px] text-[#C9C9CE] hover:text-white"
                       >
-                        Restore
+                        Restaurer
                       </button>
                       <button
                         type="button"
-                        aria-label={`Delete ${bot.name}`}
+                        aria-label={`Supprimer ${bot.name}`}
                         onClick={() => setDeleteTarget(bot)}
                         className="text-[12.5px] text-[#FF5364]"
                       >
-                        Delete
+                        Supprimer
                       </button>
                     </div>
                   ))
@@ -1101,7 +1102,7 @@ export function ShellPage() {
           <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-[#17171A] text-[#9A9AA0]">
             <Puzzle size={15} strokeWidth={1.7} />
           </span>
-          <span className="text-[14.5px] text-[#C9C9CE]">Plugins</span>
+          <span className="text-[14.5px] text-[#C9C9CE]">Plugins & Outils</span>
         </button>
         <div className="relative">
           {menuOpen ? (
@@ -1115,7 +1116,7 @@ export function ShellPage() {
                 className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
               >
                 <Cpu size={16} strokeWidth={1.7} className="text-[#9A9AA0]" />
-                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Models</span>
+                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Modèles IA</span>
               </button>
               <button
                 type="button"
@@ -1126,7 +1127,7 @@ export function ShellPage() {
                 className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
               >
                 <Volume2 size={16} strokeWidth={1.7} className="text-[#9A9AA0]" />
-                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Voice</span>
+                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Synthèse vocale</span>
               </button>
               <button
                 type="button"
@@ -1136,11 +1137,11 @@ export function ShellPage() {
                 }}
               >
                 <Gauge size={16} strokeWidth={1.7} className="text-[#9A9AA0]" />
-                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Weekly usage</span>
+                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Consommation hebdomadaire</span>
               </button>
               {usage ? (
                 <p className="px-3 pb-2 text-[12.5px] text-[#85858A]">
-                  {usage.runs} runs · {usage.inputTokens + usage.outputTokens} tokens
+                  {usage.runs} exécutions · {usage.inputTokens + usage.outputTokens} tokens
                 </p>
               ) : null}
               <button
@@ -1149,7 +1150,7 @@ export function ShellPage() {
                 className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
               >
                 <LogOut size={16} strokeWidth={1.7} className="text-[#9A9AA0]" />
-                <span className="text-[14.5px] text-[#ECECEE]">Log out</span>
+                <span className="text-[14.5px] text-[#ECECEE]">Se déconnecter</span>
               </button>
             </div>
           ) : null}
@@ -1295,16 +1296,15 @@ export function ShellPage() {
                 <div className="relative aspect-[16/10] overflow-hidden rounded-[14px] bg-[#0E0E10]">
                   {computerOpen ? (
                     <div className="grid h-full place-items-center text-sm text-[#6C6C70]">
-                      Open in full window
+                      Ouvert en plein écran
                     </div>
                   ) : computer?.kind === "desktop" ? (
                     <div className="grid h-full place-items-center px-6 text-center text-sm text-[#6C6C70]">
-                      This bot runs on this computer, not a Linux desktop. Shell and files use your
-                      home folder.
+                      Cet agent s'exécute directement sur son espace de travail persistant.
                     </div>
                   ) : computer?.state === "running" && embeddedScreenUrl ? (
                     <iframe
-                      title="Bot screen preview"
+                      title="Aperçu de l'écran"
                       src={embeddedScreenUrl}
                       sandbox={screenIframeSandbox(embeddedScreenUrl)}
                       className="h-full w-full border-0 bg-black"
@@ -1323,18 +1323,18 @@ export function ShellPage() {
                   <button
                     type="button"
                     className="absolute inset-0 cursor-pointer"
-                    aria-label="Open computer"
+                    aria-label="Ouvrir l'ordinateur"
                     onClick={() => void openComputer()}
                   />
                 </div>
                 <div className="mt-3 flex items-center justify-between">
                   <span className="text-[13.5px] text-[#85858A]">
                     {computer?.busyBotName
-                      ? `${computer.busyBotName} is using it`
+                      ? `${computer.busyBotName} l'utilise actuellement`
                       : hasControl
-                        ? "You have control"
+                        ? "Vous avez le contrôle"
                         : computer?.state === "suspended"
-                          ? "Asleep"
+                          ? "En veille"
                           : computerLabel(computer?.mode, active.name)}
                   </span>
                   {hasControl ? (
@@ -1344,7 +1344,7 @@ export function ShellPage() {
                       size="sm"
                       onClick={() => void releaseComputer()}
                     >
-                      Release
+                      Libérer
                     </Button>
                   ) : (
                     <Button
@@ -1353,11 +1353,11 @@ export function ShellPage() {
                       size="sm"
                       onClick={() => void openComputer()}
                     >
-                      Take control
+                      Prendre le contrôle
                     </Button>
                   )}
                 </div>
-                <div className="mt-[30px] mb-3 text-[14px] text-[#85858A]">Routines</div>
+                <div className="mt-[30px] mb-3 text-[14px] text-[#85858A]">Routines & Planifications</div>
                 {activeRoutines.map((routine) => (
                   <button
                     key={routine.id}
@@ -1389,7 +1389,7 @@ export function ShellPage() {
                   }}
                   className="mt-1 flex items-center gap-2.5 px-2.5 py-2.5 text-[14.5px] text-[#7A7A80]"
                 >
-                  + New routine
+                  + Nouvelle routine
                 </button>
                 {active ? (
                   <TeachComputerSection
@@ -1455,33 +1455,36 @@ export function ShellPage() {
                     type="button"
                     onClick={() => setPanel("computer")}
                     className="text-[#9A9AA0]"
+                    aria-label="Retour"
                   >
                     <ChevronLeft size={18} strokeWidth={1.8} />
                   </button>
-                  <div className="text-[15.5px] font-medium text-[#F1F1F2]">Routine</div>
-                  <button type="button" onClick={() => setPanel(null)} className="text-[#6C6C70]">
+                  <div className="text-[15.5px] font-medium text-[#F1F1F2]">Routine programmée</div>
+                  <button type="button" onClick={() => setPanel(null)} className="text-[#6C6C70]" aria-label="Fermer">
                     <X size={16} strokeWidth={1.8} />
                   </button>
                 </div>
                 <label className="text-[14px] text-[#85858A]">
-                  Name
+                  Nom de la routine
                   <input
                     value={routineDraft.name}
                     onChange={(e) => setRoutineDraft((s) => ({ ...s, name: e.target.value }))}
+                    placeholder="Ex: Rapport quotidien, Veille"
                     className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
                   />
                 </label>
                 <label className="mt-5 block text-[14px] text-[#85858A]">
-                  Instruction
+                  Instructions à exécuter
                   <textarea
                     value={routineDraft.prompt}
                     onChange={(e) => setRoutineDraft((s) => ({ ...s, prompt: e.target.value }))}
+                    placeholder="Ce que l'agent doit accomplir à chaque déclenchement..."
                     rows={4}
                     className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
                   />
                 </label>
                 <div className="mt-5 text-[14px] text-[#85858A]">
-                  When to run
+                  Fréquence d'exécution
                   <Suspense fallback={null}>
                     <RoutineSchedule
                       value={routineDraft.schedule}
@@ -1529,7 +1532,7 @@ export function ShellPage() {
                     }}
                     className="rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40"
                   >
-                    {savingRoutine ? "Saving…" : "Save"}
+                    {savingRoutine ? "Enregistrement…" : "Enregistrer"}
                   </button>
                   {editingRoutine?.botId === active.id ? (
                     <>
@@ -1552,7 +1555,7 @@ export function ShellPage() {
                         }}
                         className="rounded-[11px] border border-[#26262A] px-4 py-2 text-[14px] text-[#ECECEE] disabled:opacity-40"
                       >
-                        {runningRoutine ? "Running…" : "Run now"}
+                        {runningRoutine ? "Exécution…" : "Tester maintenant"}
                       </button>
                       <button
                         type="button"
@@ -1560,7 +1563,7 @@ export function ShellPage() {
                         onClick={() => setDeleteRoutineTarget(editingRoutine)}
                         className="rounded-[11px] px-4 py-2 text-[14px] text-[#FF5364] disabled:opacity-40"
                       >
-                        Delete routine
+                        Supprimer la routine
                       </button>
                     </>
                   ) : null}
@@ -1847,7 +1850,7 @@ const Transcript = memo(function Transcript({
           onClick={() => void onLoadOlder()}
           className="self-center rounded-lg px-3 py-1.5 text-[13px] text-[#85858A] hover:bg-[#1A1A1D] hover:text-[#C9C9CE] disabled:opacity-50"
         >
-          {loadingOlder ? "Loading…" : "Load earlier messages"}
+          {loadingOlder ? "Chargement…" : "Charger les messages précédents"}
         </button>
       ) : null}
       {messages.map((message) => (
@@ -1872,7 +1875,7 @@ const Transcript = memo(function Transcript({
             className="rounded-[20px] bg-[#1A1A1D] px-[18px] py-[13px] text-[14.5px] text-[#85858A]"
             style={{ animation: "rkPulse 1.2s ease-in-out infinite" }}
           >
-            working…
+            Réflexion en cours…
           </div>
         </div>
       ) : null}
@@ -2007,7 +2010,7 @@ const Composer = memo(function Composer({
               ? "border-[#4ECB71] bg-[rgba(48,162,75,.16)] text-[#4ECB71]"
               : "border-[#26262A] text-[#9A9AA0]"
           }`}
-          title={transcribe ? "Hold to talk" : "Hold to talk (on-device dictation)"}
+          title={transcribe ? "Maintenir pour parler" : "Maintenir pour parler (dictée vocale)"}
         >
           <Mic size={16} strokeWidth={1.8} />
         </button>
@@ -2021,13 +2024,13 @@ const Composer = memo(function Composer({
             }
           }}
           disabled={disabled}
-          placeholder={activeName ? `Message ${activeName}` : "Message…"}
+          placeholder={activeName ? `Envoyer un message à ${activeName}…` : "Écrire un message…"}
           className="flex-1 bg-transparent text-[15.5px] text-[#E9E9EA] outline-none disabled:opacity-40"
         />
         {running ? (
           <button
             type="button"
-            aria-label="Stop"
+            aria-label="Arrêter"
             onClick={() => void onStop()}
             className="grid h-9 w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A]"
           >
@@ -2036,7 +2039,7 @@ const Composer = memo(function Composer({
         ) : (
           <button
             type="button"
-            aria-label="Send"
+            aria-label="Envoyer"
             disabled={sending || !canSend || disabled}
             onClick={send}
             className="grid h-9 w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] disabled:opacity-50"
@@ -2449,6 +2452,7 @@ function CreateBotForm({
     name: string;
     title: string;
     description: string;
+    instructions?: string;
     computerMode: ComputerMode;
   }) => void;
   onCancel: () => void;
@@ -2456,41 +2460,52 @@ function CreateBotForm({
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
 
   return (
     <div>
       <div className="mb-4 flex items-center justify-between">
-        <span className="text-[13.5px] text-[#85858A]">New bot</span>
-        <button type="button" onClick={onCancel}>
+        <span className="text-[13.5px] text-[#85858A]">Nouvel agent</span>
+        <button type="button" onClick={onCancel} aria-label="Fermer">
           <X size={16} strokeWidth={1.8} />
         </button>
       </div>
       <label className="mt-6 block text-[14px] text-[#85858A]">
-        Name
+        Nom de l'agent
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Name this bot"
+          placeholder="Ex: Samy, Rédacteur, Développeur"
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
-        Title
+        Titre / Rôle
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          placeholder="Describe what this bot does"
+          placeholder="Ex: Expert Marketing, Analyste de données"
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
-        Description
+        Description courte
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="What this bot is for"
-          rows={4}
+          placeholder="Brève description de la mission de l'agent"
+          rows={2}
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+        />
+      </label>
+      <label className="mt-4 block text-[14px] text-[#85858A]">
+        Instructions personnalisées / Prompt système
+        <textarea
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          placeholder="Définissez les directives, compétences, style et comportement de votre agent..."
+          rows={5}
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
         />
       </label>
@@ -2498,10 +2513,10 @@ function CreateBotForm({
       <button
         type="button"
         disabled={!name.trim()}
-        onClick={() => onCreate({ name, title, description, computerMode })}
+        onClick={() => onCreate({ name, title, description, instructions, computerMode })}
         className="mt-5 rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40"
       >
-        Create
+        Créer l'agent
       </button>
     </div>
   );
@@ -2529,6 +2544,7 @@ function BotSettings({
   const [name, setName] = useState(bot.name);
   const [title, setTitle] = useState(bot.title);
   const [description, setDescription] = useState(bot.description);
+  const [instructions, setInstructions] = useState(bot.instructions || bot.description || "");
   const [computerMode, setComputerMode] = useState(bot.computerMode);
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
   const [voiceId, setVoiceId] = useState(bot.voiceId ?? "");
@@ -2549,7 +2565,7 @@ function BotSettings({
         <BotAvatar color={bot.color} size={64} />
       </div>
       <label className="mt-6 block text-[14px] text-[#85858A]">
-        Name
+        Nom
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -2557,7 +2573,7 @@ function BotSettings({
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
-        Title
+        Titre / Rôle
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
@@ -2565,11 +2581,21 @@ function BotSettings({
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
-        Description
+        Description courte
         <textarea
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          rows={4}
+          rows={2}
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+        />
+      </label>
+      <label className="mt-4 block text-[14px] text-[#85858A]">
+        Instructions personnalisées / Prompt système
+        <textarea
+          value={instructions}
+          onChange={(e) => setInstructions(e.target.value)}
+          placeholder="Définissez les directives, compétences, style et comportement de votre agent..."
+          rows={6}
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
         />
       </label>
@@ -2580,17 +2606,17 @@ function BotSettings({
           checked={autoSpeak}
           onChange={(event) => setAutoSpeak(event.target.checked)}
         />
-        Read replies aloud
+        Lire les réponses à voix haute
       </label>
       {voices.length ? (
         <label className="mt-4 block text-[14px] text-[#85858A]">
-          Voice
+          Voix
           <select
             value={voiceId}
             onChange={(event) => setVoiceId(event.target.value)}
             className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
           >
-            <option value="">Account default</option>
+            <option value="">Par défaut du compte</option>
             {voices.map((voice) => (
               <option key={voice.id} value={voice.id}>
                 {voice.label}
@@ -2611,27 +2637,27 @@ function BotSettings({
               name,
               title,
               description,
-              instructions: description,
+              instructions: instructions.trim() || description,
               computerMode,
               autoSpeak,
               voiceId: voiceId || null,
             })
-              .catch((err) => setError(err instanceof Error ? err.message : "Could not save"))
+              .catch((err) => setError(err instanceof Error ? err.message : "Impossible d'enregistrer"))
               .finally(() => setSaving(false));
           }}
           className="rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40"
         >
-          Save
+          {saving ? "Enregistrement…" : "Enregistrer"}
         </button>
         <button
           type="button"
           onClick={() => void onExport()}
           className="text-[14px] text-[#85858A]"
         >
-          Export
+          Exporter l'agent
         </button>
         <button type="button" onClick={onClear} className="text-[14px] text-[#E65707]">
-          Clear conversation
+          Effacer la conversation
         </button>
       </div>
     </div>
@@ -2675,14 +2701,13 @@ function ClearConversationDialog({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <h2 id="clear-conversation-title" className="text-[17px] font-medium text-[#F1F1F2]">
-          Clear {bot.name}’s conversation?
+          Effacer la conversation avec {bot.name} ?
         </h2>
         <p
           id="clear-conversation-description"
           className="mt-2 text-[14px] leading-6 text-[#9A9AA0]"
         >
-          This permanently removes every message and stops current work. The bot, computer, memory,
-          and routines are kept.
+          Cette action supprime définitivement tous les messages échangés et arrête les tâches en cours. L'agent, sa mémoire et ses routines sont conservés.
         </p>
         {error ? <p className="mt-3 text-[13.5px] text-[#FF5364]">{error}</p> : null}
         <div className="mt-5 flex justify-end gap-2.5">
@@ -2692,7 +2717,7 @@ function ClearConversationDialog({
             onClick={onCancel}
             className="rounded-[10px] px-3.5 py-2 text-[14px] text-[#C9C9CE] hover:bg-[#29292D] disabled:opacity-40"
           >
-            Cancel
+            Annuler
           </button>
           <button
             type="button"
@@ -2701,13 +2726,13 @@ function ClearConversationDialog({
               setClearing(true);
               setError(null);
               void onConfirm().catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : "Could not clear conversation");
+                setError(err instanceof Error ? err.message : "Impossible d'effacer la conversation");
                 setClearing(false);
               });
             }}
             className="rounded-[10px] bg-[#FF5364] px-3.5 py-2 text-[14px] font-medium text-white disabled:opacity-40"
           >
-            {clearing ? "Clearing…" : "Clear"}
+            {clearing ? "Effacement…" : "Effacer"}
           </button>
         </div>
       </div>
@@ -2753,14 +2778,13 @@ function DeleteBotDialog({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <h2 id="delete-bot-title" className="text-[17px] font-medium text-[#F1F1F2]">
-          Delete {bot.name}?
+          Supprimer l'agent {bot.name} ?
         </h2>
         <p id="delete-bot-description" className="mt-2 text-[14px] leading-6 text-[#9A9AA0]">
-          Its conversation, files, and routines will be permanently deleted. Bots it created stay in
-          your list.
+          Ses conversations, fichiers et routines seront définitivement supprimés. Les agents créés par cet agent restent dans votre liste.
         </p>
         <fieldset className="mt-4 space-y-2">
-          <legend className="mb-2 text-[13.5px] text-[#C9C9CE]">What about its memories?</legend>
+          <legend className="mb-2 text-[13.5px] text-[#C9C9CE]">Que faire de ses mémoires ?</legend>
           <label className="flex cursor-pointer gap-3 rounded-[11px] border border-[#343438] p-3">
             <input
               type="radio"
@@ -2769,9 +2793,9 @@ function DeleteBotDialog({
               onChange={() => setDeleteMemories(false)}
             />
             <span>
-              <span className="block text-[14px] text-[#ECECEE]">Keep memories</span>
+              <span className="block text-[14px] text-[#ECECEE]">Conserver les mémoires</span>
               <span className="mt-0.5 block text-[12.5px] text-[#85858A]">
-                Move them to your shared memory.
+                Les transférer dans votre mémoire partagée.
               </span>
             </span>
           </label>
@@ -2783,9 +2807,9 @@ function DeleteBotDialog({
               onChange={() => setDeleteMemories(true)}
             />
             <span>
-              <span className="block text-[14px] text-[#ECECEE]">Delete memories too</span>
+              <span className="block text-[14px] text-[#ECECEE]">Supprimer aussi les mémoires</span>
               <span className="mt-0.5 block text-[12.5px] text-[#85858A]">
-                This cannot be undone.
+                Cette action est irréversible.
               </span>
             </span>
           </label>
@@ -2798,7 +2822,7 @@ function DeleteBotDialog({
             onClick={onCancel}
             className="rounded-[10px] px-3.5 py-2 text-[14px] text-[#C9C9CE] hover:bg-[#29292D] disabled:opacity-40"
           >
-            Cancel
+            Annuler
           </button>
           <button
             type="button"
@@ -2807,13 +2831,13 @@ function DeleteBotDialog({
               setDeleting(true);
               setError(null);
               void onConfirm(deleteMemories).catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : "Could not delete bot");
+                setError(err instanceof Error ? err.message : "Impossible de supprimer l'agent");
                 setDeleting(false);
               });
             }}
             className="rounded-[10px] bg-[#FF5364] px-3.5 py-2 text-[14px] font-medium text-white disabled:opacity-40"
           >
-            {deleting ? "Deleting…" : "Delete"}
+            {deleting ? "Suppression…" : "Supprimer"}
           </button>
         </div>
       </div>
@@ -2858,10 +2882,10 @@ function DeleteRoutineDialog({
         onPointerDown={(event) => event.stopPropagation()}
       >
         <h2 id="delete-routine-title" className="text-[17px] font-medium text-[#F1F1F2]">
-          Delete {routine.name}?
+          Supprimer la routine {routine.name} ?
         </h2>
         <p id="delete-routine-description" className="mt-2 text-[14px] leading-6 text-[#9A9AA0]">
-          This cannot be undone.
+          Cette action est irréversible.
         </p>
         {error ? <p className="mt-3 text-[13.5px] text-[#FF5364]">{error}</p> : null}
         <div className="mt-5 flex justify-end gap-2.5">
@@ -2871,7 +2895,7 @@ function DeleteRoutineDialog({
             onClick={onCancel}
             className="rounded-[10px] px-3.5 py-2 text-[14px] text-[#C9C9CE] hover:bg-[#29292D] disabled:opacity-40"
           >
-            Cancel
+            Annuler
           </button>
           <button
             type="button"
@@ -2880,13 +2904,13 @@ function DeleteRoutineDialog({
               setDeleting(true);
               setError(null);
               void onConfirm().catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : "Could not delete routine");
+                setError(err instanceof Error ? err.message : "Impossible de supprimer la routine");
                 setDeleting(false);
               });
             }}
             className="rounded-[10px] bg-[#FF5364] px-3.5 py-2 text-[14px] font-medium text-white disabled:opacity-40"
           >
-            {deleting ? "Deleting…" : "Delete"}
+            {deleting ? "Suppression…" : "Supprimer"}
           </button>
         </div>
       </div>

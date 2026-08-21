@@ -28,7 +28,7 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void refresh()
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Could not load catalog"),
+        setError(err instanceof Error ? err.message : "Impossible de charger le catalogue"),
       )
       .finally(() => setLoading(false));
   }, []);
@@ -70,7 +70,7 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
         await new Promise((resolve) => setTimeout(resolve, 2000));
       }
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not connect");
+      setError(err instanceof Error ? err.message : "Échec de la connexion");
     } finally {
       setPending(null);
     }
@@ -86,13 +86,13 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
         rows.find((entry) => entry.provider === item.slug && entry.status === "pending") ??
         rows.find((entry) => entry.provider === item.slug && entry.status === "error");
       if (!row) {
-        setError(`No connection record found for ${item.name}.`);
+        setError(`Aucun enregistrement de connexion trouvé pour ${item.name}.`);
         return;
       }
       await rpc.connections.revoke({ connectionId: row.id });
       setItemConnected(item.slug, false);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not revoke connection");
+      setError(err instanceof Error ? err.message : "Impossible de révoquer la connexion");
     } finally {
       setPending(null);
     }
@@ -103,12 +103,12 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
       <div className="flex h-[760px] w-[1080px] max-w-full flex-col overflow-hidden rounded-[26px] border border-[#232326] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)]">
         <div className="flex items-start justify-between px-8 pt-7">
           <div>
-            <div className="text-2xl font-medium text-[#F1F1F2]">Plugins</div>
-            {loading ? <p className="mt-1 text-[13.5px] text-[#7A7A80]">Loading catalog…</p> : null}
+            <div className="text-2xl font-medium text-[#F1F1F2]">Plugins & Intégrations</div>
+            {loading ? <p className="mt-1 text-[13.5px] text-[#7A7A80]">Chargement du catalogue…</p> : null}
           </div>
           <button
             type="button"
-            aria-label="Close plugins"
+            aria-label="Fermer"
             onClick={onClose}
             className="text-[#85858A]"
           >
@@ -119,11 +119,11 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search apps"
+            placeholder="Rechercher des applications"
             className="w-full rounded-[13px] border border-[#26262A] bg-[#101012] px-4 py-3 text-[15px] text-[#ECECEE] outline-none"
           />
         </div>
-        <div role="tablist" aria-label="Plugin views" className="flex gap-1 px-8 pt-4">
+        <div role="tablist" aria-label="Vues des plugins" className="flex gap-1 px-8 pt-4">
           {(["all", "connected"] as const).map((option) => (
             <button
               key={option}
@@ -138,7 +138,7 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
                   : "text-[#7A7A80] hover:text-[#C8C8CC]"
               }`}
             >
-              {option === "all" ? "All" : "Connected"}
+              {option === "all" ? "Tous" : "Connectés"}
             </button>
           ))}
         </div>
@@ -149,11 +149,11 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
         >
           {error ? <p className="mb-4 text-sm text-[#C94244]">{error}</p> : null}
           {!loading && catalog.length === 0 ? (
-            <p className="text-[#6C6C70]">Composio is not configured on this deployment.</p>
+            <p className="text-[#6C6C70]">Composio n'est pas configuré sur ce déploiement.</p>
           ) : null}
           {!loading && catalog.length > 0 && view === "connected" && visible.length === 0 ? (
             <p className="text-[#6C6C70]">
-              {query.trim() ? "No connected apps match your search." : "No connected apps yet."}
+              {query.trim() ? "Aucune application connectée ne correspond à votre recherche." : "Aucune application connectée pour le moment."}
             </p>
           ) : null}
           {visible.map((item) => (
@@ -173,7 +173,7 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
                 <div className="text-[15.5px] font-medium text-[#ECECEE]">{item.name}</div>
                 <div className="text-[13.5px] text-[#7A7A80]">
                   {item.slug}
-                  {item.noAuth ? " · no auth" : ""}
+                  {item.noAuth ? " · sans auth" : ""}
                 </div>
               </div>
               {item.connected ? (
@@ -184,7 +184,7 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
                   disabled={pending === item.slug}
                   onClick={() => void revoke(item)}
                 >
-                  {pending === item.slug ? "Revoking…" : "Revoke"}
+                  {pending === item.slug ? "Révocation…" : "Déconnecter"}
                 </Button>
               ) : (
                 <Button
@@ -194,7 +194,7 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
                   disabled={pending === item.slug}
                   onClick={() => void connect(item)}
                 >
-                  {pending === item.slug ? "Connecting…" : "Connect"}
+                  {pending === item.slug ? "Connexion…" : "Connecter"}
                 </Button>
               )}
             </div>

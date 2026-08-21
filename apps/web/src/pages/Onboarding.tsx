@@ -11,24 +11,24 @@ import { rpc } from "../lib/rpc";
 
 const QUESTIONS = [
   {
-    q: "What do you mainly want help with?",
-    sub: "Pick whatever’s closest, or type your own.",
+    q: "Pour quelles missions principales souhaitez-vous de l'aide ?",
+    sub: "Choisissez l'option la plus proche, ou écrivez la vôtre.",
     opts: [
-      "Inbox & email",
-      "Slack & messages",
-      "Coding & repos",
-      "Research & writing",
-      "A bit of everything",
+      "Gestion d'emails & messagerie",
+      "Développement & code",
+      "Recherche, analyse & rédaction",
+      "Automatisation de tâches",
+      "Un peu de tout",
     ],
   },
   {
-    q: "How do you want me to write?",
-    sub: "I’ll match this unless you say otherwise.",
+    q: "Quel style de réponse préférez-vous ?",
+    sub: "L'agent adaptera son ton selon votre préférence.",
     opts: [
-      "Clear and tight",
-      "Warm and conversational",
-      "Polished / formal",
-      "Match whatever I draft",
+      "Précis, clair et concis",
+      "Chaleureux et explicatif",
+      "Formel et professionnel",
+      "Adapté selon le contexte",
     ],
   },
 ];
@@ -44,6 +44,7 @@ export function OnboardingPage() {
   const [name, setName] = useState("");
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
+  const [instructions, setInstructions] = useState("");
   const [answers, setAnswers] = useState<string[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [oauth, setOauth] = useState<{
@@ -117,7 +118,7 @@ export function OnboardingPage() {
   const selected = modelsForProvider.find((entry) => entry.id === modelId) ?? modelsForProvider[0];
   const deviceSignIn = selected?.signIn === "device-code";
   const acceptsKey = selected?.auth !== "oauth";
-  const signInLabel = selected?.oauthLabel ?? "Sign in";
+  const signInLabel = selected?.oauthLabel ?? "Se connecter";
 
   async function saveModel() {
     setError(null);
@@ -132,7 +133,7 @@ export function OnboardingPage() {
       }
       setStep("bot");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Could not save model");
+      setError(err instanceof Error ? err.message : "Impossible d'enregistrer le modèle");
     }
   }
 
@@ -169,7 +170,7 @@ export function OnboardingPage() {
       const loginId = oauthLoginIdRef.current;
       oauthLoginIdRef.current = null;
       if (loginId) void rpc.models.cancelOAuth({ loginId }).catch(() => undefined);
-      setError(err instanceof Error ? err.message : "Could not start sign-in");
+      setError(err instanceof Error ? err.message : "Impossible de démarrer la connexion");
       setOauth(null);
     } finally {
       finishModelOAuthAttempt(oauthAbortRef, controller, () => setOauthPending(false));
@@ -177,14 +178,14 @@ export function OnboardingPage() {
   }
 
   async function createBot() {
-    const instructions = answers.length
-      ? `User setup:\n${answers.map((a) => `- ${a}`).join("\n")}`
-      : description;
+    const finalInstructions = instructions.trim() || (answers.length
+      ? `Configuration utilisateur :\n${answers.map((a) => `- ${a}`).join("\n")}`
+      : description);
     const bot = await rpc.bots.create({
       name: name.trim(),
       title,
       description,
-      instructions,
+      instructions: finalInstructions,
       notifyOnFinish: true,
     });
     navigate(`/app/${bot.id}`);
@@ -195,18 +196,17 @@ export function OnboardingPage() {
   return (
     <div className="flex min-h-full items-center justify-center bg-[#0D0D0E] px-6">
       <div className="w-[560px]">
-        {step === "loading" ? <p className="text-[#85858A]">Loading…</p> : null}
+        {step === "loading" ? <p className="text-[#85858A]">Chargement…</p> : null}
         {step === "model" ? (
           <div>
-            <h1 className="text-[32px] font-medium text-[#F1F1F2]">Connect a model</h1>
+            <h1 className="text-[32px] font-medium text-[#F1F1F2]">Connecter un modèle</h1>
             <p className="mt-2 text-[#85858A]">
-              Rakazo does not pay for model usage. Paste an API key, sign in with ChatGPT, Copilot,
-              or SuperGrok, or skip if this deployment already has a key.
+              Collez une clé API ou passez cette étape si votre serveur dispose déjà d'une clé configurée.
             </p>
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search providers and models"
+              placeholder="Rechercher des fournisseurs et modèles"
               className="mt-8 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
             />
             <div className="mt-3 max-h-48 overflow-y-auto rounded-[11px] border border-[#26262A]">
@@ -233,7 +233,7 @@ export function OnboardingPage() {
               ))}
             </div>
             <label className="mt-4 block text-sm text-[#85858A]">
-              Model
+              Modèle
               <select
                 value={selected?.id ?? modelId}
                 onChange={(e) => {
@@ -255,7 +255,7 @@ export function OnboardingPage() {
                 {oauth ? (
                   <div className="rounded-[11px] border border-[#26262A] px-3.5 py-3">
                     <p className="text-sm text-[#85858A]">
-                      Enter this code at{" "}
+                      Entrez ce code sur{" "}
                       <a
                         href={oauth.verificationUri}
                         target="_blank"
@@ -268,7 +268,7 @@ export function OnboardingPage() {
                     <p className="mt-2 font-mono text-[22px] tracking-[0.2em] text-[#F1F1F2]">
                       {oauth.userCode}
                     </p>
-                    <p className="mt-2 text-sm text-[#85858A]">Waiting for sign-in…</p>
+                    <p className="mt-2 text-sm text-[#85858A]">En attente de connexion…</p>
                   </div>
                 ) : (
                   <button
@@ -277,14 +277,14 @@ export function OnboardingPage() {
                     onClick={() => void startDeviceSignIn()}
                     className="rounded-[11px] bg-[#F1F1EF] px-5 py-2.5 text-[#17171A] disabled:opacity-40"
                   >
-                    {oauthPending ? "Starting…" : signInLabel}
+                    {oauthPending ? "Démarrage…" : signInLabel}
                   </button>
                 )}
               </div>
             ) : null}
             {acceptsKey ? (
               <label className="mt-4 block text-sm text-[#85858A]">
-                {deviceSignIn ? "Or paste an API key" : "API key"}
+                {deviceSignIn ? "Ou coller une clé API" : "Clé API"}
                 <input
                   value={apiKey}
                   onChange={(e) => setApiKey(e.target.value)}
@@ -295,8 +295,7 @@ export function OnboardingPage() {
               </label>
             ) : deviceSignIn ? null : (
               <p className="mt-4 text-sm text-[#85858A]">
-                This provider cannot paste a key here. Skip if this deployment already has
-                credentials.
+                Passez cette étape si ce déploiement dispose déjà d'une clé configurée.
               </p>
             )}
             {error ? <p className="mt-3 text-sm text-[#E65707]">{error}</p> : null}
@@ -307,7 +306,7 @@ export function OnboardingPage() {
                 onClick={() => void saveModel()}
                 className="rounded-[11px] bg-[#F1F1EF] px-5 py-2.5 text-[#17171A] disabled:opacity-40"
               >
-                Continue
+                Continuer
               </button>
               <button
                 type="button"
@@ -317,38 +316,48 @@ export function OnboardingPage() {
                 }}
                 className="text-[#85858A]"
               >
-                Skip for now
+                Passer pour le moment
               </button>
             </div>
           </div>
         ) : null}
         {step === "bot" ? (
           <div>
-            <h1 className="text-[32px] font-medium text-[#F1F1F2]">Create your first bot</h1>
+            <h1 className="text-[32px] font-medium text-[#F1F1F2]">Créer votre premier agent</h1>
             <label className="mt-8 block text-sm text-[#85858A]">
-              Name
+              Nom de l'agent
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Name this bot"
+                placeholder="Ex: Samy, Rédacteur, Assistant"
                 className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
               />
             </label>
             <label className="mt-4 block text-sm text-[#85858A]">
-              Title
+              Titre / Rôle
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Describe what this bot does"
+                placeholder="Ex: Expert Marketing, Développeur"
                 className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
               />
             </label>
             <label className="mt-4 block text-sm text-[#85858A]">
-              Description
+              Description courte
               <textarea
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                placeholder="What this bot is for"
+                placeholder="Mission principale de cet agent"
+                rows={2}
+                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+              />
+            </label>
+            <label className="mt-4 block text-sm text-[#85858A]">
+              Instructions personnalisées / Prompt système
+              <textarea
+                value={instructions}
+                onChange={(e) => setInstructions(e.target.value)}
+                placeholder="Définissez les compétences et les instructions de votre agent..."
                 rows={4}
                 className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
               />
@@ -359,7 +368,7 @@ export function OnboardingPage() {
               onClick={() => setStep("questions")}
               className="mt-6 rounded-[11px] bg-[#F1F1EF] px-5 py-2.5 text-[#17171A] disabled:opacity-40"
             >
-              Continue
+              Continuer
             </button>
           </div>
         ) : null}
@@ -386,14 +395,14 @@ export function OnboardingPage() {
         ) : null}
         {step === "questions" && !question ? (
           <div>
-            <h1 className="text-[32px] font-medium text-[#F1F1F2]">You’re set.</h1>
-            <p className="mt-2 text-[#85858A]">I’ll pick up work the moment you send it.</p>
+            <h1 className="text-[32px] font-medium text-[#F1F1F2]">Tout est prêt !</h1>
+            <p className="mt-2 text-[#85858A]">Votre agent est configuré et prêt à exécuter vos tâches.</p>
             <button
               type="button"
               onClick={() => void createBot()}
               className="mt-6 rounded-[11px] bg-[#F1F1EF] px-5 py-2.5 text-[#17171A]"
             >
-              Open Rakazo
+              Ouvrir Rakazo
             </button>
           </div>
         ) : null}
