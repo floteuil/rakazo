@@ -136,15 +136,14 @@ services:
       - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.entryPoints=http"
       - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.middlewares=redirect-to-https"
       - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`agents.workspacegroupefloteuil.eu`) && PathPrefix(`/`)"
-      - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.service=http-0-s1253nc0yc4uu89lp6692r1s-web"
+      - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.service=s1253nc0yc4uu89lp6692r1s-web"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.entryPoints=https"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.middlewares=gzip"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`agents.workspacegroupefloteuil.eu`) && PathPrefix(`/`)"
-      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.service=https-0-s1253nc0yc4uu89lp6692r1s-web"
+      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.service=s1253nc0yc4uu89lp6692r1s-web"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.tls.certresolver=letsencrypt"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.tls=true"
-      - "traefik.http.services.https-0-s1253nc0yc4uu89lp6692r1s-web.loadbalancer.server.port=5173"
-      - "traefik.http.services.http-0-s1253nc0yc4uu89lp6692r1s-web.loadbalancer.server.port=5173"
+      - "traefik.http.services.s1253nc0yc4uu89lp6692r1s-web.loadbalancer.server.port=5173"
 
 volumes:
   pgdata:
