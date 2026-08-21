@@ -108,6 +108,7 @@ const READ_ONLY_AGENT_TOOLS = new Set([
   "run_subagent",
   "web_search",
   "web_scrape",
+  "read_skill",
   // Read-only enterprise tools
   "github_search_repos",
   "github_get_file_contents",
@@ -132,6 +133,57 @@ const GRAPHICAL_AGENT_TOOLS = new Set([
   "open_path",
   "launch_app",
 ]);
+
+export const DIRECT_INJECTION_MAX_BYTES = 4096; // 4 KB
+export const CUMULATIVE_DIRECT_MAX_BYTES = 32768; // 32 KB (~8,000 tokens)
+
+export interface SkillItemLike {
+  id?: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  content: string;
+  tags?: unknown;
+  metadata?: Record<string, unknown>;
+  enabled?: boolean;
+}
+
+export function formatSkillsPrompt(activeSkills: SkillItemLike[]): string | undefined {
+  const enabledSkills = activeSkills.filter((s) => s.enabled !== false);
+  if (enabledSkills.length === 0) return undefined;
+
+  let cumulativeDirectBytes = 0;
+  const formattedSections: string[] = [];
+
+  for (const skill of enabledSkills.slice(0, 20)) {
+    const contentLength = Buffer.byteLength(skill.content || "", "utf8");
+    const isDirect =
+      contentLength < DIRECT_INJECTION_MAX_BYTES &&
+      cumulativeDirectBytes + contentLength <= CUMULATIVE_DIRECT_MAX_BYTES;
+
+    const rawTags = skill.tags;
+    const tagsStr = Array.isArray(rawTags)
+      ? rawTags.map(String).filter(Boolean).join(", ")
+      : typeof rawTags === "string"
+        ? rawTags
+        : "";
+
+    if (isDirect) {
+      cumulativeDirectBytes += contentLength;
+      formattedSections.push(
+        `### Compétence active : ${skill.name} (${skill.slug})\n${skill.description ? `${skill.description}\n` : ""}Tags: ${tagsStr}\n\n\`\`\`markdown\n${skill.content}\n\`\`\``,
+      );
+    } else {
+      formattedSections.push(
+        `### Compétence indexée : ${skill.name} (${skill.slug})\n- Description: ${skill.description || "Aucune description"}\n- Tags: ${tagsStr}\n- Taille: ${(contentLength / 1024).toFixed(1)} Ko\n- Directive: Ce skill volumineux est indexé. Pour charger ses instructions complètes, appelez l'outil \`read_skill(name: "${skill.slug}")\` lorsque pertinent.`,
+      );
+    }
+  }
+
+  if (formattedSections.length === 0) return undefined;
+  return `## Compétences & Connaissances Spécialisées de l'Agent\n\n${formattedSections.join("\n\n")}`;
+}
 
 export interface ExecutorDeps {
   prisma: PrismaClient;
@@ -372,30 +424,46 @@ export function createRunExecutor(deps: ExecutorDeps) {
       ].filter((val): val is string => Boolean(val && val.length >= 4));
       runSecrets.push(...enterpriseTokens);
       try {
-        const [bot, thread, messages, task, storedConnections, credential, settings, savedSkills] =
-          await Promise.all([
-            deps.prisma.bot.findUniqueOrThrow({
-              where: { id: run.botId },
-              include: { computer: true },
-            }),
-            deps.prisma.thread.findUniqueOrThrow({ where: { id: run.threadId } }),
-            deps.prisma.message.findMany({
-              where: { threadId: run.threadId },
-              orderBy: { seq: "desc" },
-              take: LEGACY_HISTORY_WINDOW_SIZE,
-              select: { role: true, runId: true, blocks: true },
-            }),
-            deps.prisma.task.findUniqueOrThrow({ where: { id: run.taskId } }),
-            deps.prisma.connection.findMany({
-              where: { userId: run.userId, workspaceId: run.workspaceId },
-              select: { id: true, provider: true, displayName: true, status: true },
-            }),
-            findDefaultModelCredential(deps.prisma, run),
-            deps.prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
-            deps.prisma.taughtSkill.findMany({
-              where: { botId: run.botId, workspaceId: run.workspaceId, status: "saved" },
-            }),
-          ]);
+        const [
+          bot,
+          thread,
+          messages,
+          task,
+          storedConnections,
+          credential,
+          settings,
+          savedSkills,
+          activeBotSkillsRaw,
+        ] = await Promise.all([
+          deps.prisma.bot.findUniqueOrThrow({
+            where: { id: run.botId },
+            include: { computer: true },
+          }),
+          deps.prisma.thread.findUniqueOrThrow({ where: { id: run.threadId } }),
+          deps.prisma.message.findMany({
+            where: { threadId: run.threadId },
+            orderBy: { seq: "desc" },
+            take: LEGACY_HISTORY_WINDOW_SIZE,
+            select: { role: true, runId: true, blocks: true },
+          }),
+          deps.prisma.task.findUniqueOrThrow({ where: { id: run.taskId } }),
+          deps.prisma.connection.findMany({
+            where: { userId: run.userId, workspaceId: run.workspaceId },
+            select: { id: true, provider: true, displayName: true, status: true },
+          }),
+          findDefaultModelCredential(deps.prisma, run),
+          deps.prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
+          deps.prisma.taughtSkill.findMany({
+            where: { botId: run.botId, workspaceId: run.workspaceId, status: "saved" },
+          }),
+          deps.prisma.botSkill?.findMany
+            ? deps.prisma.botSkill.findMany({
+                where: { botId: run.botId, workspaceId: run.workspaceId, enabled: true },
+                include: { skill: true },
+                orderBy: { createdAt: "asc" },
+              })
+            : Promise.resolve([]),
+        ]);
         runAbortController = new AbortController();
         if (!leaseValid) runAbortController.abort();
         let liveSlugs: string[] = [];
@@ -807,6 +875,41 @@ export function createRunExecutor(deps: ExecutorDeps) {
             );
             return finish(result);
           }
+          if (name === "read_skill") {
+            const target = String(args.name ?? args.skill ?? args.target ?? "").trim();
+            if (!target) {
+              return finish({ error: "Paramètre 'name' manquant pour read_skill." });
+            }
+            if (!deps.prisma.skill?.findFirst) {
+              return finish({ error: `Skill '${target}' not found in workspace.` });
+            }
+            const targetLower = target.toLowerCase();
+            const skill = await deps.prisma.skill.findFirst({
+              where: {
+                workspaceId: run.workspaceId,
+                OR: [
+                  { slug: targetLower },
+                  { name: { equals: target, mode: "insensitive" } },
+                  { id: target },
+                ],
+              },
+            });
+            if (!skill) {
+              return finish({ error: `Skill '${target}' not found in workspace.` });
+            }
+            const tags = Array.isArray(skill.tags)
+              ? (skill.tags as string[])
+              : typeof skill.tags === "string"
+                ? [skill.tags]
+                : [];
+            return finish({
+              name: skill.name,
+              slug: skill.slug,
+              description: skill.description,
+              tags,
+              content: skill.content,
+            });
+          }
           if (name === "spawn_bot") {
             const spawned = await spawnBot(deps, {
               spawnedBy: {
@@ -935,6 +1038,30 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   "\n",
                 )}\nWhen the user asks to run a taught skill by name, follow that skill's playbook exactly. The full playbook is included in the user task when they invoke it.`
             : undefined;
+        const activeBotSkills: SkillItemLike[] = [];
+        for (const bs of activeBotSkillsRaw ?? []) {
+          const skill =
+            bs && typeof bs === "object" && "skill" in bs
+              ? (bs.skill as Record<string, unknown> | null | undefined)
+              : undefined;
+          if (skill && typeof skill.name === "string" && typeof skill.content === "string") {
+            activeBotSkills.push({
+              id: typeof skill.id === "string" ? skill.id : undefined,
+              workspaceId: typeof skill.workspaceId === "string" ? skill.workspaceId : undefined,
+              name: skill.name,
+              slug: typeof skill.slug === "string" ? skill.slug : "",
+              description: typeof skill.description === "string" ? skill.description : null,
+              content: skill.content,
+              tags: skill.tags,
+              metadata:
+                skill.metadata && typeof skill.metadata === "object"
+                  ? (skill.metadata as Record<string, unknown>)
+                  : undefined,
+              enabled: (bs as { enabled?: boolean })?.enabled !== false,
+            });
+          }
+        }
+        const skillsPrompt = formatSkillsPrompt(activeBotSkills);
         const taskPrompt = [task.prompt, attachedFilesPrompt].filter(Boolean).join("\n\n");
         const invokedSkill = savedSkills.find((skill) =>
           promptInvokesSkill(taskPrompt, skill.name || skill.goal),
@@ -966,6 +1093,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 "Enterprise integrations: You have direct native tools for GitHub (search, read files, issues, PRs, comments), Notion (search, pages, databases), Postiz (social posts & channels), WordPress/Novamira (posts & abilities), n8n (workflows & webhooks), and Cloudflare (zones, DNS, cache purge). Use them directly when requested.",
                 pluginLine,
                 taughtSkillsLine,
+                skillsPrompt,
                 "Never print API keys, access tokens, or secret values. Prefer tools over claiming you already did the work.",
               ]
                 .filter((instruction): instruction is string => Boolean(instruction))

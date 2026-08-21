@@ -47,8 +47,8 @@ export function SkillDraftCard({
   async function saveDraft() {
     setBusy(true);
     try {
-      await rpc.skills.updateDraft({ skillId: block.skillId, name, playbook });
-      await rpc.skills.save({ skillId: block.skillId, name });
+      await rpc.taughtSkills.updateDraft({ skillId: block.skillId, name, playbook });
+      await rpc.taughtSkills.save({ skillId: block.skillId, name });
       setSaved(true);
       await onRefresh();
     } finally {
@@ -59,8 +59,8 @@ export function SkillDraftCard({
   async function testDraft() {
     setBusy(true);
     try {
-      await rpc.skills.updateDraft({ skillId: block.skillId, name, playbook });
-      await rpc.skills.testRun({ skillId: block.skillId });
+      await rpc.taughtSkills.updateDraft({ skillId: block.skillId, name, playbook });
+      await rpc.taughtSkills.testRun({ skillId: block.skillId });
       await onRefresh();
     } finally {
       setBusy(false);

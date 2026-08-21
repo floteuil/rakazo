@@ -135,6 +135,108 @@ export const TaughtSkillSchema = z.object({
 });
 export type TaughtSkill = z.infer<typeof TaughtSkillSchema>;
 
+export const SkillSchema = z.object({
+  id: Id,
+  workspaceId: Id,
+  userId: z.string(),
+  name: z.string().min(1).max(120),
+  slug: z.string().min(1).max(120),
+  description: z.string().max(2000),
+  content: z.string().max(2_000_000), // 2MB limit
+  tags: z.array(z.string().min(1).max(50)).max(20),
+  metadata: z.record(z.string(), z.unknown()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Skill = z.infer<typeof SkillSchema>;
+
+export const SkillSummarySchema = SkillSchema.omit({ content: true });
+export type SkillSummary = z.infer<typeof SkillSummarySchema>;
+
+export const BotSkillAssignmentSchema = z.object({
+  id: Id,
+  workspaceId: Id,
+  botId: Id,
+  skillId: Id,
+  enabled: z.boolean(),
+  createdAt: z.string(),
+});
+export type BotSkillAssignment = z.infer<typeof BotSkillAssignmentSchema>;
+
+export const ListSkillsInput = z.object({
+  search: z.string().max(100).optional(),
+  tag: z.string().max(50).optional(),
+  limit: z.number().int().min(1).max(100).default(50).optional(),
+  offset: z.number().int().min(0).default(0).optional(),
+});
+export type ListSkillsInput = z.infer<typeof ListSkillsInput>;
+
+export const GetSkillInput = z
+  .object({
+    skillId: Id.optional(),
+    slug: z.string().min(1).max(120).optional(),
+  })
+  .refine((data) => data.skillId || data.slug, {
+    message: "Either skillId or slug must be provided",
+  });
+export type GetSkillInput = z.infer<typeof GetSkillInput>;
+
+export const CreateSkillInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(120),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens")
+    .optional(),
+  description: z.string().trim().max(2000).default(""),
+  content: z.string().min(1, "Content cannot be empty").max(2_000_000, "Content cannot exceed 2MB"),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+export type CreateSkillInput = z.infer<typeof CreateSkillInput>;
+
+export const UpdateSkillInput = z.object({
+  skillId: Id,
+  name: z.string().trim().min(1).max(120).optional(),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens")
+    .optional(),
+  description: z.string().trim().max(2000).optional(),
+  content: z.string().min(1).max(2_000_000).optional(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+export type UpdateSkillInput = z.infer<typeof UpdateSkillInput>;
+
+export const DeleteSkillInput = z.object({
+  skillId: Id,
+});
+export type DeleteSkillInput = z.infer<typeof DeleteSkillInput>;
+
+export const UploadSkillMarkdownInput = z.object({
+  filename: z.string().max(255).optional(),
+  content: z.string().min(1, "File content is empty").max(2_000_000, "File exceeds 2MB limit"),
+  overwrite: z.boolean().default(false).optional(),
+});
+export type UploadSkillMarkdownInput = z.infer<typeof UploadSkillMarkdownInput>;
+
+export const AssignSkillsToBotInput = z.object({
+  botId: Id,
+  skillIds: z.array(Id).max(100),
+});
+export type AssignSkillsToBotInput = z.infer<typeof AssignSkillsToBotInput>;
+
+export const GetBotSkillsInput = z.object({
+  botId: Id,
+});
+export type GetBotSkillsInput = z.infer<typeof GetBotSkillsInput>;
+
 export const MemoryDocumentSchema = z.object({
   id: Id,
   scope: MemoryScope,

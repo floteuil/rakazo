@@ -38,10 +38,10 @@ describe("Pi agent runtime", () => {
 describe("Pi model-facing connector tool names", () => {
   it("leaves builtin-compatible names unchanged", () => {
     expect(normalizeAgentToolName("write_file")).toBe("write_file");
-    expect(normalizeAgentToolNames([tool("write_file"), tool("shell")])).toEqual([
-      "write_file",
-      "shell",
-    ]);
+    expect(normalizeAgentToolName("read_skill")).toBe("read_skill");
+    expect(
+      normalizeAgentToolNames([tool("write_file"), tool("shell"), tool("read_skill")]),
+    ).toEqual(["write_file", "shell", "read_skill"]);
   });
 
   it("normalizes punctuation, whitespace, and Unicode to the provider-safe pattern", () => {

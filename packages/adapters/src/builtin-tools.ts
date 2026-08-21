@@ -257,5 +257,20 @@ export const builtinAgentTools: ConnectorTool[] = [
       required: ["url"],
     },
   },
+  {
+    name: "read_skill",
+    description:
+      "Read the full markdown documentation and instructions of an indexed skill by its slug or name.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        name: {
+          type: "string",
+          description: "The slug or exact name of the skill to read.",
+        },
+      },
+      required: ["name"],
+    },
+  },
   ...enterpriseAgentTools,
 ];

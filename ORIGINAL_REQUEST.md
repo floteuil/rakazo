@@ -43,3 +43,87 @@ Integrity mode: demo
 ### Stabilité & Déploiement
 - [ ] Le build `pnpm build` et le déploiement sur `https://agents.workspacegroupefloteuil.eu` s'exécutent avec succès.
 - [ ] L'instance reste sécurisée (headers HSTS, rate-limiting, sandboxing persistant).
+
+## Follow-up — 2026-08-21T16:34:04Z
+
+# Implémentation Complète du Système de Skills pour Rakazo (Groupe Floteuil)
+
+> Working directory: /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app  
+> Integrity mode: development  
+
+Développement et intégration d'un système complet et souverain de gestion de Skills (Bibliothèque globale, interface WebUI moderne en français pour l'upload/gestion/suppression, association dynamique par agent, injection runtime hybride avec contrôle strict de la consommation de tokens, synchronisation modulaire amont et suite de tests automatisés exhaustive).
+
+Working directory: /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app
+Integrity mode: development
+
+## Requirements
+
+### R1. Modèle de Données & Persistance Prisma
+- Ajouter les modèles `Skill` et `BotSkill` dans le schéma Prisma (`packages/db/prisma/schema.prisma`) pour gérer la bibliothèque globale et la relation plusieurs-à-plusieurs (Many-to-Many) avec les agents (`Bot`).
+- Champs du modèle `Skill` : `id`, `name`, `slug`, `description`, `content` (Markdown), `tags` (liste/JSON), `metadata` (JSON), `createdAt`, `updatedAt`.
+- Garantir la suppression propre (cascade ou détachement sécurisé) sans laisser d'enregistrements orphelins et sans saturer l'espace disque du VPS.
+- Générer des migrations SQL PostgreSQL standard, additives et non-destructives pour assurer la compatibilité lors des redéploiements Coolify.
+
+### R2. Backend & Contrats API oRPC (Fastify)
+- Définir les contrats Zod dans `packages/contracts/src/` pour les opérations CRUD sur les Skills (`listSkills`, `getSkill`, `createSkill`, `updateSkill`, `deleteSkill`, `uploadSkillMarkdown`, `assignSkillsToBot`, `getBotSkills`).
+- Implémenter les handlers d'API dans `apps/api/src/` avec validation stricte, assainissement contre les injections de code/scripts et gestion d'erreurs robuste.
+- Supporter le format hybride intelligent : parsing du YAML Frontmatter (métadonnées `name`, `description`, `tags`) ou extraction automatique depuis les titres H1 / paragraphes pour les fichiers Markdown bruts.
+
+### R3. Interface WebUI Moderne & Ergonomique (React + Tailwind)
+- Créer une vue / overlay dédiée "Bibliothèque de Skills" accessible depuis la barre latérale ou les paramètres :
+  - Upload de fichiers `.md` par glisser-déposer (Drag & Drop) et bouton de téléversement.
+  - Catalogue visuel sous forme de cartes avec filtres de recherche instantanée par nom ou tags.
+  - Visualiseur / Éditeur Markdown intégré avec coloration syntaxique et prévisualisation.
+  - Boutons d'édition et de suppression sécurisée avec confirmation.
+- Intégrer la sélection des Skills dans les écrans de création et de configuration des agents (`CreateBotForm`, `BotSettings`) sous forme de sélecteur multi-badges / cases à cocher avec prévisualisation des compétences activées.
+- Traduction intégrale en français professionnel et respect du design système existant de Rakazo.
+
+### R4. Injection Runtime Optimisée & Contrôle de Consommation de Tokens
+- Dans le moteur d'exécution d'agent (`packages/adapters/src/pi-runtime.ts`), intégrer dynamiquement les compétences actives de l'agent.
+- Architecture hybride pour la gestion du contexte :
+  - Injection directe et structurée dans le prompt système pour les skills légers (< 4 Ko).
+  - Mode indexé / condensé pour les skills plus volumineux afin de protéger la fenêtre de contexte et éviter la surconsommation de tokens OpenRouter (`openai/gpt-oss-120b`).
+- Mettre à disposition de l'agent un outil builtin `read_skill` pour consulter à la demande le contenu détaillé d'un skill indexé si nécessaire.
+
+### R5. Cybersécurité, Garde-fous IA & Robustesse
+- Assainissement strict des fichiers uploadés (limitation de taille max 2 Mo par skill, interdiction d'exécution de scripts exécutables non autorisés).
+- Préservation du mécanisme de masquage des secrets (`sanitizeToolError`) pour éviter toute fuite d'informations sensibles.
+- Protection contre les boucles infinies et limitation de la charge CPU/RAM pour garantir la pérennité des ressources du VPS.
+
+### R6. Coexistence Modulaire & Intégration Amont (Upstream)
+- Isoler les nouveaux modules et composants pour minimiser les modifications au cœur du code hérité.
+- Intégrer sans conflit les derniers commits amont (groupes de bots épinglés et correctifs de requêtes E2E).
+- Assurer que le workflow GitHub Actions (`sync-upstream.yml`) continue de fonctionner sans conflit.
+
+### R7. Batterie de Tests Exhaustive & Documentation
+- Écrire des tests unitaires et d'intégration complets couvrant :
+  - Le parsing et la validation des fichiers Markdown/YAML de skills.
+  - Les routes API oRPC et les opérations en base Prisma.
+  - L'injection et le formatage des skills dans le runtime Pi.
+  - La sélection et l'affichage dans les composants React.
+- Mettre à jour la documentation (`PROJECT.md`, `README.md`, guide de transmission) avec les explications techniques complètes.
+
+## Acceptance Criteria
+
+### Base de données & API
+- [ ] Le schéma Prisma est enrichi des modèles `Skill` et `BotSkill` et passe la validation (`prisma validate`).
+- [ ] Les endpoints oRPC permettent d'ajouter, lister, modifier, supprimer des skills et de les attacher/détacher d'un agent.
+- [ ] L'importation d'un fichier `.md` (avec ou sans frontmatter YAML) crée immédiatement le skill avec les bonnes métadonnées.
+
+### Interface WebUI
+- [ ] L'utilisateur peut uploader un ou plusieurs fichiers Markdown de skills en quelques clics.
+- [ ] La bibliothèque de skills affiche clairement tous les skills disponibles avec recherche et prévisualisation.
+- [ ] Dans le profil d'un agent, l'utilisateur peut associer ou retirer des skills d'un simple clic.
+- [ ] L'intégralité des nouveaux écrans et messages est en français.
+
+### Runtime & Intelligence Artificielle
+- [ ] Un agent équipé de skills spécifiques respecte fidèlement les consignes et connaissances de ces skills lors de ses réponses et exécutions d'outils.
+- [ ] Les compétences de plus de 30 outils MCP historiques restent 100 % opérationnelles en parallèle des skills.
+- [ ] Les gardes-fous de tokens empêchent l'épuisement de la fenêtre de contexte.
+
+### Intégrité & Qualité Technique
+- [ ] `pnpm check` (vérification TypeScript stricte) s'exécute avec 0 erreur.
+- [ ] `pnpm test` s'exécute avec 100 % de réussite (tests existants + nouveaux tests de la suite Skills).
+- [ ] `pnpm build` compile l'ensemble des packages sans avertissement critique.
+- [ ] Le dépôt Git est documenté et prêt pour le redéploiement Coolify.
+

@@ -83,6 +83,7 @@ import {
 import { addScreenProxyCapability } from "./screen-proxy.js";
 import { queryWorkspaceSearch } from "./search.js";
 import { withSerializableRetry } from "./serializable-retry.js";
+import { createSkillsService } from "./skills.js";
 import { assertTeachingSendAllowed, createTaughtSkillsService } from "./taught-skills.js";
 import { loadAllMessages, loadMessagePage } from "./thread-message-pages.js";
 import {
@@ -145,6 +146,7 @@ export function createRouter(deps: RouterDeps) {
     home: deps.home,
     dataDir: deps.dataDir,
   });
+  const skills = createSkillsService({ prisma: deps.prisma });
 
   const authed = os.use(async ({ context, next }) => {
     if (!context.actor) throw new ORPCError("UNAUTHORIZED");
@@ -1277,39 +1279,65 @@ export function createRouter(deps: RouterDeps) {
       }),
     },
     skills: {
-      list: authed.skills.list.handler(async ({ context, input }) => {
+      list: authed.skills.list.handler(async ({ context, input }) =>
+        skills.list(context.actor, input),
+      ),
+      get: authed.skills.get.handler(async ({ context, input }) =>
+        skills.get(context.actor, input),
+      ),
+      create: authed.skills.create.handler(async ({ context, input }) =>
+        skills.create(context.actor, input),
+      ),
+      update: authed.skills.update.handler(async ({ context, input }) =>
+        skills.update(context.actor, input),
+      ),
+      delete: authed.skills.delete.handler(async ({ context, input }) =>
+        skills.delete(context.actor, input),
+      ),
+      uploadMarkdown: authed.skills.uploadMarkdown.handler(async ({ context, input }) =>
+        skills.uploadMarkdown(context.actor, input),
+      ),
+      assignToBot: authed.skills.assignToBot.handler(async ({ context, input }) =>
+        skills.assignToBot(context.actor, input),
+      ),
+      getBotSkills: authed.skills.getBotSkills.handler(async ({ context, input }) =>
+        skills.getBotSkills(context.actor, input),
+      ),
+    },
+    taughtSkills: {
+      list: authed.taughtSkills.list.handler(async ({ context, input }) => {
         await repos.getBot(context.actor, input.botId);
         return taughtSkills.list(context.actor, input.botId);
       }),
-      get: authed.skills.get.handler(async ({ context, input }) =>
+      get: authed.taughtSkills.get.handler(async ({ context, input }) =>
         taughtSkills.get(context.actor, input.skillId),
       ),
-      start: authed.skills.start.handler(async ({ context, input }) => {
+      start: authed.taughtSkills.start.handler(async ({ context, input }) => {
         await repos.getBot(context.actor, input.botId);
         return taughtSkills.start(context.actor, input.botId, input.goal);
       }),
-      appendEvent: authed.skills.appendEvent.handler(async ({ context, input }) =>
+      appendEvent: authed.taughtSkills.appendEvent.handler(async ({ context, input }) =>
         taughtSkills.appendEvent(context.actor, input.skillId, input.event),
       ),
-      snapshot: authed.skills.snapshot.handler(async ({ context, input }) =>
+      snapshot: authed.taughtSkills.snapshot.handler(async ({ context, input }) =>
         taughtSkills.snapshot(context.actor, input.skillId),
       ),
-      stop: authed.skills.stop.handler(async ({ context, input }) =>
+      stop: authed.taughtSkills.stop.handler(async ({ context, input }) =>
         taughtSkills.stop(context.actor, input.skillId),
       ),
-      updateDraft: authed.skills.updateDraft.handler(async ({ context, input }) =>
+      updateDraft: authed.taughtSkills.updateDraft.handler(async ({ context, input }) =>
         taughtSkills.updateDraft(context.actor, input.skillId, {
           name: input.name,
           playbook: input.playbook,
         }),
       ),
-      save: authed.skills.save.handler(async ({ context, input }) =>
+      save: authed.taughtSkills.save.handler(async ({ context, input }) =>
         taughtSkills.save(context.actor, input.skillId, input.name),
       ),
-      testRun: authed.skills.testRun.handler(async ({ context, input }) =>
+      testRun: authed.taughtSkills.testRun.handler(async ({ context, input }) =>
         taughtSkills.testRun(context.actor, input.skillId, input.prompt),
       ),
-      remove: authed.skills.remove.handler(async ({ context, input }) =>
+      remove: authed.taughtSkills.remove.handler(async ({ context, input }) =>
         taughtSkills.remove(context.actor, input.skillId),
       ),
     },

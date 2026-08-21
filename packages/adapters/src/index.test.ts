@@ -140,6 +140,7 @@ describe("builtin tools", () => {
         "archive_bot",
         "web_search",
         "web_scrape",
+        "read_skill",
         "github_search_repos",
         "notion_search",
         "postiz_create_post",

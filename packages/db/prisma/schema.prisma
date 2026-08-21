@@ -103,6 +103,8 @@ model Organization {
   notificationPreferences NotificationPreference[]
   computers   Computer[]
   externalEffects ExternalEffect[]
+  skills          Skill[]
+  botSkills       BotSkill[]
 
   @@unique([slug])
   @@map("organization")
@@ -221,6 +223,7 @@ model Bot {
   usageRecords   UsageRecord[]
   tasks          Task[]
   runs           Run[]
+  botSkills      BotSkill[]
 
   @@index([workspaceId, userId, archivedAt, pinned, updatedAt])
   @@index([computerId])
@@ -642,3 +645,42 @@ model Secret {
   @@index([userId, workspaceId])
   @@map("secrets")
 }
+
+model Skill {
+  id          String    @id @default(cuid())
+  workspaceId String
+  workspace   Organization @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  userId      String
+  name        String
+  slug        String
+  description String    @default("")
+  content     String
+  tags        Json      @default("[]")
+  metadata    Json      @default("{}")
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  botSkills   BotSkill[]
+
+  @@unique([workspaceId, slug])
+  @@index([workspaceId, userId])
+  @@index([workspaceId, updatedAt])
+  @@map("skills")
+}
+
+model BotSkill {
+  id          String   @id @default(cuid())
+  workspaceId String
+  workspace   Organization @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  botId       String
+  bot         Bot      @relation(fields: [botId], references: [id], onDelete: Cascade)
+  skillId     String
+  skill       Skill    @relation(fields: [skillId], references: [id], onDelete: Cascade)
+  enabled     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+
+  @@unique([botId, skillId])
+  @@index([workspaceId, botId])
+  @@index([skillId])
+  @@map("bot_skills")
+}
+

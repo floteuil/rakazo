@@ -41,7 +41,7 @@ export function TeachComputerSection({
     setLocalBusy(true);
     try {
       await rpc.computer.boot({ botId });
-      await rpc.skills.start({ botId, goal: goal.trim() });
+      await rpc.taughtSkills.start({ botId, goal: goal.trim() });
       setGoalOpen(false);
       setGoal("");
       await onOpenComputer();
@@ -59,7 +59,7 @@ export function TeachComputerSection({
     }
     setLocalBusy(true);
     try {
-      await rpc.skills.stop({ skillId: recording.id });
+      await rpc.taughtSkills.stop({ skillId: recording.id });
       await onRefresh();
     } finally {
       setLocalBusy(false);
@@ -138,7 +138,7 @@ export function TeachComputerSection({
                   onClick={async () => {
                     setLocalBusy(true);
                     try {
-                      await rpc.skills.testRun({ skillId: skill.id });
+                      await rpc.taughtSkills.testRun({ skillId: skill.id });
                       await onRefresh();
                     } finally {
                       setLocalBusy(false);
@@ -161,7 +161,7 @@ export function TeachComputerSection({
                   onClick={async () => {
                     setLocalBusy(true);
                     try {
-                      await rpc.skills.save({ skillId: skill.id });
+                      await rpc.taughtSkills.save({ skillId: skill.id });
                       await onRefresh();
                     } finally {
                       setLocalBusy(false);

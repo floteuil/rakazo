@@ -381,6 +381,11 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
                 : undefined,
         };
       }
+      if (tool.name === "read_skill") {
+        return {
+          name: String(raw.name ?? raw.skill ?? raw.target ?? "").trim(),
+        };
+      }
       // GitHub
       if (tool.name === "github_search_repos") {
         return {
@@ -896,6 +901,11 @@ function parametersFor(tool: ConnectorTool) {
       url: Type.String(),
       selector: Type.Optional(Type.String()),
       maxLength: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "read_skill") {
+    return Type.Object({
+      name: Type.String(),
     });
   }
   // GitHub
