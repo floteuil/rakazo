@@ -1033,7 +1033,13 @@ export function ShellPage() {
                       {bot.unread ? <span className="sr-only"> (non lu)</span> : null}
                     </span>
                     <span className="flex shrink-0 items-center gap-1.5 text-[12.5px] text-[#6C6C70]">
-                      {bot.status === "idle" ? "" : bot.status === "running" ? "en cours" : bot.status === "queued" ? "en attente" : bot.status}
+                      {bot.status === "idle"
+                        ? ""
+                        : bot.status === "running"
+                          ? "en cours"
+                          : bot.status === "queued"
+                            ? "en attente"
+                            : bot.status}
                       {bot.unread ? (
                         <span
                           aria-hidden="true"
@@ -1127,7 +1133,9 @@ export function ShellPage() {
                 className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
               >
                 <Volume2 size={16} strokeWidth={1.7} className="text-[#9A9AA0]" />
-                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Synthèse vocale</span>
+                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">
+                  Synthèse vocale
+                </span>
               </button>
               <button
                 type="button"
@@ -1137,7 +1145,9 @@ export function ShellPage() {
                 }}
               >
                 <Gauge size={16} strokeWidth={1.7} className="text-[#9A9AA0]" />
-                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">Consommation hebdomadaire</span>
+                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">
+                  Consommation hebdomadaire
+                </span>
               </button>
               {usage ? (
                 <p className="px-3 pb-2 text-[12.5px] text-[#85858A]">
@@ -1357,7 +1367,9 @@ export function ShellPage() {
                     </Button>
                   )}
                 </div>
-                <div className="mt-[30px] mb-3 text-[14px] text-[#85858A]">Routines & Planifications</div>
+                <div className="mt-[30px] mb-3 text-[14px] text-[#85858A]">
+                  Routines & Planifications
+                </div>
                 {activeRoutines.map((routine) => (
                   <button
                     key={routine.id}
@@ -1460,7 +1472,12 @@ export function ShellPage() {
                     <ChevronLeft size={18} strokeWidth={1.8} />
                   </button>
                   <div className="text-[15.5px] font-medium text-[#F1F1F2]">Routine programmée</div>
-                  <button type="button" onClick={() => setPanel(null)} className="text-[#6C6C70]" aria-label="Fermer">
+                  <button
+                    type="button"
+                    onClick={() => setPanel(null)}
+                    className="text-[#6C6C70]"
+                    aria-label="Fermer"
+                  >
                     <X size={16} strokeWidth={1.8} />
                   </button>
                 </div>
@@ -2642,7 +2659,9 @@ function BotSettings({
               autoSpeak,
               voiceId: voiceId || null,
             })
-              .catch((err) => setError(err instanceof Error ? err.message : "Impossible d'enregistrer"))
+              .catch((err) =>
+                setError(err instanceof Error ? err.message : "Impossible d'enregistrer"),
+              )
               .finally(() => setSaving(false));
           }}
           className="rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40"
@@ -2707,7 +2726,8 @@ function ClearConversationDialog({
           id="clear-conversation-description"
           className="mt-2 text-[14px] leading-6 text-[#9A9AA0]"
         >
-          Cette action supprime définitivement tous les messages échangés et arrête les tâches en cours. L'agent, sa mémoire et ses routines sont conservés.
+          Cette action supprime définitivement tous les messages échangés et arrête les tâches en
+          cours. L'agent, sa mémoire et ses routines sont conservés.
         </p>
         {error ? <p className="mt-3 text-[13.5px] text-[#FF5364]">{error}</p> : null}
         <div className="mt-5 flex justify-end gap-2.5">
@@ -2726,7 +2746,9 @@ function ClearConversationDialog({
               setClearing(true);
               setError(null);
               void onConfirm().catch((err: unknown) => {
-                setError(err instanceof Error ? err.message : "Impossible d'effacer la conversation");
+                setError(
+                  err instanceof Error ? err.message : "Impossible d'effacer la conversation",
+                );
                 setClearing(false);
               });
             }}
@@ -2781,7 +2803,8 @@ function DeleteBotDialog({
           Supprimer l'agent {bot.name} ?
         </h2>
         <p id="delete-bot-description" className="mt-2 text-[14px] leading-6 text-[#9A9AA0]">
-          Ses conversations, fichiers et routines seront définitivement supprimés. Les agents créés par cet agent restent dans votre liste.
+          Ses conversations, fichiers et routines seront définitivement supprimés. Les agents créés
+          par cet agent restent dans votre liste.
         </p>
         <fieldset className="mt-4 space-y-2">
           <legend className="mb-2 text-[13.5px] text-[#C9C9CE]">Que faire de ses mémoires ?</legend>

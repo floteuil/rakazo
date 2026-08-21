@@ -104,14 +104,11 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
         <div className="flex items-start justify-between px-8 pt-7">
           <div>
             <div className="text-2xl font-medium text-[#F1F1F2]">Plugins & Intégrations</div>
-            {loading ? <p className="mt-1 text-[13.5px] text-[#7A7A80]">Chargement du catalogue…</p> : null}
+            {loading ? (
+              <p className="mt-1 text-[13.5px] text-[#7A7A80]">Chargement du catalogue…</p>
+            ) : null}
           </div>
-          <button
-            type="button"
-            aria-label="Fermer"
-            onClick={onClose}
-            className="text-[#85858A]"
-          >
+          <button type="button" aria-label="Fermer" onClick={onClose} className="text-[#85858A]">
             ✕
           </button>
         </div>
@@ -153,7 +150,9 @@ export function PluginsOverlay({ onClose }: { onClose: () => void }) {
           ) : null}
           {!loading && catalog.length > 0 && view === "connected" && visible.length === 0 ? (
             <p className="text-[#6C6C70]">
-              {query.trim() ? "Aucune application connectée ne correspond à votre recherche." : "Aucune application connectée pour le moment."}
+              {query.trim()
+                ? "Aucune application connectée ne correspond à votre recherche."
+                : "Aucune application connectée pour le moment."}
             </p>
           ) : null}
           {visible.map((item) => (

@@ -178,9 +178,11 @@ export function OnboardingPage() {
   }
 
   async function createBot() {
-    const finalInstructions = instructions.trim() || (answers.length
-      ? `Configuration utilisateur :\n${answers.map((a) => `- ${a}`).join("\n")}`
-      : description);
+    const finalInstructions =
+      instructions.trim() ||
+      (answers.length
+        ? `Configuration utilisateur :\n${answers.map((a) => `- ${a}`).join("\n")}`
+        : description);
     const bot = await rpc.bots.create({
       name: name.trim(),
       title,
@@ -201,7 +203,8 @@ export function OnboardingPage() {
           <div>
             <h1 className="text-[32px] font-medium text-[#F1F1F2]">Connecter un modèle</h1>
             <p className="mt-2 text-[#85858A]">
-              Collez une clé API ou passez cette étape si votre serveur dispose déjà d'une clé configurée.
+              Collez une clé API ou passez cette étape si votre serveur dispose déjà d'une clé
+              configurée.
             </p>
             <input
               value={query}
@@ -396,7 +399,9 @@ export function OnboardingPage() {
         {step === "questions" && !question ? (
           <div>
             <h1 className="text-[32px] font-medium text-[#F1F1F2]">Tout est prêt !</h1>
-            <p className="mt-2 text-[#85858A]">Votre agent est configuré et prêt à exécuter vos tâches.</p>
+            <p className="mt-2 text-[#85858A]">
+              Votre agent est configuré et prêt à exécuter vos tâches.
+            </p>
             <button
               type="button"
               onClick={() => void createBot()}

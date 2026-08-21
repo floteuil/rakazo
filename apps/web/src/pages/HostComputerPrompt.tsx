@@ -43,7 +43,9 @@ export function HostComputerPrompt({ initialMe }: { initialMe?: Me }) {
   return (
     <div className="absolute inset-0 z-40 grid place-items-center bg-[#050506]/80 px-6">
       <div className="w-[440px] rounded-[20px] border border-[#26262A] bg-[#121214] p-6">
-        <h2 className="text-[22px] font-medium text-[#F1F1F2]">Où doivent s'exécuter les agents ?</h2>
+        <h2 className="text-[22px] font-medium text-[#F1F1F2]">
+          Où doivent s'exécuter les agents ?
+        </h2>
         <p className="mt-2 text-[14px] leading-relaxed text-[#85858A]">
           Docker est l'option recommandée : les agents utilisent un ordinateur d'équipe sécurisé.
         </p>

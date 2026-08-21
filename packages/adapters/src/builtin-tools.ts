@@ -1,4 +1,5 @@
 import type { ConnectorTool } from "@rakazo/adapter-kit";
+import { enterpriseAgentTools } from "./enterprise-tools.js";
 
 export const DELEGATION_TOOL_NAMES = new Set([
   "run_subagent",
@@ -205,4 +206,56 @@ export const builtinAgentTools: ConnectorTool[] = [
       required: ["confirm_name"],
     },
   },
+  {
+    name: "web_search",
+    description:
+      "Search the web using SearXNG. Returns structured search results and citations from multiple search engines.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        query: { type: "string", description: "Search terms or question." },
+        categories: {
+          type: "string",
+          description: "Optional category filter: general, news, science, it.",
+        },
+        language: {
+          type: "string",
+          description: "Optional language code (e.g. 'fr', 'en', 'auto').",
+        },
+        time_range: {
+          type: "string",
+          description: "Optional time range filter: day, week, month, year.",
+        },
+        max_results: {
+          type: "number",
+          description: "Maximum number of search results to return (default 10).",
+        },
+      },
+      required: ["query"],
+    },
+  },
+  {
+    name: "web_scrape",
+    description:
+      "Scrape and extract clean readable text and markdown from a public webpage or documentation URL.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: {
+          type: "string",
+          description: "Full HTTP or HTTPS URL of the webpage to scrape.",
+        },
+        selector: {
+          type: "string",
+          description: "Optional CSS selector or section hint to focus extraction.",
+        },
+        maxLength: {
+          type: "number",
+          description: "Maximum character length of returned content (default 20000).",
+        },
+      },
+      required: ["url"],
+    },
+  },
+  ...enterpriseAgentTools,
 ];

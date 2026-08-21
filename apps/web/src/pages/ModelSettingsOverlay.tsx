@@ -80,7 +80,9 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void refresh()
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Impossible de charger les paramètres des modèles"),
+        setError(
+          err instanceof Error ? err.message : "Impossible de charger les paramètres des modèles",
+        ),
       )
       .finally(() => setLoading(false));
     return () => cancelOAuthAttempt(false);
@@ -121,7 +123,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
     (entry) => entry.provider === me?.defaultProvider && entry.id === me?.defaultModel,
   );
   const isActive = selected?.provider === me?.defaultProvider && selected?.id === me?.defaultModel;
-  const acceptsKey = selected?.auth === "api-key" || selected?.auth === "either";
+  const acceptsKey = selected?.auth === "api-key" || selected?.auth === "both";
   const deviceSignIn = selected?.signIn === "device-code";
   const busy = pending !== null || oauthPending;
 
@@ -226,7 +228,9 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
           <div>
             <div className="text-2xl font-medium text-[#F1F1F2]">Modèles d'IA</div>
             <p className="mt-1 text-[13.5px] text-[#7A7A80]">
-              {loading ? "Chargement du catalogue des modèles…" : "Choisissez les modèles IA connectés pour vos agents."}
+              {loading
+                ? "Chargement du catalogue des modèles…"
+                : "Choisissez les modèles IA connectés pour vos agents."}
             </p>
           </div>
           <button

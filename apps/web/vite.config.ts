@@ -117,10 +117,11 @@ export default defineConfig(({ mode }) => {
   const rootEnv = loadEnv(mode, path.resolve(import.meta.dirname, "../.."), "");
   const api = process.env.API_PROXY_TARGET ?? rootEnv.API_PROXY_TARGET ?? "http://127.0.0.1:3100";
   const previewHost = process.env.RAKAZO_HOST ?? rootEnv.RAKAZO_HOST ?? "localhost";
-  const screenProxySecret = resolveAuthSecret({
-    ...process.env,
-    BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? rootEnv.BETTER_AUTH_SECRET,
-  });
+  const getScreenProxySecret = () =>
+    resolveAuthSecret({
+      ...process.env,
+      BETTER_AUTH_SECRET: process.env.BETTER_AUTH_SECRET ?? rootEnv.BETTER_AUTH_SECRET,
+    });
   const performanceAssetDelayMs = Number(process.env.RAKAZO_PERFORMANCE_ASSET_DELAY_MS ?? 0);
   return {
     plugins: [
@@ -142,8 +143,8 @@ export default defineConfig(({ mode }) => {
       },
       {
         name: "rakazo-novnc-proxy",
-        configureServer: (server) => attachNovncProxy(server, screenProxySecret),
-        configurePreviewServer: (server) => attachNovncProxy(server, screenProxySecret),
+        configureServer: (server) => attachNovncProxy(server, getScreenProxySecret()),
+        configurePreviewServer: (server) => attachNovncProxy(server, getScreenProxySecret()),
       },
     ],
     server: {

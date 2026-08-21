@@ -28,6 +28,21 @@ export interface AppEnv {
   wakeupDriver: string;
   port: number;
   gitSha: string | undefined;
+  searxngUrl: string | undefined;
+  scraperrUrl: string | undefined;
+  githubToken: string | undefined;
+  githubApiUrl: string | undefined;
+  notionApiKey: string | undefined;
+  postizApiKey: string | undefined;
+  postizApiUrl: string | undefined;
+  wordpressUrl: string | undefined;
+  wordpressUsername: string | undefined;
+  wordpressAppPassword: string | undefined;
+  novamiraApiKey: string | undefined;
+  n8nApiKey: string | undefined;
+  n8nApiUrl: string | undefined;
+  cloudflareApiToken: string | undefined;
+  cloudflareAccountId: string | undefined;
 }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
@@ -60,6 +75,21 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     wakeupDriver: source.WAKEUP_DRIVER ?? "graphile",
     port: Number(source.API_PORT ?? 3100),
     gitSha: optional(source.GIT_SHA) ?? optional(source.RAKAZO_GIT_SHA),
+    searxngUrl: optional(source.SEARXNG_URL),
+    scraperrUrl: optional(source.SCRAPERR_URL),
+    githubToken: optional(source.GITHUB_TOKEN),
+    githubApiUrl: optional(source.GITHUB_API_URL),
+    notionApiKey: optional(source.NOTION_API_KEY),
+    postizApiKey: optional(source.POSTIZ_API_KEY),
+    postizApiUrl: optional(source.POSTIZ_API_URL),
+    wordpressUrl: optional(source.WORDPRESS_URL),
+    wordpressUsername: optional(source.WORDPRESS_USERNAME),
+    wordpressAppPassword: optional(source.WORDPRESS_APP_PASSWORD),
+    novamiraApiKey: optional(source.NOVAMIRA_API_KEY),
+    n8nApiKey: optional(source.N8N_API_KEY),
+    n8nApiUrl: optional(source.N8N_API_URL),
+    cloudflareApiToken: optional(source.CLOUDFLARE_API_TOKEN),
+    cloudflareAccountId: optional(source.CLOUDFLARE_ACCOUNT_ID),
   };
 }
 

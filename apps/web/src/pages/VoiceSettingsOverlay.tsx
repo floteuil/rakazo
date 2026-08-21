@@ -42,7 +42,9 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
   useEffect(() => {
     void refresh()
       .catch((err: unknown) =>
-        setError(err instanceof Error ? err.message : "Impossible de charger les paramètres vocaux"),
+        setError(
+          err instanceof Error ? err.message : "Impossible de charger les paramètres vocaux",
+        ),
       )
       .finally(() => setLoading(false));
   }, []);
@@ -97,7 +99,9 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
     setPending("test");
     try {
       const { speaker } = await import("../lib/tts.js");
-      await speaker.speak("Bonjour, voici comment je parlerai lorsque je lirai les réponses à voix haute.");
+      await speaker.speak(
+        "Bonjour, voici comment je parlerai lorsque je lirai les réponses à voix haute.",
+      );
       if (speaker.state.error) {
         setError(speaker.state.error);
         return;
@@ -213,7 +217,9 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                     type="password"
                     value={apiKey}
                     onChange={(event) => setApiKey(event.target.value)}
-                    placeholder={credential ? "Coller une clé de remplacement" : "Coller votre clé API"}
+                    placeholder={
+                      credential ? "Coller une clé de remplacement" : "Coller votre clé API"
+                    }
                     className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[14px] text-[#ECECEE] outline-none"
                   />
                 </label>
@@ -223,7 +229,11 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                   disabled={busy || apiKey.trim().length < 8}
                   onClick={() => void connectKey()}
                 >
-                  {pending === "connect" ? "Connexion…" : credential ? "Remplacer la clé" : "Connecter"}
+                  {pending === "connect"
+                    ? "Connexion…"
+                    : credential
+                      ? "Remplacer la clé"
+                      : "Connecter"}
                 </Button>
 
                 {credential ? (

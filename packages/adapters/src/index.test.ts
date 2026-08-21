@@ -138,6 +138,14 @@ describe("builtin tools", () => {
         "run_subagent",
         "spawn_bot",
         "archive_bot",
+        "web_search",
+        "web_scrape",
+        "github_search_repos",
+        "notion_search",
+        "postiz_create_post",
+        "wordpress_list_posts",
+        "n8n_trigger_webhook",
+        "cloudflare_list_zones",
       ]),
     );
   });

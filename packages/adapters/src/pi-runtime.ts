@@ -351,6 +351,303 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
           bot_id: raw.bot_id ? String(raw.bot_id) : raw.botId ? String(raw.botId) : "",
         };
       }
+      if (tool.name === "web_search") {
+        return {
+          query: String(raw.query ?? raw.q ?? ""),
+          categories: raw.categories ? String(raw.categories) : undefined,
+          language: raw.language ? String(raw.language) : undefined,
+          time_range: raw.time_range
+            ? String(raw.time_range)
+            : raw.timeRange
+              ? String(raw.timeRange)
+              : undefined,
+          max_results:
+            raw.max_results !== undefined
+              ? Number(raw.max_results)
+              : raw.maxResults !== undefined
+                ? Number(raw.maxResults)
+                : undefined,
+        };
+      }
+      if (tool.name === "web_scrape") {
+        return {
+          url: String(raw.url ?? ""),
+          selector: raw.selector ? String(raw.selector) : undefined,
+          maxLength:
+            raw.maxLength !== undefined
+              ? Number(raw.maxLength)
+              : raw.max_length !== undefined
+                ? Number(raw.max_length)
+                : undefined,
+        };
+      }
+      // GitHub
+      if (tool.name === "github_search_repos") {
+        return {
+          q: String(raw.q ?? raw.query ?? ""),
+          sort: raw.sort ? String(raw.sort) : undefined,
+          order: raw.order ? String(raw.order) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+        };
+      }
+      if (tool.name === "github_get_file_contents") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          path: String(raw.path ?? ""),
+          ref: raw.ref ? String(raw.ref) : undefined,
+        };
+      }
+      if (tool.name === "github_list_issues") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          state: raw.state ? String(raw.state) : undefined,
+          labels: raw.labels ? String(raw.labels) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          sort: raw.sort ? String(raw.sort) : undefined,
+          direction: raw.direction ? String(raw.direction) : undefined,
+        };
+      }
+      if (tool.name === "github_create_issue") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          title: String(raw.title ?? ""),
+          body: raw.body ? String(raw.body) : undefined,
+          labels: Array.isArray(raw.labels) ? raw.labels.map(String) : undefined,
+          assignees: Array.isArray(raw.assignees) ? raw.assignees.map(String) : undefined,
+        };
+      }
+      if (tool.name === "github_get_pull_request") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          pull_number: Number(raw.pull_number ?? raw.pullNumber ?? 0),
+        };
+      }
+      if (tool.name === "github_create_issue_comment") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          issue_number: Number(raw.issue_number ?? raw.issueNumber ?? 0),
+          body: String(raw.body ?? ""),
+        };
+      }
+      // Notion
+      if (tool.name === "notion_search") {
+        return {
+          query: raw.query ? String(raw.query) : undefined,
+          filter: raw.filter,
+          sort: raw.sort,
+          page_size:
+            raw.page_size !== undefined
+              ? Number(raw.page_size)
+              : raw.pageSize !== undefined
+                ? Number(raw.pageSize)
+                : undefined,
+        };
+      }
+      if (tool.name === "notion_get_page") {
+        return { page_id: String(raw.page_id ?? raw.pageId ?? "") };
+      }
+      if (tool.name === "notion_query_database") {
+        return {
+          database_id: String(raw.database_id ?? raw.databaseId ?? ""),
+          filter: raw.filter,
+          sorts: raw.sorts,
+          page_size:
+            raw.page_size !== undefined
+              ? Number(raw.page_size)
+              : raw.pageSize !== undefined
+                ? Number(raw.pageSize)
+                : undefined,
+        };
+      }
+      if (tool.name === "notion_create_page") {
+        return {
+          parent: raw.parent ?? {},
+          properties: raw.properties ?? {},
+          children: raw.children,
+        };
+      }
+      if (tool.name === "notion_update_page") {
+        return {
+          page_id: String(raw.page_id ?? raw.pageId ?? ""),
+          properties: raw.properties,
+          archived: raw.archived !== undefined ? Boolean(raw.archived) : undefined,
+          icon: raw.icon,
+          cover: raw.cover,
+        };
+      }
+      // Postiz
+      if (tool.name === "postiz_list_integrations") {
+        return {};
+      }
+      if (tool.name === "postiz_create_post") {
+        return {
+          content: String(raw.content ?? ""),
+          integrationIds: Array.isArray(raw.integrationIds)
+            ? raw.integrationIds.map(String)
+            : Array.isArray(raw.integration_ids)
+              ? raw.integration_ids.map(String)
+              : undefined,
+          scheduledAt: raw.scheduledAt
+            ? String(raw.scheduledAt)
+            : raw.scheduled_at
+              ? String(raw.scheduled_at)
+              : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : undefined,
+          media: Array.isArray(raw.media) ? raw.media.map(String) : undefined,
+        };
+      }
+      if (tool.name === "postiz_list_posts") {
+        return {
+          status: raw.status ? String(raw.status) : undefined,
+          limit: raw.limit !== undefined ? Number(raw.limit) : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+        };
+      }
+      // WordPress / Novamira
+      if (tool.name === "wordpress_list_posts") {
+        return {
+          status: raw.status ? String(raw.status) : undefined,
+          search: raw.search ? String(raw.search) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          categories: Array.isArray(raw.categories) ? raw.categories.map(Number) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(Number) : undefined,
+        };
+      }
+      if (tool.name === "wordpress_get_post") {
+        return { id: Number(raw.id ?? 0) };
+      }
+      if (tool.name === "wordpress_create_post") {
+        return {
+          title: String(raw.title ?? ""),
+          content: String(raw.content ?? ""),
+          status: raw.status ? String(raw.status) : undefined,
+          categories: Array.isArray(raw.categories) ? raw.categories.map(Number) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(Number) : undefined,
+          slug: raw.slug ? String(raw.slug) : undefined,
+          excerpt: raw.excerpt ? String(raw.excerpt) : undefined,
+        };
+      }
+      if (tool.name === "wordpress_update_post") {
+        return {
+          id: Number(raw.id ?? 0),
+          title: raw.title ? String(raw.title) : undefined,
+          content: raw.content ? String(raw.content) : undefined,
+          status: raw.status ? String(raw.status) : undefined,
+          categories: Array.isArray(raw.categories) ? raw.categories.map(Number) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(Number) : undefined,
+          slug: raw.slug ? String(raw.slug) : undefined,
+          excerpt: raw.excerpt ? String(raw.excerpt) : undefined,
+        };
+      }
+      if (tool.name === "novamira_execute_ability") {
+        return {
+          site: String(raw.site ?? ""),
+          ability: String(raw.ability ?? ""),
+          params: raw.params,
+        };
+      }
+      // n8n
+      if (tool.name === "n8n_trigger_webhook") {
+        return {
+          webhookPath: raw.webhookPath
+            ? String(raw.webhookPath)
+            : raw.webhook_path
+              ? String(raw.webhook_path)
+              : undefined,
+          url: raw.url ? String(raw.url) : undefined,
+          data: raw.data,
+          method: raw.method ? String(raw.method) : undefined,
+        };
+      }
+      if (tool.name === "n8n_list_workflows") {
+        return {
+          active: raw.active !== undefined ? Boolean(raw.active) : undefined,
+          limit: raw.limit !== undefined ? Number(raw.limit) : undefined,
+        };
+      }
+      if (tool.name === "n8n_get_execution") {
+        return {
+          executionId: String(raw.executionId ?? raw.execution_id ?? ""),
+          includeData: raw.includeData !== undefined ? Boolean(raw.includeData) : undefined,
+        };
+      }
+      // Cloudflare
+      if (tool.name === "cloudflare_list_zones") {
+        return {
+          name: raw.name ? String(raw.name) : undefined,
+          status: raw.status ? String(raw.status) : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+        };
+      }
+      if (tool.name === "cloudflare_list_dns_records") {
+        return {
+          zone_id: String(raw.zone_id ?? raw.zoneId ?? ""),
+          name: raw.name ? String(raw.name) : undefined,
+          type: raw.type ? String(raw.type) : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+        };
+      }
+      if (tool.name === "cloudflare_create_dns_record") {
+        return {
+          zone_id: String(raw.zone_id ?? raw.zoneId ?? ""),
+          type: String(raw.type ?? ""),
+          name: String(raw.name ?? ""),
+          content: String(raw.content ?? ""),
+          ttl: raw.ttl ? Number(raw.ttl) : undefined,
+          proxied: raw.proxied !== undefined ? Boolean(raw.proxied) : undefined,
+          priority: raw.priority ? Number(raw.priority) : undefined,
+          comment: raw.comment ? String(raw.comment) : undefined,
+        };
+      }
+      if (tool.name === "cloudflare_purge_cache") {
+        return {
+          zone_id: String(raw.zone_id ?? raw.zoneId ?? ""),
+          purge_everything:
+            raw.purge_everything !== undefined
+              ? Boolean(raw.purge_everything)
+              : raw.purgeEverything !== undefined
+                ? Boolean(raw.purgeEverything)
+                : undefined,
+          files: Array.isArray(raw.files) ? raw.files.map(String) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : undefined,
+          hosts: Array.isArray(raw.hosts) ? raw.hosts.map(String) : undefined,
+        };
+      }
       return raw as never;
     },
     execute: async (toolCallId, params) => {
@@ -583,6 +880,242 @@ function parametersFor(tool: ConnectorTool) {
     return Type.Object({
       confirm_name: Type.String(),
       bot_id: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "web_search") {
+    return Type.Object({
+      query: Type.String(),
+      categories: Type.Optional(Type.String()),
+      language: Type.Optional(Type.String()),
+      time_range: Type.Optional(Type.String()),
+      max_results: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "web_scrape") {
+    return Type.Object({
+      url: Type.String(),
+      selector: Type.Optional(Type.String()),
+      maxLength: Type.Optional(Type.Number()),
+    });
+  }
+  // GitHub
+  if (tool.name === "github_search_repos") {
+    return Type.Object({
+      q: Type.String(),
+      sort: Type.Optional(Type.String()),
+      order: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "github_get_file_contents") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      path: Type.String(),
+      ref: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "github_list_issues") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      state: Type.Optional(Type.String()),
+      labels: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+      sort: Type.Optional(Type.String()),
+      direction: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "github_create_issue") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      title: Type.String(),
+      body: Type.Optional(Type.String()),
+      labels: Type.Optional(Type.Array(Type.String())),
+      assignees: Type.Optional(Type.Array(Type.String())),
+    });
+  }
+  if (tool.name === "github_get_pull_request") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      pull_number: Type.Number(),
+    });
+  }
+  if (tool.name === "github_create_issue_comment") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      issue_number: Type.Number(),
+      body: Type.String(),
+    });
+  }
+  // Notion
+  if (tool.name === "notion_search") {
+    return Type.Object({
+      query: Type.Optional(Type.String()),
+      filter: Type.Optional(
+        Type.Object({
+          property: Type.Optional(Type.String()),
+          value: Type.Optional(Type.String()),
+        }),
+      ),
+      page_size: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "notion_get_page") {
+    return Type.Object({ page_id: Type.String() });
+  }
+  if (tool.name === "notion_query_database") {
+    return Type.Object({
+      database_id: Type.String(),
+      filter: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      sorts: Type.Optional(Type.Array(Type.Record(Type.String(), Type.Unknown()))),
+      page_size: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "notion_create_page") {
+    return Type.Object({
+      parent: Type.Object({
+        database_id: Type.Optional(Type.String()),
+        page_id: Type.Optional(Type.String()),
+      }),
+      properties: Type.Record(Type.String(), Type.Unknown()),
+      children: Type.Optional(Type.Array(Type.Record(Type.String(), Type.Unknown()))),
+    });
+  }
+  if (tool.name === "notion_update_page") {
+    return Type.Object({
+      page_id: Type.String(),
+      properties: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      archived: Type.Optional(Type.Boolean()),
+    });
+  }
+  // Postiz
+  if (tool.name === "postiz_list_integrations") {
+    return Type.Object({});
+  }
+  if (tool.name === "postiz_create_post") {
+    return Type.Object({
+      content: Type.String(),
+      integrationIds: Type.Optional(Type.Array(Type.String())),
+      scheduledAt: Type.Optional(Type.String()),
+      tags: Type.Optional(Type.Array(Type.String())),
+      media: Type.Optional(Type.Array(Type.String())),
+    });
+  }
+  if (tool.name === "postiz_list_posts") {
+    return Type.Object({
+      status: Type.Optional(Type.String()),
+      limit: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+    });
+  }
+  // WordPress / Novamira
+  if (tool.name === "wordpress_list_posts") {
+    return Type.Object({
+      status: Type.Optional(Type.String()),
+      search: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+      categories: Type.Optional(Type.Array(Type.Number())),
+      tags: Type.Optional(Type.Array(Type.Number())),
+    });
+  }
+  if (tool.name === "wordpress_get_post") {
+    return Type.Object({ id: Type.Number() });
+  }
+  if (tool.name === "wordpress_create_post") {
+    return Type.Object({
+      title: Type.String(),
+      content: Type.String(),
+      status: Type.Optional(Type.String()),
+      categories: Type.Optional(Type.Array(Type.Number())),
+      tags: Type.Optional(Type.Array(Type.Number())),
+      slug: Type.Optional(Type.String()),
+      excerpt: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "wordpress_update_post") {
+    return Type.Object({
+      id: Type.Number(),
+      title: Type.Optional(Type.String()),
+      content: Type.Optional(Type.String()),
+      status: Type.Optional(Type.String()),
+      categories: Type.Optional(Type.Array(Type.Number())),
+      tags: Type.Optional(Type.Array(Type.Number())),
+      slug: Type.Optional(Type.String()),
+      excerpt: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "novamira_execute_ability") {
+    return Type.Object({
+      site: Type.String(),
+      ability: Type.String(),
+      params: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    });
+  }
+  // n8n
+  if (tool.name === "n8n_trigger_webhook") {
+    return Type.Object({
+      webhookPath: Type.Optional(Type.String()),
+      url: Type.Optional(Type.String()),
+      data: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      method: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "n8n_list_workflows") {
+    return Type.Object({
+      active: Type.Optional(Type.Boolean()),
+      limit: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "n8n_get_execution") {
+    return Type.Object({
+      executionId: Type.String(),
+      includeData: Type.Optional(Type.Boolean()),
+    });
+  }
+  // Cloudflare
+  if (tool.name === "cloudflare_list_zones") {
+    return Type.Object({
+      name: Type.Optional(Type.String()),
+      status: Type.Optional(Type.String()),
+      page: Type.Optional(Type.Number()),
+      per_page: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "cloudflare_list_dns_records") {
+    return Type.Object({
+      zone_id: Type.String(),
+      name: Type.Optional(Type.String()),
+      type: Type.Optional(Type.String()),
+      page: Type.Optional(Type.Number()),
+      per_page: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "cloudflare_create_dns_record") {
+    return Type.Object({
+      zone_id: Type.String(),
+      type: Type.String(),
+      name: Type.String(),
+      content: Type.String(),
+      ttl: Type.Optional(Type.Number()),
+      proxied: Type.Optional(Type.Boolean()),
+      priority: Type.Optional(Type.Number()),
+      comment: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "cloudflare_purge_cache") {
+    return Type.Object({
+      zone_id: Type.String(),
+      purge_everything: Type.Optional(Type.Boolean()),
+      files: Type.Optional(Type.Array(Type.String())),
+      tags: Type.Optional(Type.Array(Type.String())),
+      hosts: Type.Optional(Type.Array(Type.String())),
     });
   }
   return jsonSchemaParameters(tool.inputSchema);

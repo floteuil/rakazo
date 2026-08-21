@@ -66,6 +66,7 @@ import {
 } from "./computer-support.js";
 import { observationToolResult, parseComputerActions } from "./computer-tools.js";
 import { checkpointAndRecordComputerWorkspace } from "./computer-workspace.js";
+import { executeEnterpriseTool, isEnterpriseTool } from "./enterprise-tools.js";
 import {
   COMPACTION_BATCH_SIZE,
   formatRecalledMemory,
@@ -95,6 +96,8 @@ import {
   currentTurnFilesInstruction,
   materializeCurrentTurnFiles,
 } from "./thread-artifacts.js";
+import { executeWebScrape } from "./web-scrape.js";
+import { executeWebSearch } from "./web-search.js";
 
 const modelCredentialLocks = new Map<string, Promise<void>>();
 const READ_ONLY_AGENT_TOOLS = new Set([
@@ -103,6 +106,24 @@ const READ_ONLY_AGENT_TOOLS = new Set([
   "read_file",
   "request_takeover",
   "run_subagent",
+  "web_search",
+  "web_scrape",
+  // Read-only enterprise tools
+  "github_search_repos",
+  "github_get_file_contents",
+  "github_list_issues",
+  "github_get_pull_request",
+  "notion_search",
+  "notion_get_page",
+  "notion_query_database",
+  "postiz_list_integrations",
+  "postiz_list_posts",
+  "wordpress_list_posts",
+  "wordpress_get_post",
+  "n8n_list_workflows",
+  "n8n_get_execution",
+  "cloudflare_list_zones",
+  "cloudflare_list_dns_records",
 ]);
 const MAX_MODEL_FILE_BYTES = 250_000;
 const GRAPHICAL_AGENT_TOOLS = new Set([
@@ -338,6 +359,18 @@ export function createRunExecutor(deps: ExecutorDeps) {
       heartbeat.unref?.();
 
       const runSecrets = [...deps.secrets];
+      const enterpriseTokens = [
+        process.env.GITHUB_TOKEN,
+        process.env.NOTION_API_KEY,
+        process.env.POSTIZ_API_KEY,
+        process.env.WORDPRESS_APP_PASSWORD,
+        process.env.WORDPRESS_USERNAME,
+        process.env.NOVAMIRA_API_KEY,
+        process.env.N8N_API_KEY,
+        process.env.CLOUDFLARE_API_TOKEN,
+        process.env.CLOUDFLARE_ACCOUNT_ID,
+      ].filter((val): val is string => Boolean(val && val.length >= 4));
+      runSecrets.push(...enterpriseTokens);
       try {
         const [bot, thread, messages, task, storedConnections, credential, settings, savedSkills] =
           await Promise.all([
@@ -736,6 +769,44 @@ export function createRunExecutor(deps: ExecutorDeps) {
               result: String(args.task ?? "done."),
             };
           }
+          if (name === "web_search") {
+            const result = await executeWebSearch(
+              {
+                query: String(args.query ?? args.q ?? ""),
+                categories: args.categories ? String(args.categories) : undefined,
+                language: args.language ? String(args.language) : undefined,
+                time_range: args.time_range
+                  ? String(args.time_range)
+                  : args.timeRange
+                    ? String(args.timeRange)
+                    : undefined,
+                max_results:
+                  args.max_results !== undefined
+                    ? Number(args.max_results)
+                    : args.maxResults !== undefined
+                      ? Number(args.maxResults)
+                      : undefined,
+              },
+              context,
+            );
+            return finish(result);
+          }
+          if (name === "web_scrape") {
+            const result = await executeWebScrape(
+              {
+                url: String(args.url ?? ""),
+                selector: args.selector ? String(args.selector) : undefined,
+                maxLength:
+                  args.maxLength !== undefined
+                    ? Number(args.maxLength)
+                    : args.max_length !== undefined
+                      ? Number(args.max_length)
+                      : undefined,
+              },
+              context,
+            );
+            return finish(result);
+          }
           if (name === "spawn_bot") {
             const spawned = await spawnBot(deps, {
               spawnedBy: {
@@ -816,6 +887,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
             return archived;
           }
+          if (isEnterpriseTool(name)) {
+            const result = await executeEnterpriseTool(name, args, context);
+            return finish(result);
+          }
           if (deps.connector) {
             let result: unknown = { error: `unknown tool ${name}` };
             for await (const event of deps.connector.execute(
@@ -888,6 +963,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 "spawn_bot creates a lasting regular bot (own chat, computer, memory) that appears in the user's bot list. If the user asked to create a bot, call spawn_bot once and stop. Do not run_subagent to demo it.",
                 "run_subagent is a short helper inside this turn only. It is not a bot, has no thread, and does not show in the list. Use it for parallel work you will summarize here.",
                 "archive_bot safely archives a bot this bot created, and only that bot. Use it when the user asks to remove that bot or when it is finished and unused. The user can restore it or permanently delete it later. confirm_name must exactly match its name.",
+                "Enterprise integrations: You have direct native tools for GitHub (search, read files, issues, PRs, comments), Notion (search, pages, databases), Postiz (social posts & channels), WordPress/Novamira (posts & abilities), n8n (workflows & webhooks), and Cloudflare (zones, DNS, cache purge). Use them directly when requested.",
                 pluginLine,
                 taughtSkillsLine,
                 "Never print API keys, access tokens, or secret values. Prefer tools over claiming you already did the work.",
