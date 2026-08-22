@@ -208,6 +208,22 @@ export async function executeWebScrape(
     };
   }
 
+  const hostname = parsedUrl.hostname.toLowerCase();
+  if (
+    hostname === "169.254.169.254" ||
+    hostname === "0.0.0.0" ||
+    hostname === "::" ||
+    hostname.endsWith(".internal")
+  ) {
+    return {
+      url: rawUrl,
+      content: "",
+      length: 0,
+      truncated: false,
+      error: `Access to private or metadata network address ${hostname} is blocked for security.`,
+    };
+  }
+
   const maxLength =
     typeof args.maxLength === "number" && args.maxLength > 0 ? args.maxLength : DEFAULT_MAX_LENGTH;
 

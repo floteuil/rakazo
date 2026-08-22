@@ -181,7 +181,7 @@ services:
       - "traefik.http.middlewares.rakazo-sec-headers.headers.contentTypeNosniff=true"
       - "traefik.http.middlewares.rakazo-sec-headers.headers.browserXssFilter=true"
       - "traefik.http.middlewares.rakazo-sec-headers.headers.referrerPolicy=strict-origin-when-cross-origin"
-      - "traefik.http.middlewares.rakazo-sec-headers.headers.permissionsPolicy=camera=(), microphone=(), geolocation=(), payment=()"
+      - "traefik.http.middlewares.rakazo-sec-headers.headers.permissionsPolicy=camera=(), microphone=(self), geolocation=(), payment=()"
       - "traefik.http.middlewares.rakazo-sec-headers.headers.stsSeconds=31536000"
       - "traefik.http.middlewares.rakazo-sec-headers.headers.stsIncludeSubdomains=true"
       - "traefik.http.middlewares.rakazo-sec-headers.headers.stsPreload=true"

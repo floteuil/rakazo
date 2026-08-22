@@ -204,6 +204,13 @@ export async function createApp(
   });
   const rpc = new RPCHandler(router);
   const app = new Hono();
+  app.use("*", async (c, next) => {
+    await next();
+    c.header("X-Content-Type-Options", "nosniff");
+    c.header("X-Frame-Options", "SAMEORIGIN");
+    c.header("X-XSS-Protection", "1; mode=block");
+    c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+  });
   app.use(
     "*",
     cors({

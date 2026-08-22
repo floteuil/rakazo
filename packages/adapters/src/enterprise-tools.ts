@@ -23,6 +23,11 @@ export function sanitizeToolError(message: string): string {
     .replace(/nova_[a-zA-Z0-9_]+/g, "nova_[redacted]")
     .replace(/n8n_api_[a-zA-Z0-9_]+/g, "n8n_api_[redacted]")
     .replace(/cf_token_[a-zA-Z0-9_-]+/g, "cf_token_[redacted]")
+    .replace(/cfat_[a-zA-Z0-9_-]+/g, "cfat_[redacted]")
+    .replace(/sk-or-[a-zA-Z0-9_\-]+/g, "sk-or-[redacted]")
+    .replace(/sk-ant-[a-zA-Z0-9_\-]+/g, "sk-ant-[redacted]")
+    .replace(/sk-[a-zA-Z0-9_\-]{20,}/g, "sk-[redacted]")
+    .replace(/postgres(?:ql)?:\/\/([^:]+):([^@]+)@/g, "postgres://$1:[redacted]@")
     .replace(/Bearer\s+[a-zA-Z0-9_\-\.\+/=]+/gi, "Bearer [redacted]")
     .replace(/Basic\s+[a-zA-Z0-9_\-\.\+/=]+/gi, "Basic [redacted]");
 }
