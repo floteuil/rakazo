@@ -1023,8 +1023,9 @@ export function ShellPage() {
               setPanel("create");
               setSidebarOpen(false);
             }}
-            className="app-no-drag text-[21px] text-[#7A7A80] hover:text-[#C9C9CE]"
+            className="app-no-drag grid h-7 w-7 place-items-center rounded-lg text-[20px] leading-none text-[#7A7A80] hover:bg-[#1B1B1E] hover:text-[#C9C9CE] focus:outline-none focus:ring-1 focus:ring-[#3B3B40]"
             title="Nouvel agent"
+            aria-label="Nouvel agent"
           >
             +
           </button>
@@ -1251,13 +1252,13 @@ export function ShellPage() {
             <button
               type="button"
               data-testid="bot-settings-trigger"
-              onClick={() => setPanel("settings")}
+              onClick={() => setPanel(active ? "settings" : "create")}
               className="flex min-w-0 items-center gap-2.5 sm:gap-3"
             >
               {active ? <BotAvatar color={active.color} size={26} /> : null}
               <span className="min-w-0">
                 <span className="block truncate text-[15px] font-medium text-[#ECECEE] md:text-[16px]">
-                  {active?.name ?? "Select a bot"}
+                  {active?.name ?? "Sélectionner un agent"}
                 </span>
               </span>
             </button>
@@ -1266,8 +1267,8 @@ export function ShellPage() {
             {active ? (
               <button
                 type="button"
-                title={voiceStatus?.ready ? "Call" : "Set up voice to call"}
-                aria-label="Call"
+                title={voiceStatus?.ready ? "Appel vocal" : "Configurer la voix pour appeler"}
+                aria-label="Appel vocal"
                 onClick={() => {
                   if (!voiceStatus?.ready) {
                     setVoiceOpen(true);
@@ -1347,14 +1348,14 @@ export function ShellPage() {
         data-testid="side-panel"
         data-panel={panel ?? "closed"}
         className={`fixed inset-0 z-40 flex min-h-0 flex-col overflow-hidden bg-[#0A0A0B] md:relative md:inset-auto md:z-20 md:transition-[width] md:duration-150 md:ease-out ${
-          panel && active
+          panel && (active || panel === "create")
             ? "w-full md:w-[384px] md:border-l md:border-[#141416]"
             : "pointer-events-none hidden md:flex md:w-0"
         }`}
       >
-        {panel && active ? (
+        {panel && (active || panel === "create") ? (
           <div className="rk-scroll h-full w-full overflow-y-auto px-4 py-4 sm:px-5 sm:py-[17px] md:w-[384px]">
-            {panel !== "routine" && panel !== "create" ? (
+            {panel !== "routine" && panel !== "create" && active ? (
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-[13.5px] text-[#85858A]">
                   {computer?.state ?? active.status}
@@ -1362,18 +1363,18 @@ export function ShellPage() {
                 <div className="flex gap-3.5">
                   <button
                     type="button"
-                    aria-label="Bot settings"
+                    aria-label="Paramètres de l'agent"
                     onClick={() => setPanel("settings")}
                   >
                     <Settings size={16} strokeWidth={1.7} />
                   </button>
-                  <button type="button" aria-label="Close panel" onClick={() => setPanel(null)}>
+                  <button type="button" aria-label="Fermer le panneau" onClick={() => setPanel(null)}>
                     <X size={16} strokeWidth={1.8} />
                   </button>
                 </div>
               </div>
             ) : null}
-            {panel === "computer" ? (
+            {panel === "computer" && active ? (
               <div>
                 <div className="relative aspect-[16/10] overflow-hidden rounded-[14px] bg-[#0E0E10]">
                   {computerOpen ? (
@@ -1503,7 +1504,7 @@ export function ShellPage() {
                 onCreate={(input) => void createBot(input)}
               />
             ) : null}
-            {panel === "settings" ? (
+            {panel === "settings" && active ? (
               <BotSettings
                 key={active.id}
                 bot={active}
@@ -1540,7 +1541,7 @@ export function ShellPage() {
                 onClear={() => setClearTarget(active)}
               />
             ) : null}
-            {panel === "routine" ? (
+            {panel === "routine" && active ? (
               <div>
                 <div className="mb-5 flex items-center justify-between">
                   <button
