@@ -60,7 +60,7 @@ export class PiAgentRuntime implements AgentRuntime {
         const apiKey = request.model.oauth
           ? undefined
           : (request.model.apiKey ?? process.env.OPENROUTER_API_KEY);
-        const toolDefs = request.tools.length ? request.tools : builtinAgentTools;
+        const toolDefs = Array.isArray(request.tools) ? request.tools : builtinAgentTools;
         const nestedAgents = new Set<Agent>();
         const host: ToolHost = {
           queue,
@@ -712,10 +712,20 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
     progress: "starting…",
   });
 
-  const childDefs = (host.request.tools.length ? host.request.tools : builtinAgentTools).filter(
+  const availableTools = Array.isArray(host.request.tools)
+    ? host.request.tools
+    : builtinAgentTools;
+  const childDefs = availableTools.filter(
     (tool) => !DELEGATION_TOOL_NAMES.has(tool.name),
   );
-  const nestedHost: ToolHost = { ...host, depth: 1 };
+  const nestedHost: ToolHost = {
+    ...host,
+    depth: 1,
+    request: {
+      ...host.request,
+      tools: childDefs,
+    },
+  };
   const nested = new Agent({
     streamFn: (m, ctx, options) =>
       host.models.streamSimple(m, ctx, {

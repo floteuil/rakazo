@@ -214,6 +214,7 @@ model Bot {
   computerSwitching Boolean @default(false)
   voiceId        String?
   autoSpeak      Boolean  @default(false)
+  metadata       Json     @default("{}")
   routines       Routine[]
   taughtSkills   TaughtSkill[]
   memoryDocuments MemoryDocument[]

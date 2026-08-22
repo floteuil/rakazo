@@ -32,13 +32,13 @@ export function AuthPage({ mode }: { mode: "in" | "up" }) {
   }
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-[#F7F7F4] px-6 py-16 text-[#1B1B1E]">
-      <form onSubmit={submit} className="flex w-[460px] flex-col items-center">
+    <div className="flex min-h-full items-center justify-center bg-[#F7F7F4] px-4 sm:px-6 py-8 sm:py-16 text-[#1B1B1E]">
+      <form onSubmit={submit} className="flex w-full max-w-[460px] flex-col items-center">
         <div className="flex h-[74px] w-[74px] items-center justify-center gap-[11px] rounded-full bg-[#16161A]">
           <span className="h-5 w-[9px] rounded-full bg-[#F7F7F4]" />
           <span className="h-5 w-[9px] rounded-full bg-[#F7F7F4]" />
         </div>
-        <h1 className="mb-[38px] mt-[30px] text-[38px] tracking-[-0.02em]">{title}</h1>
+        <h1 className="mb-[30px] sm:mb-[38px] mt-6 sm:mt-[30px] text-center text-[28px] sm:text-[38px] tracking-[-0.02em]">{title}</h1>
         {mode === "up" ? (
           <label className="mb-4 w-full text-[16px] text-[#6E6E68]">
             Nom complet

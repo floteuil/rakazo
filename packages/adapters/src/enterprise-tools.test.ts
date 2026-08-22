@@ -136,6 +136,60 @@ describe("Enterprise MCP Connectors", () => {
       expect(cleaned).toContain("[redacted]");
     });
 
+    it("scrubs each token prefix individually with underscores, hyphens, and mixed casing", () => {
+      // GitHub
+      expect(sanitizeToolError("Token: ghp_abc123_DEF456")).toBe("Token: ghp_[redacted]");
+      expect(sanitizeToolError("Token: github_pat_11AB22CD33_445566")).toBe("Token: github_pat_[redacted]");
+
+      // Notion
+      expect(sanitizeToolError("Key: secret_notion_key_abc123")).toBe("Key: secret_[redacted]");
+      expect(sanitizeToolError("Key: ntn_v2_key_xyz_789")).toBe("Key: ntn_[redacted]");
+
+      // Postiz
+      expect(sanitizeToolError("API: pk_live_postiz_token_999")).toBe("API: pk_[redacted]");
+
+      // Novamira
+      expect(sanitizeToolError("Auth: nova_secure_ability_token_42")).toBe("Auth: nova_[redacted]");
+
+      // n8n
+      expect(sanitizeToolError("Header: n8n_api_key_production_001")).toBe("Header: n8n_api_[redacted]");
+
+      // Cloudflare
+      expect(sanitizeToolError("CF: cf_token_abc-123_XYZ-789")).toBe("CF: cf_token_[redacted]");
+
+      // Bearer & Basic auth headers (case-insensitive)
+      expect(sanitizeToolError("Authorization: Bearer secret-oauth-token-value")).toBe("Authorization: Bearer [redacted]");
+      expect(sanitizeToolError("authorization: bearer secret-oauth-token-value")).toBe("authorization: Bearer [redacted]");
+      expect(sanitizeToolError("Authorization: Basic dXNlcjpwYXNzd29yZA==")).toBe("Authorization: Basic [redacted]");
+      expect(sanitizeToolError("authorization: basic dXNlcjpwYXNzd29yZA==")).toBe("authorization: Basic [redacted]");
+    });
+
+    it("handles multiline error stacks and JSON strings containing tokens without leakage", () => {
+      const errorJson = JSON.stringify({
+        status: 401,
+        message: "Unauthorized request with token ghp_secret123 in header Bearer tok_456",
+        details: {
+          notion: "ntn_live_key_999",
+          postiz: "pk_test_888",
+          n8n: "n8n_api_key_777",
+          cf: "cf_token_custom-dns-key",
+        },
+      });
+
+      const sanitized = sanitizeToolError(errorJson);
+      expect(sanitized).not.toContain("ghp_secret123");
+      expect(sanitized).not.toContain("tok_456");
+      expect(sanitized).not.toContain("ntn_live_key_999");
+      expect(sanitized).not.toContain("pk_test_888");
+      expect(sanitized).not.toContain("n8n_api_key_777");
+      expect(sanitized).not.toContain("cf_token_custom-dns-key");
+      expect(sanitized).toContain("ghp_[redacted]");
+      expect(sanitized).toContain("ntn_[redacted]");
+      expect(sanitized).toContain("pk_[redacted]");
+      expect(sanitized).toContain("n8n_api_[redacted]");
+      expect(sanitized).toContain("cf_token_[redacted]");
+    });
+
     it("creates combined AbortSignal with timeout", () => {
       const signal1 = createCombinedSignal(5000);
       expect(signal1).toBeInstanceOf(AbortSignal);

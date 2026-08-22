@@ -6,6 +6,7 @@ import type {
   ArtifactStore,
   ComputerRef,
   ConnectorProvider,
+  ConnectorTool,
   JobPublisher,
   MemoryStore,
   NotificationMessage,
@@ -14,7 +15,13 @@ import type {
 } from "@rakazo/adapter-kit";
 import { historyCompactJob, routineWakeupJob, runContinueJob } from "@rakazo/adapter-kit";
 import type { MessageBlock, RunStatus } from "@rakazo/contracts";
-import { ATTACHMENT_MAX_BYTES, isAttachmentImageMimeType } from "@rakazo/contracts";
+import {
+  ATTACHMENT_MAX_BYTES,
+  type BotMcpConfig,
+  getConnectorForTool,
+  isAttachmentImageMimeType,
+  isSovereignTool,
+} from "@rakazo/contracts";
 import {
   assertTransition,
   blocksToAgentHistoryText,
@@ -136,6 +143,91 @@ const GRAPHICAL_AGENT_TOOLS = new Set([
 
 export const DIRECT_INJECTION_MAX_BYTES = 4096; // 4 KB
 export const CUMULATIVE_DIRECT_MAX_BYTES = 32768; // 32 KB (~8,000 tokens)
+
+export function extractBotMcpConfig(bot: unknown): BotMcpConfig | undefined {
+  if (!bot || typeof bot !== "object") return undefined;
+  const b = bot as Record<string, unknown>;
+  const meta =
+    b.metadata && typeof b.metadata === "object"
+      ? (b.metadata as Record<string, unknown>)
+      : undefined;
+
+  const candidate =
+    meta?.mcp ??
+    meta?.mcpConfig ??
+    b.mcp ??
+    b.mcpConfig ??
+    (meta && (meta.connectors || meta.tools) ? meta : undefined);
+
+  if (!candidate || typeof candidate !== "object") return undefined;
+
+  const cfg = candidate as BotMcpConfig;
+  const hasConnectors =
+    cfg.connectors &&
+    typeof cfg.connectors === "object" &&
+    Object.keys(cfg.connectors).length > 0;
+  const hasTools =
+    cfg.tools &&
+    typeof cfg.tools === "object" &&
+    Object.keys(cfg.tools).length > 0;
+
+  if (!hasConnectors && !hasTools) return undefined;
+  return cfg;
+}
+
+export function isToolPermitted(
+  toolName: string,
+  mcpConfig?: BotMcpConfig | null,
+): boolean {
+  if (!mcpConfig) return true;
+  const hasConnectors =
+    mcpConfig.connectors &&
+    typeof mcpConfig.connectors === "object" &&
+    Object.keys(mcpConfig.connectors).length > 0;
+  const hasTools =
+    mcpConfig.tools &&
+    typeof mcpConfig.tools === "object" &&
+    Object.keys(mcpConfig.tools).length > 0;
+
+  if (!hasConnectors && !hasTools) return true;
+
+  // 1. Explicit tool override takes top priority
+  if (mcpConfig.tools) {
+    const toolOverride = mcpConfig.tools[toolName];
+    if (typeof toolOverride === "boolean") {
+      return toolOverride;
+    }
+  }
+
+  // 2. Connector toggle takes second priority
+  const connector = getConnectorForTool(toolName);
+  if (connector && mcpConfig.connectors) {
+    const idToggle = mcpConfig.connectors[connector.id];
+    if (typeof idToggle === "boolean") {
+      return idToggle;
+    }
+    const slugToggle = mcpConfig.connectors[connector.slug];
+    if (typeof slugToggle === "boolean") {
+      return slugToggle;
+    }
+  }
+
+  // 3. Unconfigured connectors/tools default to permitted
+  return true;
+}
+
+export function filterToolsForBot(
+  allTools: ConnectorTool[],
+  mcpConfig?: BotMcpConfig | null,
+  isGraphical = true,
+): ConnectorTool[] {
+  let tools = allTools;
+  if (!isGraphical) {
+    tools = tools.filter((tool) => !GRAPHICAL_AGENT_TOOLS.has(tool.name));
+  }
+  if (!mcpConfig) return tools;
+  return tools.filter((tool) => isToolPermitted(tool.name, mcpConfig));
+}
 
 export interface SkillItemLike {
   id?: string;
@@ -566,12 +658,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
         const builtins = graphical
           ? builtinAgentTools
           : builtinAgentTools.filter((tool) => !GRAPHICAL_AGENT_TOOLS.has(tool.name));
-        const tools = [
+        const allDiscovered = [
           ...builtins,
           ...discovered.filter(
             (tool) => !builtinAgentTools.some((builtin) => builtin.name === tool.name),
           ),
         ];
+        const mcpConfig = extractBotMcpConfig(bot);
+        const tools = filterToolsForBot(allDiscovered, mcpConfig, graphical);
         const computerInstruction = graphical
           ? "You have a persistent computer. Use computer_observe and computer_act for its visible desktop, including browsers and installed applications. Use open_path and launch_app to open graphical files, URLs, and applications. Use the file tools and shell for precise filesystem and terminal work. On a Team Computer you have your own screen; other Team bots may run at the same time on theirs. Another user may interact with your screen while you run, so re-observe when it may have changed."
           : "You have a persistent sandbox filesystem and shell. This backend does not provide model-visible graphical control, so use the file tools and shell.";
@@ -604,6 +698,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
           args: Record<string, unknown>,
           executionId: string,
         ) => {
+          if (!isToolPermitted(name, mcpConfig)) {
+            return {
+              error: `Tool '${name}' is not permitted for this bot. Execution was blocked by security policy.`,
+            };
+          }
           const applied = READ_ONLY_AGENT_TOOLS.has(name)
             ? undefined
             : await recordEffect(deps, run, name, executionId, args);

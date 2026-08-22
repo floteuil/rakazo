@@ -329,28 +329,11 @@ export function createRouter(deps: RouterDeps) {
           notifyOnFinish: source.notifyOnFinish,
           color: source.color,
           computerMode: source.computer?.scope === "dedicated" ? "dedicated" : "team",
+          metadata: (source.metadata as Record<string, unknown>) ?? {},
         });
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {
-        await repos.getBot(context.actor, input.botId);
-        await deps.prisma.bot.update({
-          where: { id: input.botId },
-          data: {
-            name: input.name,
-            title: input.title,
-            description: input.description,
-            instructions: input.instructions,
-            notifyOnFinish: input.notifyOnFinish,
-            color: input.color,
-            pinned: input.pinned,
-            voiceId: input.voiceId,
-            autoSpeak: input.autoSpeak,
-          },
-        });
-        const bots = await repos.listBots(context.actor);
-        const bot = bots.find((b) => b.id === input.botId);
-        if (!bot) throw new IsolationError();
-        return bot;
+        return repos.updateBot(context.actor, input);
       }),
       setComputer: authed.bots.setComputer.handler(async ({ context, input }) => {
         const bot = await repos.getBot(context.actor, input.botId);

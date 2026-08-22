@@ -15,16 +15,16 @@ export function createCombinedSignal(timeoutMs: number, externalSignal?: AbortSi
 
 export function sanitizeToolError(message: string): string {
   return message
-    .replace(/ghp_[a-zA-Z0-9]+/g, "ghp_[redacted]")
+    .replace(/ghp_[a-zA-Z0-9_]+/g, "ghp_[redacted]")
     .replace(/github_pat_[a-zA-Z0-9_]+/g, "github_pat_[redacted]")
-    .replace(/secret_[a-zA-Z0-9]+/g, "secret_[redacted]")
-    .replace(/ntn_[a-zA-Z0-9]+/g, "ntn_[redacted]")
-    .replace(/pk_[a-zA-Z0-9]+/g, "pk_[redacted]")
-    .replace(/nova_[a-zA-Z0-9]+/g, "nova_[redacted]")
-    .replace(/n8n_api_[a-zA-Z0-9]+/g, "n8n_api_[redacted]")
+    .replace(/secret_[a-zA-Z0-9_]+/g, "secret_[redacted]")
+    .replace(/ntn_[a-zA-Z0-9_]+/g, "ntn_[redacted]")
+    .replace(/pk_[a-zA-Z0-9_]+/g, "pk_[redacted]")
+    .replace(/nova_[a-zA-Z0-9_]+/g, "nova_[redacted]")
+    .replace(/n8n_api_[a-zA-Z0-9_]+/g, "n8n_api_[redacted]")
     .replace(/cf_token_[a-zA-Z0-9_-]+/g, "cf_token_[redacted]")
-    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
-    .replace(/Basic\s+\S+/gi, "Basic [redacted]");
+    .replace(/Bearer\s+[a-zA-Z0-9_\-\.\+/=]+/gi, "Bearer [redacted]")
+    .replace(/Basic\s+[a-zA-Z0-9_\-\.\+/=]+/gi, "Basic [redacted]");
 }
 
 async function safeFetchJson<T>(

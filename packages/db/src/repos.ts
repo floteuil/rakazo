@@ -23,6 +23,7 @@ function mapBot(
     computer: { scope: string } | null;
     voiceId?: string | null;
     autoSpeak?: boolean;
+    metadata?: unknown;
   },
   preview = "",
   status = "idle",
@@ -51,6 +52,7 @@ function mapBot(
     updatedAt: bot.updatedAt.toISOString(),
     voiceId: bot.voiceId ?? null,
     autoSpeak: bot.autoSpeak ?? false,
+    metadata: (bot.metadata as Record<string, unknown>) ?? {},
   };
 }
 
@@ -116,6 +118,7 @@ export function createRepos(prisma: PrismaClient) {
         parentBotId?: string | null;
         computerMode?: ComputerMode;
         spawnKey?: string;
+        metadata?: Record<string, unknown>;
         initialMessage?: {
           role: "user" | "bot" | "system";
           blocks: MessageBlock[];
@@ -164,6 +167,7 @@ export function createRepos(prisma: PrismaClient) {
             parentBotId: input.parentBotId ?? null,
             computerId: teamComputer.id,
             spawnKey: input.spawnKey,
+            metadata: (input.metadata ?? {}) as any,
           },
         });
         const thread = await tx.thread.create({
@@ -212,6 +216,45 @@ export function createRepos(prisma: PrismaClient) {
         });
       });
       return mapBot(bot);
+    },
+
+    async updateBot(
+      actor: Actor,
+      input: {
+        botId: string;
+        name?: string;
+        title?: string;
+        description?: string;
+        instructions?: string;
+        notifyOnFinish?: boolean;
+        color?: string;
+        pinned?: boolean;
+        voiceId?: string | null;
+        autoSpeak?: boolean;
+        metadata?: Record<string, unknown>;
+      },
+    ): Promise<Bot> {
+      await this.getBot(actor, input.botId);
+      const data: Record<string, unknown> = {};
+      if (input.name !== undefined) data.name = input.name;
+      if (input.title !== undefined) data.title = input.title;
+      if (input.description !== undefined) data.description = input.description;
+      if (input.instructions !== undefined) data.instructions = input.instructions;
+      if (input.notifyOnFinish !== undefined) data.notifyOnFinish = input.notifyOnFinish;
+      if (input.color !== undefined) data.color = input.color;
+      if (input.pinned !== undefined) data.pinned = input.pinned;
+      if (input.voiceId !== undefined) data.voiceId = input.voiceId;
+      if (input.autoSpeak !== undefined) data.autoSpeak = input.autoSpeak;
+      if (input.metadata !== undefined) data.metadata = input.metadata as any;
+
+      await prisma.bot.update({
+        where: { id: input.botId },
+        data,
+      });
+      const bots = await this.listBots(actor);
+      const bot = bots.find((b) => b.id === input.botId);
+      if (!bot) throw new IsolationError();
+      return bot;
     },
 
     async setBotComputer(actor: Actor, botId: string, mode: ComputerMode): Promise<Bot> {

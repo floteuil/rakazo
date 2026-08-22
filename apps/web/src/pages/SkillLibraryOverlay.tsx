@@ -659,9 +659,9 @@ export function SkillLibraryOverlay({
   return (
     <div
       data-testid="skill-library-overlay"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(4,4,5,.62)] p-6 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-[rgba(4,4,5,.62)] p-0 sm:p-4 md:p-6 backdrop-blur-sm"
     >
-      <div className="flex h-[760px] w-[1080px] max-w-full flex-col overflow-hidden rounded-[26px] border border-[#26262A] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)] text-[#EDEDEF]">
+      <div className="flex h-full w-full sm:h-[min(760px,100%)] md:h-[760px] md:w-[1080px] max-w-full flex-col overflow-hidden rounded-none sm:rounded-[20px] md:rounded-[26px] border border-[#26262A] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)] text-[#EDEDEF]">
         {/* Modal Header */}
         <div className="flex items-center justify-between border-b border-[#26262A] px-6 py-4">
           <div className="flex items-center gap-3">
@@ -791,14 +791,14 @@ export function SkillLibraryOverlay({
         {viewMode === "catalog" ? (
           <>
             {/* Search & Tag Filter Bar */}
-            <div className="flex items-center justify-between gap-4 border-b border-[#26262A] bg-[#111113] px-6 py-3">
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 border-b border-[#26262A] bg-[#111113] px-4 py-3 sm:px-6">
               <div className="flex items-center gap-1.5 overflow-x-auto rk-scroll py-0.5">
                 {allTags.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => setSelectedTag(tag)}
-                    className={`cursor-pointer rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    className={`cursor-pointer shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                       tag === selectedTag
                         ? "bg-[#27272A] text-white font-semibold shadow-sm"
                         : "bg-transparent text-[#71717A] hover:text-[#EDEDEF]"
@@ -815,7 +815,7 @@ export function SkillLibraryOverlay({
                   placeholder="Rechercher une compétence..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-64 rounded-lg border border-[#26262A] bg-[#17171A] pl-8 pr-3 py-1.5 text-xs text-white placeholder-[#71717A] focus:border-neutral-500 focus:outline-none transition-colors"
+                  className="w-full sm:w-64 rounded-lg border border-[#26262A] bg-[#17171A] pl-8 pr-3 py-1.5 text-[16px] sm:text-xs text-white placeholder-[#71717A] focus:border-neutral-500 focus:outline-none transition-colors"
                 />
               </div>
             </div>
@@ -829,7 +829,7 @@ export function SkillLibraryOverlay({
               onDragLeave={() => setIsDragging(false)}
               onDrop={handleFileDrop}
               onClick={() => fileInputRef.current?.click()}
-              className={`mx-6 mt-4 cursor-pointer rounded-xl border border-dashed p-4 text-center transition-all ${
+              className={`mx-4 sm:mx-6 mt-4 cursor-pointer rounded-xl border border-dashed p-4 text-center transition-all ${
                 isDragging
                   ? "border-emerald-500 bg-emerald-500/5"
                   : "border-[#2E2E32] bg-[#17171A]/50 hover:border-[#3F3F46] hover:bg-[#17171A]"
@@ -847,7 +847,7 @@ export function SkillLibraryOverlay({
             </div>
 
             {/* Catalog Grid */}
-            <div className="flex-1 overflow-y-auto p-6 rk-scroll">
+            <div className="flex-1 overflow-y-auto p-4 sm:p-6 rk-scroll">
               {loading ? (
                 <div className="flex h-48 flex-col items-center justify-center text-center">
                   <p className="text-sm font-medium text-[#71717A]">Chargement de la bibliothèque…</p>
@@ -882,10 +882,10 @@ export function SkillLibraryOverlay({
 
         {/* SPLIT MARKDOWN EDITOR & LIVE PREVIEW VIEW */}
         {viewMode === "editor" ? (
-          <div className="flex flex-1 min-h-0 overflow-hidden divide-x divide-[#26262A]">
+          <div className="flex flex-col md:flex-row flex-1 min-h-0 overflow-hidden divide-y md:divide-y-0 md:divide-x divide-[#26262A]">
             {/* Left Pane: Form Fields & Raw Markdown Textarea */}
-            <div className="flex flex-1 flex-col overflow-y-auto p-6 rk-scroll gap-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="flex flex-1 flex-col overflow-y-auto p-4 sm:p-6 rk-scroll gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label className="block text-xs font-medium text-[#A1A1AA]">
                   Nom de la compétence
                   <input
@@ -898,7 +898,7 @@ export function SkillLibraryOverlay({
                       }
                     }}
                     placeholder="Ex: TypeScript Pro, Docling Document Parser"
-                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-xs text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-[16px] sm:text-xs text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
                   />
                 </label>
                 <label className="block text-xs font-medium text-[#A1A1AA]">
@@ -908,12 +908,12 @@ export function SkillLibraryOverlay({
                     value={editorSlug}
                     onChange={(e) => setEditorSlug(slugify(e.target.value))}
                     placeholder="Ex: typescript-pro"
-                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-xs font-mono text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-[16px] sm:text-xs font-mono text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
                   />
                 </label>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label className="block text-xs font-medium text-[#A1A1AA]">
                   Description courte
                   <textarea
@@ -921,7 +921,7 @@ export function SkillLibraryOverlay({
                     onChange={(e) => setEditorDescription(e.target.value)}
                     placeholder="Résumé succinct de l'expertise apportée par cette compétence..."
                     rows={2}
-                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-xs text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-[16px] sm:text-xs text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
                   />
                 </label>
                 <label className="block text-xs font-medium text-[#A1A1AA]">
@@ -931,7 +931,7 @@ export function SkillLibraryOverlay({
                     value={editorTags}
                     onChange={(e) => setEditorTags(e.target.value)}
                     placeholder="dev, typescript, backend, security"
-                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-xs text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
+                    className="mt-1.5 w-full rounded-lg border border-[#26262A] bg-[#101012] px-3 py-2 text-[16px] sm:text-xs text-white placeholder-[#52525B] focus:border-neutral-500 focus:outline-none"
                   />
                 </label>
               </div>
@@ -950,7 +950,7 @@ export function SkillLibraryOverlay({
                   value={editorContent}
                   onChange={(e) => setEditorContent(e.target.value)}
                   placeholder="Rédigez ici les directives détaillées, exemples de code et règles expertes..."
-                  className="flex-1 w-full rounded-lg border border-[#26262A] bg-[#101012] p-3 text-xs font-mono text-[#E4E4E7] placeholder-[#52525B] focus:border-neutral-500 focus:outline-none resize-none leading-relaxed"
+                  className="flex-1 w-full rounded-lg border border-[#26262A] bg-[#101012] p-3 text-[16px] sm:text-xs font-mono text-[#E4E4E7] placeholder-[#52525B] focus:border-neutral-500 focus:outline-none resize-none leading-relaxed"
                 />
               </div>
             </div>

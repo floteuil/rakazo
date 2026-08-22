@@ -26,6 +26,7 @@ export const BotSchema = z.object({
   createdAt: z.string(),
   voiceId: z.string().nullable(),
   autoSpeak: z.boolean(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type Bot = z.infer<typeof BotSchema>;
 
@@ -37,6 +38,7 @@ export const CreateBotInput = z.object({
   notifyOnFinish: z.boolean().default(true),
   color: z.string().optional(),
   computerMode: ComputerModeSchema.default("team"),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 export type CreateBotInput = z.infer<typeof CreateBotInput>;
 
@@ -51,6 +53,7 @@ export const UpdateBotInput = z.object({
   pinned: z.boolean().optional(),
   voiceId: z.string().max(120).nullable().optional(),
   autoSpeak: z.boolean().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
 });
 
 export const RoutineSchema = z.object({

@@ -196,12 +196,12 @@ export function OnboardingPage() {
   const question = QUESTIONS[answers.length];
 
   return (
-    <div className="flex min-h-full items-center justify-center bg-[#0D0D0E] px-6">
-      <div className="w-[560px]">
+    <div className="flex min-h-full items-center justify-center bg-[#0D0D0E] px-4 py-8 sm:px-6">
+      <div className="w-full max-w-[560px]">
         {step === "loading" ? <p className="text-[#85858A]">Chargement…</p> : null}
         {step === "model" ? (
           <div>
-            <h1 className="text-[32px] font-medium text-[#F1F1F2]">Connecter un modèle</h1>
+            <h1 className="text-[26px] sm:text-[32px] font-medium text-[#F1F1F2]">Connecter un modèle</h1>
             <p className="mt-2 text-[#85858A]">
               Collez une clé API ou passez cette étape si votre serveur dispose déjà d'une clé
               configurée.
@@ -210,7 +210,7 @@ export function OnboardingPage() {
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               placeholder="Rechercher des fournisseurs et modèles"
-              className="mt-8 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+              className="mt-8 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
             />
             <div className="mt-3 max-h-48 overflow-y-auto rounded-[11px] border border-[#26262A]">
               {filteredProviders.map((entry) => (
@@ -243,7 +243,7 @@ export function OnboardingPage() {
                   cancelOAuthAttempt();
                   setModelId(e.target.value);
                 }}
-                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
               >
                 {modelsForProvider.map((entry) => (
                   <option key={`${entry.provider}:${entry.id}`} value={entry.id}>
@@ -293,7 +293,7 @@ export function OnboardingPage() {
                   onChange={(e) => setApiKey(e.target.value)}
                   placeholder="sk-…"
                   type="password"
-                  className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+                  className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
                 />
               </label>
             ) : deviceSignIn ? null : (
@@ -326,14 +326,14 @@ export function OnboardingPage() {
         ) : null}
         {step === "bot" ? (
           <div>
-            <h1 className="text-[32px] font-medium text-[#F1F1F2]">Créer votre premier agent</h1>
+            <h1 className="text-[26px] sm:text-[32px] font-medium text-[#F1F1F2]">Créer votre premier agent</h1>
             <label className="mt-8 block text-sm text-[#85858A]">
               Nom de l'agent
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
                 placeholder="Ex: Samy, Rédacteur, Assistant"
-                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
               />
             </label>
             <label className="mt-4 block text-sm text-[#85858A]">
@@ -342,7 +342,7 @@ export function OnboardingPage() {
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 placeholder="Ex: Expert Marketing, Développeur"
-                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
               />
             </label>
             <label className="mt-4 block text-sm text-[#85858A]">
@@ -352,7 +352,7 @@ export function OnboardingPage() {
                 onChange={(e) => setDescription(e.target.value)}
                 placeholder="Mission principale de cet agent"
                 rows={2}
-                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
               />
             </label>
             <label className="mt-4 block text-sm text-[#85858A]">
@@ -362,7 +362,7 @@ export function OnboardingPage() {
                 onChange={(e) => setInstructions(e.target.value)}
                 placeholder="Définissez les compétences et les instructions de votre agent..."
                 rows={4}
-                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+                className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
               />
             </label>
             <button

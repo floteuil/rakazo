@@ -222,8 +222,8 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-[rgba(4,4,5,.62)] p-4 sm:p-10">
-      <div className="flex h-[min(760px,100%)] w-[1080px] max-w-full flex-col overflow-hidden rounded-[26px] border border-[#232326] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)]">
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-[rgba(4,4,5,.62)] p-0 sm:p-4 md:p-10 backdrop-blur-sm">
+      <div className="flex h-full w-full sm:h-[min(760px,100%)] md:h-[760px] md:w-[1080px] max-w-full flex-col overflow-hidden rounded-none sm:rounded-[20px] md:rounded-[26px] border border-[#232326] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)]">
         <div className="flex items-start justify-between px-6 pt-6 sm:px-8 sm:pt-7">
           <div>
             <div className="text-2xl font-medium text-[#F1F1F2]">Modèles d'IA</div>
@@ -266,7 +266,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
               value={providerQuery}
               onChange={(event) => setProviderQuery(event.target.value)}
               placeholder="Rechercher un fournisseur"
-              className="w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[14px] text-[#ECECEE] outline-none placeholder:text-[#6C6C70] focus:border-[#4A4A50]"
+              className="w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[16px] sm:text-[14px] text-[#ECECEE] outline-none placeholder:text-[#6C6C70] focus:border-[#4A4A50]"
             />
             <div className="rk-scroll mt-3 max-h-[240px] overflow-y-auto rounded-[13px] border border-[#26262A] md:min-h-0 md:max-h-none md:flex-1">
               {filteredGroups.length ? (
@@ -384,7 +384,7 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                         placeholder="sk-…"
                         type="password"
                         autoComplete="off"
-                        className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-3 text-[#ECECEE] outline-none"
+                        className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-3 text-[16px] sm:text-[14px] text-[#ECECEE] outline-none"
                       />
                     </label>
                     <Button

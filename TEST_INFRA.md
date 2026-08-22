@@ -1,38 +1,40 @@
-# TEST_INFRA — Rakazo Sovereign Skills System
+# TEST_INFRA — Rakazo WebUI Mobile-First & Sovereign Enterprise MCP Connectors
 
 ## 1. Mission & Testing Philosophy
 
-The Rakazo Sovereign Skills System E2E test infrastructure provides comprehensive, opaque-box, deterministic verification across all layers of the monorepo: Data Layer (`@rakazo/db`), Domain Contracts (`@rakazo/contracts`), Backend API (`@rakazo/api`), Runtime Adapters (`@rakazo/adapters`), and Frontend WebUI (`apps/web`).
+The Rakazo WebUI Mobile-First and Sovereign Enterprise MCP Connectors test infrastructure provides rigorous, opaque-box, deterministic verification across all layers of the monorepo: Web Application UI (`apps/web`), Fastify/oRPC API (`apps/api`), Domain Contracts & MCP Catalog (`packages/contracts`), Database Layer (`packages/db`), and Pi-Runtime Adapters (`packages/adapters`).
 
 ### Core Principles
-1. **Opaque-Box Verification**: Tests validate behavior against public interface contracts and observable outputs (HTTP responses, database states, prompt injection templates, tool call executions, DOM structures) rather than internal private variables.
-2. **Authoritative Specification Derivation**: Every assertion directly derives from `ORIGINAL_REQUEST.md` (§R1–§R7) and `PROJECT.md` interface specifications.
-3. **Strict Isolation & Idempotency**: Each test creates and cleans up its own fixtures without depending on execution ordering or shared mutable state.
-4. **Adversarial & Defense-in-Depth Testing**: All entry points are tested against malicious payloads (ReDoS, XSS injections, token exhaustion attacks, 2MB size overflows, multi-tenant slug collisions).
-5. **Progressive Monorepo Testability**: Self-contained test suites run with fast Vitest execution in CI and local dev without requiring an external PostgreSQL instance or cloud dependencies.
+1. **Opaque-Box Verification**: Tests validate behavior against public interface contracts, observable DOM trees, HTTP responses, database states, and tool call executions rather than implementation internals.
+2. **Authoritative Specification Derivation**: Every test case directly traces back to requirements defined in `ORIGINAL_REQUEST.md` (§R1–§R5) and `PROJECT.md` interface contracts.
+3. **Strict Isolation & Idempotency**: Each test case sets up its own fixtures and mocks, does not depend on test execution order, and operates without shared mutable state.
+4. **Mobile & Ergonomic Fidelity**: Validates mobile UX constraints including iOS Safari zoom prevention (font size >= 16px), safe-area insets (`env(safe-area-inset-bottom)`), touch targets (>= 40–44px), off-canvas drawer navigation, and modal responsiveness while guaranteeing desktop high-fidelity preservation (316px docked sidebar, 1080px dialogs).
+5. **Least-Privilege Sovereign Tool Security**: Verifies that enterprise tools (SearXNG, Scraperr, GitHub, Notion, Postiz, WordPress/Novamira, n8n, Cloudflare, Système) are strictly filtered per agent, subagents inherit parent tool restrictions, and sensitive tokens are systematically scrubbed.
+6. **Progressive Monorepo Testability**: Self-contained test suites run with ultra-fast Vitest execution in CI and local development.
 
 ---
 
 ## 2. Feature Inventory Coverage Mapping
 
-| Feature # | Feature Description | Primary Test Suite | Tier Coverage |
+| Feature # | Feature Name | Primary Test Suite | Tier Coverage |
 |:---:|---|---|:---:|
-| **F1** | Prisma Schema (`Skill` & `BotSkill` models) | `packages/adapters/src/skills-e2e-suite.test.ts`, `apps/api/src/skills.test.ts` | Tier 1, 2, 3 |
-| **F2** | PostgreSQL Migration `0012_skills` DDL | `packages/adapters/src/skills-e2e-suite.test.ts` | Tier 1, 3 |
-| **F3** | Database Repository (`skills.ts`) | `apps/api/src/skills.test.ts`, `packages/adapters/src/skills-e2e-suite.test.ts` | Tier 1, 2, 3 |
-| **F4** | Zod Schemas & Domain Contracts | `packages/contracts/src/skills.test.ts` | Tier 1, 2 |
-| **F5** | Hybrid YAML/Markdown Parser & Sanitizer | `packages/contracts/src/skills.test.ts` | Tier 1, 2, 4 |
-| **F6** | oRPC API Router & Fastify/Hono Handlers | `apps/api/src/skills.test.ts` | Tier 1, 2, 3 |
-| **F7** | Taught Skills Backward Compatibility | `packages/contracts/src/skills.test.ts`, `apps/api/src/skills.test.ts` | Tier 1, 3 |
-| **F8** | Skill Library Overlay WebUI Component | `apps/web/src/pages/SkillLibraryOverlay.test.tsx` | Tier 1, 2 |
-| **F9** | Bot Form Skill Multi-Selector | `apps/web/src/pages/SkillLibraryOverlay.test.tsx` | Tier 1, 3 |
-| **F10** | 100% French UI & Sidebar Navigation | `apps/web/src/pages/SkillLibraryOverlay.test.tsx` | Tier 1 |
-| **F11** | `read_skill` Builtin Tool Definition & Schema | `packages/adapters/src/skills-runtime.test.ts` | Tier 1, 2 |
-| **F12** | Hybrid Runtime Prompt Injection (<4KB Direct vs >=4KB Indexed) | `packages/adapters/src/skills-runtime.test.ts`, `packages/adapters/src/skills-e2e-suite.test.ts` | Tier 1, 2, 3, 4 |
-| **F13** | Token Guardrails & Context Protection (32KB cumulative cap) | `packages/adapters/src/skills-runtime.test.ts`, `packages/adapters/src/skills-e2e-suite.test.ts` | Tier 1, 2 |
-| **F14** | Cybersecurity, Guardrails & Secret Redaction | `packages/contracts/src/skills.test.ts`, `packages/adapters/src/skills-e2e-suite.test.ts` | Tier 2, 4 |
-| **F15** | Upstream Modular Coexistence | `packages/contracts/src/skills.test.ts`, `apps/api/src/skills.test.ts` | Tier 1, 3 |
-| **F16** | End-to-End Multi-Tier Integration | `packages/adapters/src/skills-e2e-suite.test.ts` | Tier 1, 2, 3, 4 |
+| **F1** | Mobile Drawer Navigation | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 3, 4 |
+| **F2** | Mobile Header & Hamburger | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 3 |
+| **F3** | iOS Safari Auto-Zoom Prevention | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2 |
+| **F4** | Mobile Touch Ergonomics | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2 |
+| **F5** | Safe-Area Inset Handling | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2 |
+| **F6** | Adaptive Overlays & Modals | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 3, 4 |
+| **F7** | Desktop High-Fidelity UI | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2 |
+| **F8** | Sovereign MCP Catalog Matrix | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx`, `packages/contracts/src/mcp-catalog.ts` | Tier 1, 2, 4 |
+| **F9** | Plugins & Integrations Showcase | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx`, `apps/web/src/pages/PluginsOverlay.tsx` | Tier 1, 2, 3, 4 |
+| **F10** | MCP Connector Detail Inspector | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 4 |
+| **F11** | Hybrid Agent Tool Selector UI | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 3, 4 |
+| **F12** | Per-Agent Tool Permissions DB Persistence | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 3 |
+| **F13** | Dynamic Runtime Tool Filtering | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx`, `packages/adapters/src/enterprise-tools.ts` | Tier 1, 2, 3, 4 |
+| **F14** | Subagent Permission Inheritance | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 3, 4 |
+| **F15** | Multi-Layer Security Sanitization | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx`, `packages/adapters/src/enterprise-tools.ts` | Tier 1, 2, 4 |
+| **F16** | Monorepo CI/CD Validation | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 3 |
+| **F17** | Adversarial Coverage Hardening | `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | Tier 1, 2, 3, 4 |
 
 ---
 
@@ -43,95 +45,70 @@ The Rakazo Sovereign Skills System E2E test infrastructure provides comprehensiv
 │                       RAKAZO 4-TIER TEST ARCHITECTURE                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  TIER 1: Feature Coverage (>=5 tests per feature, happy path & core logic)   │
-│  - Markdown Parsing (5+)    - CRUD Endpoints (6+)   - Bot Assignment (5+)   │
-│  - Hybrid Injection (5+)    - read_skill Tool (5+)  - WebUI Rendering (5+)  │
+│  - Mobile Navigation (5+)   - Header & Hamburger (5+) - Touch Targets (5+)  │
+│  - iOS Font Size (5+)       - Safe Area Insets (5+)   - Overlays & Modals (5+)│
+│  - Desktop Layout (5+)      - MCP Catalog Matrix (5+) - Plugins Showcase (5+)│
+│  - Detail Inspector (5+)    - Tool Selector UI (5+)   - DB Persistence (5+) │
+│  - Runtime Filter (5+)      - Subagent Inherit (5+)   - Sanitization (5+)   │
+│  - CI/CD Validation (5+)    - Adversarial Tests (5+)                        │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │  TIER 2: Boundary & Corner Cases (Stress, limits, adversarial defense)      │
-│  - 2MB Size Limit Bounds    - Empty / Malformed     - ReDoS Protection      │
-│  - Duplicate Slug Suffixing - Accents / Unicode     - HTML/XSS Sanitization │
-│  - Non-Existent Tool Query  - Cumulative Budget (32KB overflow clamping)   │
+│  - Screen Resolution Bounds - Extreme Permission Sets - Malformed Metadata  │
+│  - Secret Masking Variants  - Zero/Max Tools Toggled  - Rapid State Flips   │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  TIER 3: Cross-Feature Combinations (End-to-End Lifecycles & Cascades)      │
-│  - Upload -> DB Persist -> Bot Attach -> Prompt Compile -> Tool Execution    │
-│  - Cascade Deletion: Bot deletion leaves Skill intact                       │
-│  - Cascade Deletion: Skill deletion detaches cleanly from Bot               │
-│  - Multi-Bot & Multi-Skill Hybrid Context Concurrency                       │
+│  TIER 3: Cross-Feature Combinations (Pairwise interactions & transitions)   │
+│  - Mobile Drawer + Modal    - Hybrid Selector + DB    - Category + Search   │
+│  - Subagent + Restricted    - Viewport Resize Switch  - Secret Redact + API │
 ├─────────────────────────────────────────────────────────────────────────────┤
-│  TIER 4: Real-World Enterprise Scenarios (Production Skill Payloads)        │
-│  - Docling Document Parser (RAG & PDF extraction, >4KB indexed execution)   │
-│  - TypeScript Pro (Strict enterprise engineering, <4KB direct injection)    │
-│  - HDS Healthcare Security (French RGPD/HDS rules, secret masking defense)  │
+│  TIER 4: Real-World Application Scenarios (Realistic end-user workflows)    │
+│  - Mobile User Journey: Hamburger -> Select Bot -> Safe-Area Composer Send  │
+│  - Sovereign MCP Explorer: Showcase -> Filter Category -> Inspect Tools     │
+│  - Agent Creation: Hybrid MCP Permissions -> Tool Selection -> Persist      │
+│  - Subagent Enforcement: Parent Bot Spawn -> Restricted Tool Denial         │
+│  - High-Fidelity Responsive Switch: Mobile Drawer to Desktop Docked Bar     │
 └─────────────────────────────────────────────────────────────────────────────┘
 ```
 
 ### Detailed Tier Breakdown
 
-### Tier 1: Feature Coverage
-- **Markdown & Frontmatter Parsing**:
-  - Valid YAML frontmatter with `name`, `description`, `tags`, `metadata`.
-  - Fallback extraction of title from `# H1 Heading`.
-  - Fallback extraction of description from first body paragraph.
-  - Comma-separated or array tags extraction.
-  - Preservation of markdown body formatting (code blocks, tables, lists).
-- **CRUD Operations**:
-  - `listSkills` with search filter and pagination.
-  - `getSkill` by ID and by unique workspace slug.
-  - `createSkill` with explicit fields.
-  - `updateSkill` for individual or multiple properties.
-  - `deleteSkill` removing skill and associated records.
-- **Bot-Skill Association**:
-  - Assign multiple skills to a single bot.
-  - Retrieve all active skills for a bot.
-  - Detach a skill from a bot.
-  - Toggle `enabled` state of a bot skill.
-  - Re-assignment / overwrite idempotency.
-- **Hybrid Context Prompt Injection**:
-  - Direct full markdown injection for skills < 4KB.
-  - Index metadata summary injection for skills >= 4KB.
-  - Structural heading formatting `## Compétences & Connaissances Spécialisées de l'Agent`.
-  - Inclusion of tag lists and slug references.
-  - Clean omission when bot has 0 assigned skills.
-- **`read_skill` Builtin Tool**:
-  - Registration in `builtinAgentTools` with JSON Schema.
-  - TypeBox parameter schema definition in `pi-runtime.ts`.
-  - Argument normalization from `name` or `skill`.
-  - Fetching complete markdown content by slug or case-insensitive name.
-  - Structured return format with `name`, `slug`, `description`, `tags`, `content`.
-- **WebUI Rendering & Design Tokens**:
-  - Skill Library modal layout conforming to `#141416` container and `#26262A` border tokens.
-  - Drag & Drop upload zone with instant preview.
-  - Tag filter pills (`Tous`, `Développement`, `Sécurité`, etc.).
-  - Search input with client-side reactive filtering.
-  - Visual badges `< 4 Ko : Direct` (Green) vs `>= 4 Ko : Indexé` (Blue).
+#### Tier 1: Feature Coverage
+- **F1: Mobile Drawer Navigation**: Off-canvas drawer sliding mechanism, semi-transparent backdrop overlay, tap-to-close behavior, desktop docked sidebar (`md:relative`).
+- **F2: Mobile Header & Hamburger**: Compact mobile top bar, active agent title display, online/offline status dot, hamburger toggle button triggering drawer.
+- **F3: iOS Safari Auto-Zoom Prevention**: Input elements (chat composer, search inputs, form text fields) styled with `text-[16px]` or `text-base` preventing automatic iOS Safari viewport zoom.
+- **F4: Mobile Touch Ergonomics**: Minimum 40–44px hit-target heights on send buttons, action pills, navigation links, and modal dismiss buttons.
+- **F5: Safe-Area Inset Handling**: Padding applied to bottom message composer and navigation containers respecting `env(safe-area-inset-bottom)` and `viewport-fit=cover`.
+- **F6: Adaptive Overlays & Modals**: Responsiveness of all overlays (`SkillLibraryOverlay`, `ModelSettingsOverlay`, `VoiceSettingsOverlay`, `PluginsOverlay`, `BotSettings`, `CreateBotForm`, `Onboarding`, `Auth`) rendering full-screen or bottom-sheet on mobile and centered floating dialogs on desktop.
+- **F7: Desktop High-Fidelity UI**: Full preservation of desktop workstation UX including 316px docked sidebar (`w-[316px]`), 1080px rounded floating dialogs (`w-[1080px]`), and rich multi-column layouts.
+- **F8: Sovereign MCP Catalog Matrix**: Complete matrix of 8 Sovereign Connectors (SearXNG/Scraperr, GitHub, Notion, Postiz, WordPress/Novamira, n8n, Cloudflare, Système) exposing 40 tools with endpoints, badges, protocols, and parameter contracts.
+- **F9: Plugins & Integrations Showcase**: Redesigned showcase in `PluginsOverlay.tsx` featuring Sovereign MCP connectors, category tabs (`all`, `connected`, `search`, `code`, `workspace`, `social`, `cms`, `automation`, `infra`, `system`), and status badges.
+- **F10: MCP Connector Detail Inspector**: Inspector panel providing connector metadata, overview, available tools table with parameter specifications, and security/secret status.
+- **F11: Hybrid Agent Tool Selector UI**: `<BotMcpToolSelector />` providing 1-click global connector activation switch and expandable accordion for granular per-tool checkboxes.
+- **F12: Per-Agent Tool Permissions DB Persistence**: Bot `metadata.mcp` schema structure with `connectors` and `tools` boolean record maps, repository serialization, and database persistence.
+- **F13: Dynamic Runtime Tool Filtering**: `filterToolsForBot` algorithm in runtime execution pipeline matching bot configuration and injecting only authorized tools.
+- **F14: Subagent Permission Inheritance**: Child bots spawned via `run_subagent` strictly inherit and cannot exceed the parent bot's authorized toolset.
+- **F15: Multi-Layer Security Sanitization**: `sanitizeToolError` scrubbing sensitive GitHub PATs, Notion tokens, bearer credentials, and connection strings from tool output errors.
+- **F16: Monorepo CI/CD Validation**: Monorepo packages verification, TypeScript zero-error check, test runner compatibility.
+- **F17: Adversarial Coverage Hardening**: Resilient handling of malformed metadata, XSS payload injections in tool names/prompts, empty configuration objects, and rapid toggle changes.
 
-### Tier 2: Boundary & Corner Cases
-- **Content Size Boundary**: Validates 2,000,000 characters passes while 2,000,001 characters throws Zod validation error.
-- **Empty / Whitespace-Only Payloads**: Enforces rejection of empty markdown strings.
-- **Missing Frontmatter**: Verifies parser does not crash on raw markdown without `---` delimiters.
-- **Duplicate Slug Resolution**: Deterministic suffixing (`docling-parser-2`, `docling-parser-3`) when collisions occur within the same workspace.
-- **Internationalization & Accents**: Slugification normalizes accents (`Sécurité HDS Santé` -> `securite-hds-sante`).
-- **ReDoS Mitigation**: Regex evaluation against 100,000-character adversarial nested strings completes in < 10ms.
-- **XSS & HTML Sanitization**: Dangerous tags (`<script>`, `<iframe>`, `<object>`, `<embed>`, `javascript:`, `onerror=`) are stripped while markdown styling is preserved.
-- **Non-Existent Tool Query**: `read_skill(name: "unknown-skill")` returns structured error payload `{ error: "Skill 'unknown-skill' not found in workspace." }` without crashing runtime.
-- **Cumulative 32KB Budget Overflow**: When multiple <4KB skills collectively exceed 32KB, excess skills are automatically downgraded to indexed mode.
+#### Tier 2: Boundary & Corner Cases
+- **Viewport Dimension Boundaries**: Ultra-small mobile (320px), standard iPhone SE (375px), iPhone 14/15 (390px), iPad portrait breakpoint (768px), desktop (1024px), ultra-wide (1440px+).
+- **Tool Selection Extremes**: 0 tools enabled, all 40 tools enabled, connector enabled with 0 individual tools enabled, individual tool enabled with connector disabled (override resolution).
+- **Malformed & Corrupted Metadata**: `metadata.mcp = null`, `undefined`, boolean primitives, arrays, unknown connector IDs, empty strings.
+- **Secret Redaction Variants**: Short tokens, multi-line error traces, embedded query strings, base64 tokens, Bearer headers, webhook URLs.
 
-### Tier 3: Cross-Feature Combinations
-- **Complete End-to-End Pipeline**: Upload `.md` -> Parse frontmatter -> Save to DB repo -> Assign to Bot -> Compile hybrid system prompt -> Agent executes `read_skill` tool -> Delete bot with cascade check.
-- **Cascade Deletion Semantics**:
-  - Deleting a `Bot` cascades to delete `BotSkill` records while leaving global `Skill` records intact.
-  - Deleting a `Skill` cascades to remove it from all assigned bots without affecting the `Bot` records.
-- **Multi-Tenant Isolation**: Two distinct workspaces cannot view, update, delete, or invoke skills belonging to each other.
+#### Tier 3: Cross-Feature Combinations
+- **Mobile Drawer + Overlay Stacking**: Opening an overlay automatically dismisses or correctly layers over the mobile drawer without backdrop conflict.
+- **Hybrid Selector UI + DB Serialization + Runtime Filter**: Toggle UI updates state -> serializes to `BotMetadata` -> runtime filters tools matching exact user selection.
+- **Category Filter + Search Query in MCP Showcase**: Real-time combined filtering across category pill tabs and text query substring matching.
+- **Subagent Spawning + Least-Privilege Filter + Error Sanitization**: Subagent executing restricted tool blocked gracefully, and any system error returned is fully sanitized.
+- **Responsive Dynamic Transition**: Layout elements adapt fluidly across mobile and desktop breakpoints without layout shift or missing controls.
 
-### Tier 4: Real-World Enterprise Scenarios
-- **Scenario A: Docling Document Parser Skill**:
-  - Large comprehensive RAG & PDF extraction manual (>4KB).
-  - Triggers indexed mode in executor, requiring agent to invoke `read_skill(name: "docling-document-parser")`.
-- **Scenario B: TypeScript Pro Skill**:
-  - Concise enterprise TypeScript guidelines (<4KB).
-  - Triggers direct prompt injection mode with full markdown code fences in the system prompt.
-- **Scenario C: Healthcare HDS Security Skill**:
-  - French healthcare data security rules, AES-256 encryption guidelines, and secret masking compliance.
-  - Validates French terminology, token redaction, and `sanitizeToolError` preservation.
+#### Tier 4: Real-World Application Scenarios
+- **Scenario 1: Mobile User Daily Journey**: User opens hamburger menu on iPhone, navigates to agent chat, enters message in zoom-protected composer with safe-area padding, and submits via 44px touch target button.
+- **Scenario 2: Enterprise Sovereign MCP Explorer**: User browses Sovereign MCP catalogue, filters by 'Ingénierie', inspects GitHub MCP connector, views 6 tools and parameter definitions, and checks operational status.
+- **Scenario 3: Custom Agent Creation with Hybrid Toolset**: User creates a specialized RAG bot, enables SearXNG search connector, enables Notion workspace connector but disables `notion_delete_page`, and saves configuration.
+- **Scenario 4: Multi-Agent Subagent Tool Execution**: Primary coordinator agent invokes subagent to scrape documentation; subagent receives only `web_scrape` tool and cannot access unassigned GitHub or Cloudflare tools.
+- **Scenario 5: Full Responsive Adaptability Matrix**: System renders all overlays and dialogs across mobile and desktop breakpoints verifying consistent tokens, typography, and controls.
 
 ---
 
@@ -139,48 +116,43 @@ The Rakazo Sovereign Skills System E2E test infrastructure provides comprehensiv
 
 The test suites are organized across standard monorepo locations:
 
-1. **Contracts & Parsing Suite**:
-   - `packages/contracts/src/skills.test.ts`: Contracts, Zod schemas, YAML/Markdown parser, sanitization, slugification.
-2. **API & Handlers Suite**:
-   - `apps/api/src/skills.test.ts`: oRPC API handlers, CRUD, upload, bot assignments, tenant isolation, slug collisions.
-3. **Pi-Runtime & Adapter Suite**:
-   - `packages/adapters/src/skills-runtime.test.ts`: Builtin tools registration, `pi-runtime.ts` argument normalization, `executor.ts` hybrid injection, token budget clamping.
-4. **WebUI Component Suite**:
-   - `apps/web/src/pages/SkillLibraryOverlay.test.tsx`: SkillLibraryOverlay component rendering, token badges, tag filtering, search, Drag & Drop upload parsing.
-5. **Comprehensive 4-Tier Integration Suite**:
-   - `packages/adapters/src/skills-e2e-suite.test.ts`: Full-stack orchestration across all 4 tiers, real-world skill payloads, cascade deletions, and adversarial boundary checks.
+1. **WebUI Mobile & MCP Master E2E Suite**:
+   - `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx`: Master 4-Tier test suite covering all 17 features, mobile navigation, adaptive overlays, MCP showcase, hybrid tool selector, persistence, and runtime tool filtering.
+2. **Contracts & MCP Catalog Suite**:
+   - `packages/contracts/src/mcp-catalog.ts`: Shared catalogue matrix defining all 8 Sovereign Connectors and 40 tools.
+   - `packages/contracts/src/skills.test.ts`: Contracts, Zod schemas, YAML/Markdown parser.
+3. **Enterprise Tools & Runtime Suite**:
+   - `packages/adapters/src/e2e-enterprise-suite.test.ts`: Enterprise tools execution, SearXNG, Scraperr, GitHub, Notion, Postiz, WordPress, n8n, Cloudflare, secrets scrubbing.
+   - `packages/adapters/src/enterprise-tools.test.ts`: Unit test suite for enterprise connector tools.
+4. **Skills & Overlays WebUI Suite**:
+   - `apps/web/src/pages/SkillLibraryOverlay.test.tsx`: Skill library modal rendering and responsive badges.
+   - `apps/web/src/pages/BotSkillSelection.adversarial.test.tsx`: Adversarial validation of bot skill selector logic.
 
 ---
 
 ## 5. How to Run the Tests
+
+### Run the Mobile-First & Enterprise MCP Master E2E Suite:
+```bash
+pnpm vitest run apps/web/src/pages/e2e-mobile-and-mcp.test.tsx
+```
+
+### Run all WebUI tests:
+```bash
+pnpm vitest run apps/web/src/
+```
+
+### Run all enterprise and adapter tests:
+```bash
+pnpm vitest run packages/adapters/src/e2e-enterprise-suite.test.ts
+```
 
 ### Run the entire test suite across the monorepo:
 ```bash
 pnpm test
 ```
 
-### Run specific Skill System test suites:
-```bash
-# Run all Skills test files
-pnpm exec vitest run skills
-
-# Run Contracts & Parser tests
-pnpm exec vitest run packages/contracts/src/skills.test.ts
-
-# Run API & Backend Handler tests
-pnpm exec vitest run apps/api/src/skills.test.ts
-
-# Run Pi-Runtime & Hybrid Injection tests
-pnpm exec vitest run packages/adapters/src/skills-runtime.test.ts
-
-# Run WebUI Component tests
-pnpm exec vitest run apps/web/src/pages/SkillLibraryOverlay.test.tsx
-
-# Run Comprehensive 4-Tier E2E Integration Suite
-pnpm exec vitest run packages/adapters/src/skills-e2e-suite.test.ts
-```
-
 ### Watch mode for continuous development:
 ```bash
-pnpm exec vitest watch skills
+pnpm vitest watch apps/web/src/pages/e2e-mobile-and-mcp.test.tsx
 ```

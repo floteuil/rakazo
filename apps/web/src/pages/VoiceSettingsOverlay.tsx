@@ -115,10 +115,10 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
   }
 
   return (
-    <div className="absolute inset-0 z-30 flex items-center justify-center bg-[rgba(4,4,5,.62)] p-4 sm:p-10">
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-[rgba(4,4,5,.62)] p-0 sm:p-4 md:p-10 backdrop-blur-sm">
       <div
         data-testid="voice-settings"
-        className="flex h-[min(680px,100%)] w-[920px] max-w-full flex-col overflow-hidden rounded-[26px] border border-[#232326] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)]"
+        className="flex h-full w-full sm:h-[min(680px,100%)] md:h-[680px] md:w-[920px] max-w-full flex-col overflow-hidden rounded-none sm:rounded-[20px] md:rounded-[26px] border border-[#232326] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)]"
       >
         <div className="flex items-start justify-between px-6 pt-6 sm:px-8 sm:pt-7">
           <div>
@@ -220,7 +220,7 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                     placeholder={
                       credential ? "Coller une clé de remplacement" : "Coller votre clé API"
                     }
-                    className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[14px] text-[#ECECEE] outline-none"
+                    className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[16px] sm:text-[14px] text-[#ECECEE] outline-none"
                   />
                 </label>
                 <Button
@@ -243,7 +243,7 @@ export function VoiceSettingsOverlay({ onClose }: { onClose: () => void }) {
                       <select
                         value={voiceId}
                         onChange={(event) => void chooseVoice(event.target.value)}
-                        className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[14px] text-[#ECECEE] outline-none"
+                        className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#101012] px-3.5 py-2.5 text-[16px] sm:text-[14px] text-[#ECECEE] outline-none"
                       >
                         {voiceOptions.map((voice) => (
                           <option key={voice.id} value={voice.id}>

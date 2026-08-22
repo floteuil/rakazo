@@ -1,6 +1,7 @@
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type {
   Bot,
+  BotMcpConfig,
   ComputerMode,
   ComputerStatus,
   Me,
@@ -15,6 +16,7 @@ import type {
   VoiceInfo,
   VoiceStatus,
 } from "@rakazo/contracts";
+import { BotMcpToolSelector } from "./BotMcpToolSelector";
 import {
   ATTACHMENT_ALLOWED_MIME_TYPES,
   ATTACHMENT_MAX_BYTES,
@@ -38,6 +40,7 @@ import {
   Cpu,
   Gauge,
   LogOut,
+  Menu,
   Mic,
   Monitor,
   Paperclip,
@@ -147,6 +150,7 @@ export function ShellPage() {
   const [taughtSkillsBotId, setTaughtSkillsBotId] = useState<string | null>(null);
   const [teachBusy, setTeachBusy] = useState(false);
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
   const [skillLibraryOpen, setSkillLibraryOpen] = useState(false);
   const [modelsOpen, setModelsOpen] = useState(false);
@@ -584,6 +588,7 @@ export function ShellPage() {
   async function jumpToSearchHit(hit: SearchHit) {
     setQuery("");
     setSearchHits([]);
+    setSidebarOpen(false);
     const params = new URLSearchParams();
     if (hit.messageId) params.set("m", hit.messageId);
     if (hit.routineId) params.set("routine", hit.routineId);
@@ -839,6 +844,7 @@ export function ShellPage() {
     instructions?: string;
     computerMode: ComputerMode;
     skillIds?: string[];
+    metadata?: Record<string, unknown>;
   }) {
     const bot = await rpc.bots.create({
       name: input.name.trim(),
@@ -847,6 +853,7 @@ export function ShellPage() {
       instructions: input.instructions?.trim() || input.description,
       notifyOnFinish: true,
       computerMode: input.computerMode,
+      metadata: input.metadata,
     });
     if (input.skillIds && input.skillIds.length > 0) {
       await rpc.skills
@@ -994,12 +1001,28 @@ export function ShellPage() {
       {bootstrapMe !== undefined ? (
         <HostComputerPrompt initialMe={bootstrapMe ?? undefined} />
       ) : null}
-      <aside className="flex w-[316px] shrink-0 flex-col border-r border-[#171719] bg-[#0B0B0C]">
+      {/* Mobile Sidebar Backdrop */}
+      {sidebarOpen ? (
+        <div
+          className="fixed inset-0 z-30 bg-black/60 backdrop-blur-xs transition-opacity md:hidden"
+          onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
+        />
+      ) : null}
+
+      <aside
+        className={`fixed inset-y-0 left-0 z-40 flex w-[300px] max-w-[85vw] shrink-0 flex-col border-r border-[#171719] bg-[#0B0B0C] transition-transform duration-200 ease-in-out md:relative md:inset-auto md:z-auto md:w-[316px] md:translate-x-0 ${
+          sidebarOpen ? "translate-x-0 shadow-2xl" : "-translate-x-full"
+        }`}
+      >
         <div className="app-drag flex items-center justify-between px-[18px] pb-3 pt-4">
           <WindowChrome />
           <button
             type="button"
-            onClick={() => setPanel("create")}
+            onClick={() => {
+              setPanel("create");
+              setSidebarOpen(false);
+            }}
             className="app-no-drag text-[21px] text-[#7A7A80] hover:text-[#C9C9CE]"
             title="Nouvel agent"
           >
@@ -1012,7 +1035,7 @@ export function ShellPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             placeholder="Rechercher…"
-            className="w-full bg-transparent outline-none"
+            className="w-full bg-transparent outline-none text-[16px] sm:text-[14px]"
           />
         </div>
         <div className="rk-scroll flex flex-1 flex-col gap-0.5 overflow-y-auto px-2.5 pb-2.5">
@@ -1027,7 +1050,10 @@ export function ShellPage() {
               <button
                 key={bot.id}
                 type="button"
-                onClick={() => navigate(`/app/${bot.id}`)}
+                onClick={() => {
+                  navigate(`/app/${bot.id}`);
+                  setSidebarOpen(false);
+                }}
                 onContextMenu={(event) => {
                   event.preventDefault();
                   setBotMenu({ botId: bot.id, position: { x: event.clientX, y: event.clientY } });
@@ -1118,7 +1144,10 @@ export function ShellPage() {
         </div>
         <button
           type="button"
-          onClick={() => setSkillLibraryOpen(true)}
+          onClick={() => {
+            setSkillLibraryOpen(true);
+            setSidebarOpen(false);
+          }}
           className="mx-3 mb-1 flex items-center gap-3 rounded-[11px] px-2.5 py-2 hover:bg-[#131315]"
         >
           <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-[#17171A] text-[#9A9AA0]">
@@ -1128,7 +1157,10 @@ export function ShellPage() {
         </button>
         <button
           type="button"
-          onClick={() => setPluginsOpen(true)}
+          onClick={() => {
+            setPluginsOpen(true);
+            setSidebarOpen(false);
+          }}
           className="mx-3 mb-1 flex items-center gap-3 rounded-[11px] px-2.5 py-2 hover:bg-[#131315]"
         >
           <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-[#17171A] text-[#9A9AA0]">
@@ -1143,6 +1175,7 @@ export function ShellPage() {
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
+                  setSidebarOpen(false);
                   setModelsOpen(true);
                 }}
                 className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
@@ -1154,6 +1187,7 @@ export function ShellPage() {
                 type="button"
                 onClick={() => {
                   setMenuOpen(false);
+                  setSidebarOpen(false);
                   setVoiceOpen(true);
                 }}
                 className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
@@ -1204,20 +1238,30 @@ export function ShellPage() {
       </aside>
 
       <main className="flex min-w-0 flex-1 flex-col bg-[#0D0D0E]">
-        <div className="flex items-center justify-between border-b border-[#141416] px-[22px] py-[17px]">
-          <button
-            type="button"
-            data-testid="bot-settings-trigger"
-            onClick={() => setPanel("settings")}
-            className="flex min-w-0 items-center gap-3"
-          >
-            {active ? <BotAvatar color={active.color} size={26} /> : null}
-            <span className="min-w-0">
-              <span className="block truncate text-[16px] font-medium text-[#ECECEE]">
-                {active?.name ?? "Select a bot"}
+        <div className="flex items-center justify-between border-b border-[#141416] px-3.5 py-3 md:px-[22px] md:py-[17px]">
+          <div className="flex min-w-0 items-center gap-2">
+            <button
+              type="button"
+              aria-label="Ouvrir le menu"
+              onClick={() => setSidebarOpen(true)}
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-lg text-[#A8A8AD] hover:bg-[#1B1B1E] md:hidden"
+            >
+              <Menu size={20} strokeWidth={1.8} />
+            </button>
+            <button
+              type="button"
+              data-testid="bot-settings-trigger"
+              onClick={() => setPanel("settings")}
+              className="flex min-w-0 items-center gap-2.5 sm:gap-3"
+            >
+              {active ? <BotAvatar color={active.color} size={26} /> : null}
+              <span className="min-w-0">
+                <span className="block truncate text-[15px] font-medium text-[#ECECEE] md:text-[16px]">
+                  {active?.name ?? "Select a bot"}
+                </span>
               </span>
-            </span>
-          </button>
+            </button>
+          </div>
           <div className="flex items-center gap-1">
             {active ? (
               <button
@@ -1302,12 +1346,14 @@ export function ShellPage() {
       <aside
         data-testid="side-panel"
         data-panel={panel ?? "closed"}
-        className={`relative z-20 flex min-h-0 shrink-0 flex-col overflow-hidden bg-[#0A0A0B] transition-[width] duration-150 ease-out ${
-          panel && active ? "w-[384px] border-l border-[#141416]" : "pointer-events-none w-0"
+        className={`fixed inset-0 z-40 flex min-h-0 flex-col overflow-hidden bg-[#0A0A0B] md:relative md:inset-auto md:z-20 md:transition-[width] md:duration-150 md:ease-out ${
+          panel && active
+            ? "w-full md:w-[384px] md:border-l md:border-[#141416]"
+            : "pointer-events-none hidden md:flex md:w-0"
         }`}
       >
         {panel && active ? (
-          <div className="rk-scroll h-full w-[384px] overflow-y-auto px-5 py-[17px]">
+          <div className="rk-scroll h-full w-full overflow-y-auto px-4 py-4 sm:px-5 sm:py-[17px] md:w-[384px]">
             {panel !== "routine" && panel !== "create" ? (
               <div className="mb-4 flex items-center justify-between">
                 <span className="text-[13.5px] text-[#85858A]">
@@ -1895,7 +1941,7 @@ const Transcript = memo(function Transcript({
     <div
       ref={scrollRef}
       data-testid="transcript"
-      className="rk-scroll flex flex-1 flex-col gap-[13px] overflow-y-auto px-7 py-6"
+      className="rk-scroll flex flex-1 flex-col gap-[13px] overflow-y-auto px-3.5 py-4 sm:px-7 sm:py-6"
     >
       {olderCursor != null ? (
         <button
@@ -1985,7 +2031,7 @@ const Composer = memo(function Composer({
   }
 
   return (
-    <div className="px-6 pb-6 pt-3">
+    <div className="px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 sm:pt-3">
       {sendError || dictationError ? (
         <div className="mb-3 rounded-[14px] border border-[#5A2A2A] bg-[#2A1717] px-4 py-2 text-[13px] text-[#F1A8A8]">
           {sendError ?? dictationError}
@@ -2039,7 +2085,7 @@ const Composer = memo(function Composer({
           aria-label="Attach file"
           disabled={disabled}
           onClick={() => fileInputRef.current?.click()}
-          className="grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full border border-[#26262A] text-[#9A9AA0] disabled:opacity-40"
+          className="grid h-10 w-10 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border border-[#26262A] text-[#9A9AA0] disabled:opacity-40"
         >
           <Plus size={17} strokeWidth={1.8} />
         </button>
@@ -2059,7 +2105,7 @@ const Composer = memo(function Composer({
             onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
           }}
           onTouchEnd={onDictateStop}
-          className={`grid h-[34px] w-[34px] shrink-0 place-items-center rounded-full border ${
+          className={`grid h-10 w-10 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border ${
             dictating
               ? "border-[#4ECB71] bg-[rgba(48,162,75,.16)] text-[#4ECB71]"
               : "border-[#26262A] text-[#9A9AA0]"
@@ -2079,14 +2125,14 @@ const Composer = memo(function Composer({
           }}
           disabled={disabled}
           placeholder={activeName ? `Envoyer un message à ${activeName}…` : "Écrire un message…"}
-          className="flex-1 bg-transparent text-[15.5px] text-[#E9E9EA] outline-none disabled:opacity-40"
+          className="flex-1 bg-transparent text-[16px] sm:text-[15.5px] text-[#E9E9EA] outline-none disabled:opacity-40"
         />
         {running ? (
           <button
             type="button"
             aria-label="Arrêter"
             onClick={() => void onStop()}
-            className="grid h-9 w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A]"
+            className="grid h-10 w-10 sm:h-9 sm:w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A]"
           >
             <Square size={12} strokeWidth={0} fill="currentColor" />
           </button>
@@ -2096,7 +2142,7 @@ const Composer = memo(function Composer({
             aria-label="Envoyer"
             disabled={sending || !canSend || disabled}
             onClick={send}
-            className="grid h-9 w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] disabled:opacity-50"
+            className="grid h-10 w-10 sm:h-9 sm:w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] disabled:opacity-50"
           >
             <ArrowUp size={18} strokeWidth={2} />
           </button>
@@ -2509,6 +2555,7 @@ function CreateBotForm({
     instructions?: string;
     computerMode: ComputerMode;
     skillIds?: string[];
+    metadata?: Record<string, unknown>;
   }) => void;
   onCancel: () => void;
 }) {
@@ -2519,6 +2566,7 @@ function CreateBotForm({
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [availableSkills, setAvailableSkills] = useState<SkillSummary[]>([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [mcpConfig, setMcpConfig] = useState<BotMcpConfig>(() => ({ connectors: {}, tools: {} }));
 
   useEffect(() => {
     void rpc.skills
@@ -2541,7 +2589,7 @@ function CreateBotForm({
           value={name}
           onChange={(e) => setName(e.target.value)}
           placeholder="Ex: Samy, Rédacteur, Développeur"
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
@@ -2550,7 +2598,7 @@ function CreateBotForm({
           value={title}
           onChange={(e) => setTitle(e.target.value)}
           placeholder="Ex: Expert Marketing, Analyste de données"
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
@@ -2560,7 +2608,7 @@ function CreateBotForm({
           onChange={(e) => setDescription(e.target.value)}
           placeholder="Brève description de la mission de l'agent"
           rows={2}
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
@@ -2570,7 +2618,7 @@ function CreateBotForm({
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Définissez les directives, compétences, style et comportement de votre agent..."
           rows={5}
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <div className="mt-4">
@@ -2637,6 +2685,11 @@ function CreateBotForm({
           </p>
         )}
       </div>
+
+      <div className="mt-6 border-t border-[#26262A] pt-5">
+        <BotMcpToolSelector value={mcpConfig} onChange={setMcpConfig} />
+      </div>
+
       <ComputerModePicker value={computerMode} onChange={setComputerMode} />
       <button
         type="button"
@@ -2649,6 +2702,7 @@ function CreateBotForm({
             instructions,
             computerMode,
             skillIds: selectedSkillIds,
+            metadata: { mcp: mcpConfig },
           })
         }
         className="mt-5 rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40"
@@ -2675,6 +2729,7 @@ function BotSettings({
     autoSpeak?: boolean;
     voiceId?: string | null;
     skillIds?: string[];
+    metadata?: Record<string, unknown>;
   }) => Promise<void>;
   onExport: () => Promise<void>;
   onClear: () => void;
@@ -2690,6 +2745,13 @@ function BotSettings({
   const [availableSkills, setAvailableSkills] = useState<SkillSummary[]>([]);
   const [botSkills, setBotSkills] = useState<Skill[]>([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
+  const [mcpConfig, setMcpConfig] = useState<BotMcpConfig>(() => {
+    const rawMcp = (bot.metadata as any)?.mcp;
+    if (rawMcp && typeof rawMcp === "object") {
+      return rawMcp as BotMcpConfig;
+    }
+    return { connectors: {}, tools: {} };
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -2767,7 +2829,7 @@ function BotSettings({
         <input
           value={name}
           onChange={(e) => setName(e.target.value)}
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
@@ -2775,7 +2837,7 @@ function BotSettings({
         <input
           value={title}
           onChange={(e) => setTitle(e.target.value)}
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
@@ -2784,7 +2846,7 @@ function BotSettings({
           value={description}
           onChange={(e) => setDescription(e.target.value)}
           rows={2}
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <label className="mt-4 block text-[14px] text-[#85858A]">
@@ -2794,7 +2856,7 @@ function BotSettings({
           onChange={(e) => setInstructions(e.target.value)}
           placeholder="Définissez les directives, compétences, style et comportement de votre agent..."
           rows={6}
-          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
+          className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
       <ComputerModePicker value={computerMode} onChange={setComputerMode} />
@@ -2879,6 +2941,11 @@ function BotSettings({
           </div>
         ) : null}
       </div>
+
+      <div className="mt-6 border-t border-[#26262A] pt-5">
+        <BotMcpToolSelector value={mcpConfig} onChange={setMcpConfig} />
+      </div>
+
       <label className="mt-5 flex cursor-pointer items-center gap-3 text-[14px] text-[#C9C9CE]">
         <input
           type="checkbox"
@@ -2921,6 +2988,10 @@ function BotSettings({
               autoSpeak,
               voiceId: voiceId || null,
               skillIds: selectedSkillIds,
+              metadata: {
+                ...(bot.metadata || {}),
+                mcp: mcpConfig,
+              },
             })
               .catch((err) =>
                 setError(err instanceof Error ? err.message : "Impossible d'enregistrer"),
