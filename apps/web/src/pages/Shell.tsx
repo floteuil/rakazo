@@ -16,7 +16,7 @@ import type {
   VoiceInfo,
   VoiceStatus,
 } from "@rakazo/contracts";
-import { BotMcpToolSelector } from "./BotMcpToolSelector";
+import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelector";
 import {
   ATTACHMENT_ALLOWED_MIME_TYPES,
   ATTACHMENT_MAX_BYTES,
@@ -2567,7 +2567,7 @@ function CreateBotForm({
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [availableSkills, setAvailableSkills] = useState<SkillSummary[]>([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
-  const [mcpConfig, setMcpConfig] = useState<BotMcpConfig>(() => ({ connectors: {}, tools: {} }));
+  const [mcpConfig, setMcpConfig] = useState<BotMcpConfig>(() => getRecommendedMcpConfig());
 
   useEffect(() => {
     void rpc.skills

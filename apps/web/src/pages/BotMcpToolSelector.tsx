@@ -1,5 +1,7 @@
 import {
   type BotMcpConfig,
+  DEFAULT_ENABLED_SOVEREIGN_TOOLS,
+  getConnectorForTool,
   type McpToolDefinition,
   SOVEREIGN_MCP_CONNECTORS,
   type SovereignMcpConnector,
@@ -79,8 +81,17 @@ function renderConnectorIcon(iconName: string, className = "h-5 w-5") {
 // ============================================================================
 
 export function isToolActive(config: BotMcpConfig | undefined, toolName: string): boolean {
-  if (!config || !config.tools) return true;
-  return config.tools[toolName] ?? true;
+  if (!config) return DEFAULT_ENABLED_SOVEREIGN_TOOLS.includes(toolName);
+  if (config.tools && typeof config.tools[toolName] === "boolean") {
+    return config.tools[toolName]!;
+  }
+  if (config.connectors) {
+    const connector = getConnectorForTool(toolName);
+    if (connector && typeof config.connectors[connector.id] === "boolean") {
+      return config.connectors[connector.id]!;
+    }
+  }
+  return DEFAULT_ENABLED_SOVEREIGN_TOOLS.includes(toolName);
 }
 
 export function getAllActiveMcpConfig(): BotMcpConfig {
@@ -96,7 +107,23 @@ export function getAllActiveMcpConfig(): BotMcpConfig {
 }
 
 export function getRecommendedMcpConfig(): BotMcpConfig {
-  return getAllActiveMcpConfig();
+  const connectors: Record<string, boolean> = {
+    searxng_scraperr: true,
+    system_platform: true,
+    github: false,
+    notion: false,
+    postiz: false,
+    wordpress_novamira: false,
+    n8n: false,
+    cloudflare: false,
+  };
+  const tools: Record<string, boolean> = {};
+  for (const connector of SOVEREIGN_MCP_CONNECTORS) {
+    for (const tool of connector.tools) {
+      tools[tool.name] = DEFAULT_ENABLED_SOVEREIGN_TOOLS.includes(tool.name);
+    }
+  }
+  return { connectors, tools };
 }
 
 export function getAllDisabledMcpConfig(): BotMcpConfig {

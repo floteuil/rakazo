@@ -29,6 +29,7 @@ import {
   Layers,
   LayoutGrid,
   Lock,
+  Plus,
   Search,
   Server,
   Share2,
@@ -36,6 +37,7 @@ import {
   ShieldCheck,
   Sparkles,
   Terminal,
+  Trash2,
   Workflow,
   X,
   Zap,
@@ -109,9 +111,35 @@ export function PluginsOverlay({
   const searchInputId = useId();
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState<SovereignCategory>("all");
+  const [customConnectors, setCustomConnectors] = useState<SovereignMcpConnector[]>(() => {
+    try {
+      const stored = localStorage.getItem("rakazo:custom_mcp_connectors");
+      return stored ? JSON.parse(stored) : [];
+    } catch {
+      return [];
+    }
+  });
+  const [addCustomOpen, setAddCustomOpen] = useState(false);
+  const [customName, setCustomName] = useState("");
+  const [customSlug, setCustomSlug] = useState("");
+  const [customDescription, setCustomDescription] = useState("");
+  const [customCategory, setCustomCategory] = useState<SovereignCategory>("automation");
+  const [customEndpoint, setCustomEndpoint] = useState("");
+  const [customProtocol, setCustomProtocol] = useState("SSE / JSON-RPC");
+  const [customApiKey, setCustomApiKey] = useState("");
+  const [customToolsInput, setCustomToolsInput] = useState("");
+
+  const allSovereignConnectors = useMemo(() => {
+    return [...SOVEREIGN_MCP_CONNECTORS, ...customConnectors];
+  }, [customConnectors]);
+
   const [selectedConnector, setSelectedConnector] = useState<SovereignMcpConnector | null>(() => {
     if (initialConnectorId) {
-      return SOVEREIGN_MCP_CONNECTORS.find((c) => c.id === initialConnectorId) ?? null;
+      return (
+        SOVEREIGN_MCP_CONNECTORS.find((c) => c.id === initialConnectorId) ??
+        customConnectors.find((c) => c.id === initialConnectorId) ??
+        null
+      );
     }
     return null;
   });
@@ -150,11 +178,133 @@ export function PluginsOverlay({
       .finally(() => setLoading(false));
   }, []);
 
+  function handleSaveCustomConnector() {
+    if (!customName.trim() || !customEndpoint.trim()) return;
+    const slug = (
+      customSlug.trim() || customName.toLowerCase().replace(/[^a-z0-9]+/g, "_")
+    ).replace(/^_+|_+$/g, "");
+    const id = `custom_${slug}`;
+
+    let tools: McpToolDefinition[] = [];
+    if (customToolsInput.trim()) {
+      try {
+        const parsed = JSON.parse(customToolsInput);
+        if (Array.isArray(parsed)) {
+          tools = parsed.map((t, idx) => ({
+            name: t.name || `${slug}_tool_${idx + 1}`,
+            label: t.label || t.name || `Outil ${idx + 1}`,
+            description: t.description || "Outil MCP personnalisé",
+            connectorId: id,
+            category: customCategory,
+            requiredParams: t.requiredParams || [],
+            parameters: t.parameters || [],
+          }));
+        }
+      } catch {
+        tools = customToolsInput
+          .split(",")
+          .map((name) => {
+            const cleanName = name.trim().toLowerCase().replace(/[^a-z0-9_]+/g, "_");
+            return {
+              name: cleanName,
+              label: name.trim(),
+              description: `Capacité ${name.trim()} fournie par le connecteur ${customName}`,
+              connectorId: id,
+              category: customCategory,
+              requiredParams: [],
+              parameters: [
+                {
+                  name: "input",
+                  type: "string" as const,
+                  description: "Paramètres de la requête",
+                  required: false,
+                },
+              ],
+            };
+          })
+          .filter((t) => t.name.length > 0);
+      }
+    }
+
+    if (tools.length === 0) {
+      tools = [
+        {
+          name: `${slug}_execute`,
+          label: `Exécution ${customName}`,
+          description: `Exécuter une action ou requête sur le connecteur ${customName}`,
+          connectorId: id,
+          category: customCategory,
+          requiredParams: ["action"],
+          parameters: [
+            {
+              name: "action",
+              type: "string",
+              description: "Action ou méthode à appeler",
+              required: true,
+            },
+            {
+              name: "payload",
+              type: "object",
+              description: "Paramètres ou données de la requête",
+              required: false,
+            },
+          ],
+        },
+      ];
+    }
+
+    const newConnector: SovereignMcpConnector = {
+      id,
+      slug,
+      name: customName.trim(),
+      category: customCategory,
+      categoryLabel:
+        SOVEREIGN_CATEGORIES.find((c) => c.id === customCategory)?.label || "Automatisation",
+      description: customDescription.trim() || `Connecteur MCP personnalisé pour ${customName}`,
+      icon: "Boxes",
+      endpoint: customEndpoint.trim(),
+      protocol: customProtocol,
+      status: "connected",
+      statusText: "Connecté (Personnalisé)",
+      badgeText: "MCP Personnalisé",
+      securityLevel: "Authentification Chiffrée",
+      secretEnvVar: customApiKey.trim() ? "API_KEY_SECURE" : undefined,
+      isBuiltin: false,
+      tools,
+    };
+
+    const nextList = [...customConnectors.filter((c) => c.id !== id), newConnector];
+    setCustomConnectors(nextList);
+    try {
+      localStorage.setItem("rakazo:custom_mcp_connectors", JSON.stringify(nextList));
+    } catch {}
+
+    setAddCustomOpen(false);
+    setCustomName("");
+    setCustomSlug("");
+    setCustomDescription("");
+    setCustomEndpoint("");
+    setCustomApiKey("");
+    setCustomToolsInput("");
+    setSelectedConnector(newConnector);
+  }
+
+  function handleDeleteCustomConnector(connectorId: string) {
+    const nextList = customConnectors.filter((c) => c.id !== connectorId);
+    setCustomConnectors(nextList);
+    try {
+      localStorage.setItem("rakazo:custom_mcp_connectors", JSON.stringify(nextList));
+    } catch {}
+    if (selectedConnector?.id === connectorId) {
+      setSelectedConnector(null);
+    }
+  }
+
   // Filter Sovereign Connectors
   const filteredSovereignConnectors = useMemo(() => {
     const needle = query.trim().toLowerCase();
 
-    return SOVEREIGN_MCP_CONNECTORS.filter((connector) => {
+    return allSovereignConnectors.filter((connector) => {
       // Category filter
       if (category !== "all" && category !== "connected") {
         if (connector.category !== category) return false;
@@ -175,7 +325,7 @@ export function PluginsOverlay({
 
       return inName || inSlug || inDesc || inTools;
     });
-  }, [category, query]);
+  }, [allSovereignConnectors, category, query]);
 
   // Filter Composio Apps
   const filteredComposioApps = useMemo(() => {
@@ -200,8 +350,8 @@ export function PluginsOverlay({
 
   // Total tool count
   const totalSovereignTools = useMemo(() => {
-    return SOVEREIGN_MCP_CONNECTORS.reduce((acc, c) => acc + c.tools.length, 0);
-  }, []);
+    return allSovereignConnectors.reduce((acc, c) => acc + c.tools.length, 0);
+  }, [allSovereignConnectors]);
 
   function setItemConnected(slug: string, connected: boolean) {
     cachedCatalog = markConnected(cachedCatalog, slug, connected);
@@ -326,6 +476,28 @@ export function PluginsOverlay({
           </div>
 
           <div className="flex items-center gap-2">
+            {!selectedConnector ? (
+              <button
+                type="button"
+                data-testid="add-custom-mcp-trigger"
+                onClick={() => setAddCustomOpen(true)}
+                className="flex items-center gap-1.5 rounded-lg bg-emerald-500/10 border border-emerald-500/30 px-3 py-1.5 text-xs font-medium text-emerald-400 hover:bg-emerald-500/20 transition-colors cursor-pointer"
+              >
+                <Plus size={14} />
+                <span>Nouveau MCP</span>
+              </button>
+            ) : !selectedConnector.isBuiltin ? (
+              <button
+                type="button"
+                data-testid="delete-custom-mcp-trigger"
+                onClick={() => handleDeleteCustomConnector(selectedConnector.id)}
+                className="flex items-center gap-1.5 rounded-lg bg-rose-500/10 border border-rose-500/30 px-3 py-1.5 text-xs font-medium text-rose-400 hover:bg-rose-500/20 transition-colors cursor-pointer"
+                title="Supprimer ce connecteur personnalisé"
+              >
+                <Trash2 size={14} />
+                <span>Supprimer</span>
+              </button>
+            ) : null}
             <button
               type="button"
               aria-label="Fermer"
@@ -1058,6 +1230,169 @@ export function PluginsOverlay({
             </div>
           </div>
         )}
+
+        {/* ================================================================= */}
+        {/* MODAL: AJOUTER UN CONNECTEUR MCP PERSONNALISÉ */}
+        {/* ================================================================= */}
+        {addCustomOpen ? (
+          <div
+            role="dialog"
+            aria-modal="true"
+            aria-label="Ajouter un Connecteur MCP Personnalisé"
+            className="fixed inset-0 z-60 flex items-center justify-center bg-black/75 p-4 backdrop-blur-xs"
+          >
+            <div className="flex max-h-[90vh] w-full max-w-lg flex-col overflow-hidden rounded-2xl border border-[#2A2A2F] bg-[#17171A] shadow-2xl">
+              <div className="flex items-center justify-between border-b border-[#26262A] px-5 py-4 bg-[#121214]">
+                <div className="flex items-center gap-2.5">
+                  <span className="grid h-7 w-7 place-items-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    <Plus size={15} />
+                  </span>
+                  <h3 className="text-base font-semibold text-[#EDEDEF]">
+                    Nouveau Connecteur MCP
+                  </h3>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Fermer"
+                  onClick={() => setAddCustomOpen(false)}
+                  className="text-[#71717A] hover:text-white cursor-pointer"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-5 space-y-4 rk-scroll text-xs">
+                <div>
+                  <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                    Nom du connecteur <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: Hubspot CRM, Base Données SQL, API Partenaire"
+                    value={customName}
+                    onChange={(e) => setCustomName(e.target.value)}
+                    className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white placeholder-[#52525B] focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                      Identifiant (Slug)
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: hubspot_crm"
+                      value={customSlug}
+                      onChange={(e) => setCustomSlug(e.target.value)}
+                      className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white placeholder-[#52525B] focus:border-emerald-500 focus:outline-none font-mono"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                      Catégorie
+                    </label>
+                    <select
+                      value={customCategory}
+                      onChange={(e) => setCustomCategory(e.target.value as SovereignCategory)}
+                      className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white focus:border-emerald-500 focus:outline-none"
+                    >
+                      {SOVEREIGN_CATEGORIES.filter((c) => c.id !== "all" && c.id !== "connected").map((c) => (
+                        <option key={c.id} value={c.id}>
+                          {c.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                    URL du serveur MCP / Endpoint <span className="text-rose-400">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Ex: https://mcp.groupefloteuil.eu/sse ou http://localhost:8000"
+                    value={customEndpoint}
+                    onChange={(e) => setCustomEndpoint(e.target.value)}
+                    className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white placeholder-[#52525B] focus:border-emerald-500 focus:outline-none font-mono"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                      Protocole
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="SSE / JSON-RPC"
+                      value={customProtocol}
+                      onChange={(e) => setCustomProtocol(e.target.value)}
+                      className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white placeholder-[#52525B] focus:border-emerald-500 focus:outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                      Clé d'API / Token (Optionnel)
+                    </label>
+                    <input
+                      type="password"
+                      placeholder="••••••••••••••••"
+                      value={customApiKey}
+                      onChange={(e) => setCustomApiKey(e.target.value)}
+                      className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white placeholder-[#52525B] focus:border-emerald-500 focus:outline-none font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                    Description
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Décrivez les fonctionnalités et données fournies par ce connecteur..."
+                    value={customDescription}
+                    onChange={(e) => setCustomDescription(e.target.value)}
+                    className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white placeholder-[#52525B] focus:border-emerald-500 focus:outline-none"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-[#A1A1AA] font-medium mb-1.5">
+                    Outils déclarés (Noms séparés par virgules ou JSON)
+                  </label>
+                  <textarea
+                    rows={2}
+                    placeholder="Ex: get_customer, create_ticket, search_orders"
+                    value={customToolsInput}
+                    onChange={(e) => setCustomToolsInput(e.target.value)}
+                    className="w-full rounded-lg border border-[#2A2A2F] bg-[#101012] px-3 py-2 text-white placeholder-[#52525B] focus:border-emerald-500 focus:outline-none font-mono"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-2.5 border-t border-[#26262A] px-5 py-3.5 bg-[#121214]">
+                <button
+                  type="button"
+                  onClick={() => setAddCustomOpen(false)}
+                  className="rounded-lg px-3.5 py-1.5 text-xs text-[#A1A1AA] hover:text-white transition-colors cursor-pointer"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  disabled={!customName.trim() || !customEndpoint.trim()}
+                  onClick={handleSaveCustomConnector}
+                  className="rounded-lg bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 disabled:opacity-40 transition-colors cursor-pointer"
+                >
+                  Enregistrer le connecteur
+                </button>
+              </div>
+            </div>
+          </div>
+        ) : null}
       </div>
     </div>
   );

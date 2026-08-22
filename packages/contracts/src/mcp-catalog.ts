@@ -1689,7 +1689,15 @@ export const ALL_SOVEREIGN_TOOL_NAMES: string[] = SOVEREIGN_MCP_CONNECTORS.flatM
   connector.tools.map((t) => t.name),
 );
 
-export const DEFAULT_ENABLED_SOVEREIGN_TOOLS: string[] = [...ALL_SOVEREIGN_TOOL_NAMES];
+export const DEFAULT_ENABLED_SOVEREIGN_TOOLS: string[] = [
+  "web_search",
+  "web_scrape",
+  "read_skill",
+  "remember",
+  "run_subagent",
+  "spawn_bot",
+  "archive_bot",
+];
 
 export function getAllSovereignToolNames(): string[] {
   return [...ALL_SOVEREIGN_TOOL_NAMES];
