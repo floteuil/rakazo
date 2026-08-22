@@ -433,7 +433,7 @@ export function PluginsOverlay({
         {/* ================================================================= */}
         {/* TOP BAR / HEADER */}
         {/* ================================================================= */}
-        <div className="flex items-center justify-between border-b border-[#26262A] px-6 py-4 bg-[#111113]">
+        <div className="flex items-center justify-between border-b border-[#26262A] px-4 py-3 sm:px-6 sm:py-4 bg-[#111113]">
           <div className="flex items-center gap-3">
             {selectedConnector ? (
               <button
@@ -530,7 +530,7 @@ export function PluginsOverlay({
         {!selectedConnector ? (
           <>
             {/* Search & Category Tabs Header */}
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#26262A] bg-[#111113] px-6 py-3">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 border-b border-[#26262A] bg-[#111113] px-4 py-2.5 sm:px-6 sm:py-3">
               {/* Category Pills */}
               <div
                 role="tablist"
@@ -579,7 +579,7 @@ export function PluginsOverlay({
             </div>
 
             {/* Scrollable Content: Sovereign MCP Grid + Composio Section */}
-            <div className="flex-1 overflow-y-auto p-6 rk-scroll space-y-6">
+            <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 rk-scroll space-y-6">
               {/* Section 1: Sovereign MCP Connectors */}
               <div>
                 <div className="flex items-center justify-between mb-3.5">

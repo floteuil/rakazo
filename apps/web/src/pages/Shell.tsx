@@ -1942,7 +1942,7 @@ const Transcript = memo(function Transcript({
     <div
       ref={scrollRef}
       data-testid="transcript"
-      className="rk-scroll flex flex-1 flex-col gap-[13px] overflow-y-auto px-3.5 py-4 sm:px-7 sm:py-6"
+      className="rk-scroll flex flex-1 flex-col gap-3 overflow-y-auto px-2.5 py-3 sm:px-6 sm:py-6 w-full max-w-full"
     >
       {olderCursor != null ? (
         <button
@@ -1955,7 +1955,7 @@ const Transcript = memo(function Transcript({
         </button>
       ) : null}
       {messages.map((message) => (
-        <div key={message.id} data-message-id={message.id}>
+        <div key={message.id} data-message-id={message.id} className="w-full">
           <MessageView
             botId={botId}
             message={message}
@@ -1971,9 +1971,9 @@ const Transcript = memo(function Transcript({
         </div>
       ))}
       {running ? (
-        <div className="flex justify-start">
+        <div className="flex justify-start w-full">
           <div
-            className="rounded-[20px] bg-[#1A1A1D] px-[18px] py-[13px] text-[14.5px] text-[#85858A]"
+            className="rounded-[20px] bg-[#1A1A1D] px-4 py-3 sm:px-[18px] sm:py-[13px] text-[14.5px] text-[#85858A]"
             style={{ animation: "rkPulse 1.2s ease-in-out infinite" }}
           >
             Réflexion en cours…
@@ -2032,19 +2032,19 @@ const Composer = memo(function Composer({
   }
 
   return (
-    <div className="px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 sm:pt-3">
+    <div className="w-full px-2 pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 sm:pt-3">
       {sendError || dictationError ? (
-        <div className="mb-3 rounded-[14px] border border-[#5A2A2A] bg-[#2A1717] px-4 py-2 text-[13px] text-[#F1A8A8]">
+        <div className="mb-2.5 rounded-[14px] border border-[#5A2A2A] bg-[#2A1717] px-3.5 py-2 text-[13px] text-[#F1A8A8]">
           {sendError ?? dictationError}
         </div>
       ) : null}
       {attachmentNotice ? (
-        <div className="mb-3 rounded-[14px] border border-[#3A3A20] bg-[#232316] px-4 py-2 text-[13px] text-[#D6CFA0]">
+        <div className="mb-2.5 rounded-[14px] border border-[#3A3A20] bg-[#232316] px-3.5 py-2 text-[13px] text-[#D6CFA0]">
           {attachmentNotice}
         </div>
       ) : null}
       {pendingAttachments.length ? (
-        <div className="mb-3 flex flex-wrap gap-2">
+        <div className="mb-2.5 flex flex-wrap gap-2">
           {pendingAttachments.map((attachment) => (
             <div
               key={attachment.id}
@@ -2054,12 +2054,12 @@ const Composer = memo(function Composer({
                 <img
                   src={attachment.previewUrl}
                   alt={attachment.file.name}
-                  className="h-8 w-8 rounded object-cover"
+                  className="h-7 w-7 sm:h-8 sm:w-8 rounded object-cover"
                 />
               ) : (
                 <Paperclip size={14} strokeWidth={1.8} />
               )}
-              <span className="max-w-[180px] truncate">{attachment.file.name}</span>
+              <span className="max-w-[140px] sm:max-w-[180px] truncate">{attachment.file.name}</span>
               <button
                 type="button"
                 aria-label={`Remove ${attachment.file.name}`}
@@ -2072,7 +2072,7 @@ const Composer = memo(function Composer({
           ))}
         </div>
       ) : null}
-      <div className="flex items-center gap-3.5 rounded-full border border-[#202023] bg-[#131315] py-[9px] pr-2.5 pl-3">
+      <div className="flex w-full items-center gap-2 sm:gap-3.5 rounded-full border border-[#202023] bg-[#131315] py-1.5 px-2 sm:py-[9px] sm:pr-2.5 sm:pl-3 shadow-sm">
         <input
           ref={fileInputRef}
           type="file"
@@ -2086,7 +2086,7 @@ const Composer = memo(function Composer({
           aria-label="Attach file"
           disabled={disabled}
           onClick={() => fileInputRef.current?.click()}
-          className="grid h-10 w-10 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border border-[#26262A] text-[#9A9AA0] disabled:opacity-40"
+          className="grid h-9 w-9 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border border-[#26262A] text-[#9A9AA0] hover:bg-[#1C1C1F] hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
         >
           <Plus size={17} strokeWidth={1.8} />
         </button>
@@ -2106,10 +2106,10 @@ const Composer = memo(function Composer({
             onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
           }}
           onTouchEnd={onDictateStop}
-          className={`grid h-10 w-10 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border ${
+          className={`grid h-9 w-9 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border transition-colors cursor-pointer ${
             dictating
               ? "border-[#4ECB71] bg-[rgba(48,162,75,.16)] text-[#4ECB71]"
-              : "border-[#26262A] text-[#9A9AA0]"
+              : "border-[#26262A] text-[#9A9AA0] hover:bg-[#1C1C1F] hover:text-white"
           }`}
           title={transcribe ? "Maintenir pour parler" : "Maintenir pour parler (dictée vocale)"}
         >
@@ -2126,14 +2126,14 @@ const Composer = memo(function Composer({
           }}
           disabled={disabled}
           placeholder={activeName ? `Envoyer un message à ${activeName}…` : "Écrire un message…"}
-          className="flex-1 bg-transparent text-[16px] sm:text-[15.5px] text-[#E9E9EA] outline-none disabled:opacity-40"
+          className="min-w-0 flex-1 bg-transparent px-1.5 text-[16px] sm:text-[15.5px] text-[#E9E9EA] placeholder-[#6C6C70] outline-none disabled:opacity-40"
         />
         {running ? (
           <button
             type="button"
             aria-label="Arrêter"
             onClick={() => void onStop()}
-            className="grid h-10 w-10 sm:h-9 sm:w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A]"
+            className="grid h-9 w-9 sm:h-9 sm:w-9 shrink-0 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] hover:bg-white transition-colors cursor-pointer"
           >
             <Square size={12} strokeWidth={0} fill="currentColor" />
           </button>
@@ -2143,7 +2143,7 @@ const Composer = memo(function Composer({
             aria-label="Envoyer"
             disabled={sending || !canSend || disabled}
             onClick={send}
-            className="grid h-10 w-10 sm:h-9 sm:w-9 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] disabled:opacity-50"
+            className="grid h-9 w-9 sm:h-9 sm:w-9 shrink-0 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] hover:bg-white transition-colors disabled:opacity-40 cursor-pointer"
           >
             <ArrowUp size={18} strokeWidth={2} />
           </button>
@@ -2217,8 +2217,8 @@ const MessageView = memo(function MessageView({
         }
         if (block.kind === "progress") {
           return (
-            <div key={i} className="flex justify-start">
-              <div className="max-w-[74%] rounded-[20px] bg-[#1A1A1D] px-[18px] py-3 text-[15.5px] leading-[1.5] text-[#DFDFE2]">
+            <div key={i} className="flex justify-start w-full">
+              <div className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%] rounded-[20px] bg-[#1A1A1D] px-3.5 py-3 sm:px-[18px] text-[15px] sm:text-[15.5px] leading-[1.5] text-[#DFDFE2]">
                 <ChatMarkdown streaming>{block.text}</ChatMarkdown>
               </div>
             </div>
@@ -2230,7 +2230,7 @@ const MessageView = memo(function MessageView({
           return (
             <div
               key={i}
-              className="w-[min(420px,90%)] rounded-[18px] border border-[#232326] bg-[#17171A] px-[18px] py-4"
+              className="w-full max-w-[98%] sm:max-w-[420px] rounded-[18px] border border-[#232326] bg-[#17171A] px-4 py-3.5 sm:px-[18px] sm:py-4"
             >
               <div className="flex items-center justify-between gap-3">
                 <span className="text-[15px] font-medium text-[#ECECEE]">{block.name}</span>
@@ -2268,7 +2268,7 @@ const MessageView = memo(function MessageView({
               type="button"
               disabled={removed}
               onClick={() => onOpenBot(block.botId)}
-              className="w-[min(340px,90%)] rounded-[18px] border border-[#232326] bg-[#17171A] px-[18px] py-4 text-left disabled:opacity-60"
+              className="w-full max-w-[98%] sm:max-w-[340px] rounded-[18px] border border-[#232326] bg-[#17171A] px-4 py-3.5 sm:px-[18px] sm:py-4 text-left disabled:opacity-60 cursor-pointer"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-medium text-[#ECECEE]">{block.name}</span>
@@ -2300,7 +2300,7 @@ const MessageView = memo(function MessageView({
           return (
             <div
               key={i}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <ArtifactImage botId={botId} artifactId={block.artifactId} name={block.name} />
             </div>
@@ -2310,14 +2310,14 @@ const MessageView = memo(function MessageView({
           return (
             <div
               key={i}
-              className={`flex ${message.role === "user" ? "justify-end" : "justify-start"}`}
+              className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
               <button
                 type="button"
                 onClick={() =>
                   void openArtifact(botId, block.artifactId, block.name, block.mimeType)
                 }
-                className="rounded-[20px] border border-[#26262A] bg-[#17171A] px-4 py-3 text-left text-[14px] text-[#DFDFE2] hover:bg-[#1F1F22]"
+                className="max-w-[98%] sm:max-w-[340px] rounded-[20px] border border-[#26262A] bg-[#17171A] px-4 py-3 text-left text-[14px] text-[#DFDFE2] hover:bg-[#1F1F22] cursor-pointer"
               >
                 <div className="font-medium">{block.name}</div>
                 <div className="mt-1 text-[#85858A]">
@@ -2329,8 +2329,8 @@ const MessageView = memo(function MessageView({
         }
         if (block.kind === "text" && message.role === "user") {
           return (
-            <div key={i} className="flex justify-end">
-              <div className="max-w-[70%] rounded-[20px] bg-[#F1F1EF] px-[18px] py-3 text-[15.5px] leading-[1.45] text-[#1A1A1A]">
+            <div key={i} className="flex justify-end w-full">
+              <div className="max-w-[92%] sm:max-w-[80%] md:max-w-[70%] rounded-[20px] bg-[#F1F1EF] px-4 py-3 sm:px-[18px] text-[15px] sm:text-[15.5px] leading-[1.45] text-[#1A1A1A]">
                 {block.text}
               </div>
             </div>
@@ -2338,8 +2338,8 @@ const MessageView = memo(function MessageView({
         }
         if (block.kind === "text") {
           return (
-            <div key={i} className="flex justify-start">
-              <div className="max-w-[74%] rounded-[20px] bg-[#1A1A1D] px-[18px] py-3 text-[15.5px] leading-[1.5] text-[#DFDFE2]">
+            <div key={i} className="flex justify-start w-full">
+              <div className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%] rounded-[20px] bg-[#1A1A1D] px-4 py-3 sm:px-[18px] text-[15px] sm:text-[15.5px] leading-[1.5] text-[#DFDFE2]">
                 <ChatMarkdown>{block.text}</ChatMarkdown>
                 {voiceReady ? (
                   <button
@@ -2357,8 +2357,8 @@ const MessageView = memo(function MessageView({
         }
         if (block.kind === "card") {
           return (
-            <div key={i} className="flex justify-start">
-              <div className="flex flex-col gap-2 rounded-[20px] bg-[#1A1A1D] px-5 py-4">
+            <div key={i} className="flex justify-start w-full">
+              <div className="flex w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%] flex-col gap-2 rounded-[20px] bg-[#1A1A1D] px-4 py-3.5 sm:px-5 sm:py-4">
                 {block.lines.map((line) => (
                   <div key={line.k} className="flex items-baseline gap-2.5 text-[15px]">
                     <span className="text-[#30A24B]">✓</span>
@@ -2383,7 +2383,7 @@ const MessageView = memo(function MessageView({
         }
         if (block.kind === "skill_draft") {
           return (
-            <div key={i} className="flex justify-start">
+            <div key={i} className="flex justify-start w-full">
               <SkillDraftCard block={block} onRefresh={onRefresh} onAddRoutine={onAddRoutine} />
             </div>
           );
@@ -2392,7 +2392,7 @@ const MessageView = memo(function MessageView({
           return (
             <div
               key={i}
-              className="w-[340px] rounded-[18px] border border-[#232326] bg-[#17171A] px-[18px] py-4"
+              className="w-full max-w-[98%] sm:max-w-[340px] rounded-[18px] border border-[#232326] bg-[#17171A] px-4 py-3.5 sm:px-[18px] sm:py-4"
             >
               <div className="flex items-center justify-between">
                 <span className="text-[15px] font-medium text-[#ECECEE]">Computer</span>
@@ -2439,7 +2439,7 @@ function AskCard({
   }
 
   return (
-    <div className="max-w-[74%] rounded-[20px] border border-[#242428] bg-[#141417] px-5 py-[17px]">
+    <div className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%] rounded-[20px] border border-[#242428] bg-[#141417] px-4 py-3.5 sm:px-5 sm:py-[17px]">
       <div className="text-[15.5px] leading-[1.5] text-[#ECECEE]">
         <ChatMarkdown>{block.text}</ChatMarkdown>
       </div>
