@@ -1,109 +1,113 @@
-# Project: Rakazo WebUI Mobile-First & Sovereign Enterprise MCP Connectors
+# Project: Rakazo Token Efficiency, AI Guardrails & Calibration Engine
 
 ## Architecture
-- **Monorepo Structure**: 18 packages/apps managed with Turborepo and Vitest:
-  - `apps/web`: React 19 + Tailwind CSS + Lucide Icons Web application.
-  - `apps/api`: Fastify + oRPC backend API.
-  - `packages/contracts`: Zod schemas, oRPC contracts, and MCP catalog definitions (`@rakazo/contracts`).
-  - `packages/db`: Prisma ORM client and repository layer (`@rakazo/db`).
-  - `packages/adapters`: Pi AI runtime, tool definitions, executor, and security sanitizers (`@rakazo/adapters`).
-  - `packages/adapter-kit`, `packages/core`, `packages/ui-tokens`, `packages/ui-web`, `packages/testkit`.
-- **Data Flow & Lifecycle**:
-  - WebUI (`CreateBotForm` / `BotSettings`) -> oRPC API (`bots.create` / `bots.update`) -> DB (`prisma.bot` with `metadata.mcp`) -> `executor.ts` dynamically filters permitted tools -> `pi-runtime.ts` instantiates agent with strict least-privilege toolset -> `executeEnterpriseTool` executes with `sanitizeToolError`.
+Rakazo operates an autonomous multi-agent platform using a modular monorepo architecture (`pnpm` + Turborepo + TypeScript).
+- **Core Engine & Adapters (`packages/adapters`)**:
+  - `pi-runtime.ts`: Agent loop orchestrator wrapping `@earendil-works/pi-agent-core` with tool execution, streaming events, and subagents.
+  - `executor.ts`: Worker task runner handling database persistence, secret gathering, tool dispatch, and prompt assembly.
+  - `enterprise-tools.ts`: Sovereign connectors (SearXNG, GitHub, Notion, Postiz, WordPress/Novamira, n8n, Cloudflare) and error sanitizer (`sanitizeToolError`).
+  - `child-bots.ts`: Agent lifecycle, spawning, archiving, and physical/database destruction (`destroyBot`).
+  - `tool-compacting.ts`: Semantic tool output compactor for files, shell, GitHub, Notion, and Cloudflare.
+  - `loop-guards.ts`: 25-step circuit breaker and 3-consecutive redundant tool call detector.
+  - `home.ts`, `artifacts.ts`, `desktop-sandbox.ts`: Local filesystem storage on `/data`.
+- **Contracts & Types (`packages/contracts`)**:
+  - `mcp-catalog.ts`: Registry of 40 sovereign tools across 7 connectors, permissions, and tool schemas.
+- **Database & Persistence (`packages/db`)**:
+  - Prisma ORM managing 15 cascaded relational tables linked to `Bot`.
+- **User Interface (`apps/web`, `apps/mobile`, `apps/desktop`)**:
+  - Mobile-first WebUI, Desktop Electron, Expo Mobile apps with real-time streaming chat, tool overlays, and skills management.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────────────┐
+│                                    Rakazo Agent Engine                                  │
+│                                                                                         │
+│   ┌────────────────────────┐    ┌──────────────────────────────────────────────────┐   │
+│   │   System Instructions  │    │            LLM Runtime (PiAgentRuntime)          │   │
+│   │   (executor.ts)        │    │            (packages/adapters/src/pi-runtime.ts) │   │
+│   │                        │    │                                                  │   │
+│   │ + Tool Parsimony Rule  │    │ + maxTokens: 16,384 (Elevated Output Ceiling)    │   │
+│   │ + Anti-Speculation     │    │ + thinkingLevel: "low" (Economic CoT Budget)     │   │
+│   │ + Full Code Directive  │    │ + compactToolResult() (Semantic Data Reducer)    │   │
+│   └───────────┬────────────┘    └────────────────────────┬─────────────────────────┘   │
+│               │                                          │                             │
+│               ▼                                          ▼                             │
+│   ┌────────────────────────┐    ┌──────────────────────────────────────────────────┐   │
+│   │  Model Context Buffer  │◄───┤    Loop Guards & Circuit Breaker Interceptors    │   │
+│   │  (Optimized History)   │    │    - Step Cap: max 25 tool iterations / turn     │   │
+│   └────────────────────────┘    │    - Redundant Detector: max 3 consecutive same  │   │
+│                                 │    - Subagent Depth: max depth 1                 │   │
+│                                 │    - Unified sanitizeToolError()                 │   │
+│                                 └────────────────────────┬─────────────────────────┘   │
+│                                                          │                             │
+│                                                          ▼                             │
+│   ┌────────────────────────────────────────────────────────────────────────────────┐   │
+│   │            Physical Storage & Cascade Cleanup Engine (child-bots.ts)           │   │
+│   │            - Unconditional purge of /data/homes/<botId>                        │   │
+│   │            - Unconditional purge of /data/home-revisions/<botId>.txt           │   │
+│   │            - Purge of /data/desktop-computers/<botId>                          │   │
+│   │            - 15 relational tables cascaded via Prisma / PostgreSQL             │   │
+│   └────────────────────────────────────────────────────────────────────────────────┘   │
+└─────────────────────────────────────────────────────────────────────────────────────────┘
+```
 
 ## Feature Inventory
+Every feature from the Survey phase and `ORIGINAL_REQUEST.md` is assigned to a milestone:
+
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | Mobile Drawer Navigation | Mobile sidebar off-canvas drawer with backdrop, swipe/tap close, fixed on desktop (`md:relative`) | M1 | ORIGINAL_REQUEST §R1 |
-| 2 | Mobile Header & Hamburger | Compact mobile header with active agent info, status, and hamburger menu toggle | M1 | ORIGINAL_REQUEST §R1 |
-| 3 | iOS Safari Auto-Zoom Prevention | Input font-size >= 16px (`text-[16px] sm:text-[15.5px]`) to stop iOS zoom on focus | M1 | ORIGINAL_REQUEST §R1 |
-| 4 | Mobile Touch Ergonomics | Touch targets >= 40-44px on all buttons and action bars | M1 | ORIGINAL_REQUEST §R1 |
-| 5 | Safe-Area Inset Handling | Bottom composer respects `env(safe-area-inset-bottom)` and `viewport-fit=cover` | M1 | ORIGINAL_REQUEST §R1 |
-| 6 | Adaptive Overlays & Modals | All modals (Skills, Models, Voice, Plugins, Bot forms, Auth, Onboarding) adapt to full-screen / bottom-sheet on mobile | M1 | ORIGINAL_REQUEST §R1 |
-| 7 | Desktop High-Fidelity UI | Desktop layout retains 100% of rich 316px docked sidebar, 1080px rounded floating dialogs | M1 | ORIGINAL_REQUEST §R1 |
-| 8 | Sovereign MCP Catalog Matrix | Shared catalog defining 8 Sovereign Connectors (40 tools) with metadata, categories, endpoints | M2 | ORIGINAL_REQUEST §R2 |
-| 9 | Plugins & Integrations Showcase | Redesigned `PluginsOverlay.tsx` with Sovereign MCP showcase, category tabs, and status badges | M2 | ORIGINAL_REQUEST §R2 |
-| 10 | MCP Connector Detail Inspector | Inspector panel/drawer with Overview, Available Tools table, and Security/Secrets status | M2 | ORIGINAL_REQUEST §R2 |
-| 11 | Hybrid Agent Tool Selector UI | `<BotMcpToolSelector />` with global 1-click connector toggle + per-tool accordion checkboxes | M3 | ORIGINAL_REQUEST §R3 |
-| 12 | Per-Agent Tool Permissions DB Persistence | Store enabled connectors/tools in Bot `metadata.mcp` schema and repository layers | M3 | ORIGINAL_REQUEST §R3 |
-| 13 | Dynamic Runtime Tool Filtering | `executor.ts` & `pi-runtime.ts` dynamically filter injected tools according to bot permissions | M4 | ORIGINAL_REQUEST §R3 |
-| 14 | Subagent Permission Inheritance | Subagents spawned via `run_subagent` inherit parent bot's restricted toolset | M4 | ORIGINAL_REQUEST §R3 |
-| 15 | Multi-Layer Security Sanitization | `sanitizeToolError`, secret scrubbing (GitHub PATs, Notion tokens, etc.), and zero secrets in Git | M4 | ORIGINAL_REQUEST §R4 |
-| 16 | Monorepo CI/CD Validation | 0 TypeScript errors (`pnpm check`), 100% test pass rate (`pnpm test`), and clean `pnpm build` | M5 | ORIGINAL_REQUEST §R5 |
-| 17 | Adversarial Coverage Hardening | White-box adversarial testing (Tier 5) hardening edge cases and security boundaries | M5 | ORIGINAL_REQUEST §R5 |
+| 1 | High Output Token Budget | Configure `maxTokens` (16,384) in `pi-runtime.ts` for root and subagents to prevent truncation of full code files | M1 | ORIGINAL_REQUEST §R1 (DONE) |
+| 2 | System Prompt Tool Parsimony | Inject strict tool targeting, anti-speculation, and code completeness directives in `executor.ts` | M1 | ORIGINAL_REQUEST §R1 (DONE) |
+| 3 | Tool Response Semantic Compacting | Implement `compactToolResult` to compress large file lists, shell logs, GitHub, Notion, and Cloudflare payloads | M1 | ORIGINAL_REQUEST §R1 (DONE) |
+| 4 | Iteration Circuit Breaker | Limit tool execution steps per user turn to max 25 iterations with clean synthesis warning | M2 | ORIGINAL_REQUEST §R2 (DONE) |
+| 5 | Redundant Tool Call Detection | Detect 3 consecutive identical tool calls (`toolName` + canonical args hash) and intercept execution | M2 | ORIGINAL_REQUEST §R2 (DONE) |
+| 6 | Subagent Depth Safeguard | Verify and reinforce subagent depth limit (max depth 1) preventing recursive loops | M2 | ORIGINAL_REQUEST §R2 (DONE) |
+| 7 | Unified Error & Secret Sanitization | Unify `sanitizeToolError` across `pi-runtime.ts`, `executor.ts`, and all tool error pipelines | M2 | ORIGINAL_REQUEST §R4 (DONE) |
+| 8 | Unconditional Physical Storage Cleanup | Purge `/data/homes/<botId>`, `/data/home-revisions/<botId>.txt`, and `/data/desktop-computers/<botId>` in `destroyBot` | M3 | ORIGINAL_REQUEST §R3 (DONE) |
+| 9 | Monorepo Test Alignment & Fixes | Align assertions in `PluginsOverlay.test.tsx` and `BotMcpToolSelector.test.tsx` with sovereign tool catalog | M3 | ORIGINAL_REQUEST §R5 (DONE) |
+| 10 | Comprehensive Test Suite & Monorepo Validation | Verify 100% test pass rate on `pnpm test` and 0 TypeScript errors on `pnpm check` | M4 | ORIGINAL_REQUEST §R5 (DONE) |
+| 11 | Adversarial Hardening (Tier 5) | Adversarial stress testing for loop breaking, memory leaks, secret exposure, and token limits | M4 | Project Pattern (DONE) |
 
 ## Milestones
+
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | WebUI Mobile-First & Adaptive Overlays | `Shell.tsx`, `SkillLibraryOverlay`, `ModelSettingsOverlay`, `VoiceSettingsOverlay`, `Onboarding`, `Auth`, `index.html` | none | DONE |
-| M2 | Sovereign Enterprise MCP Connectors Manager | `packages/contracts/src/mcp-catalog.ts`, `apps/web/src/pages/PluginsOverlay.tsx` | none | DONE |
-| M3 | Hybrid MCP Agent Assignment & DB Persistence | `packages/contracts/src/domain.ts`, `packages/db`, `apps/api`, `BotMcpToolSelector.tsx`, `CreateBotForm`, `BotSettings` | M2 | DONE |
-| M4 | Dynamic Runtime Tool Filtering & Security | `packages/adapters/src/executor.ts`, `packages/adapters/src/pi-runtime.ts`, `packages/adapters/src/enterprise-tools.ts` | M3 | DONE |
-| M5 | 100% E2E Pass & Adversarial Coverage Hardening | Full monorepo test pass (Tiers 1-4) + Tier 5 Adversarial Coverage Hardening | M1, M2, M3, M4 | DONE |
+| M1 | LLM Runtime Calibration & Tool Response Semantic Compacting | Elevated `maxTokens` (16,384), economic reasoning budget, system prompt tool parsimony directives, and semantic tool compacting (`compactToolResult`). | None | DONE |
+| M2 | AI Guardrails, Circuit Breaker & Unified Secret Sanitization | Loop guards module (`loop-guards.ts`), 25-step circuit breaker, consecutive redundant call detector, subagent depth 1 verification, and full `sanitizeToolError` propagation. | M1 | DONE |
+| M3 | Zero-Bloat Storage Auto-Cleanup & Monorepo Test Alignment | Unconditional physical cleanup in `destroyBot` (`/data/homes`, revisions, desktop workspaces), Prisma cascades audit, and sovereign tools test fixes. | M2 | DONE |
+| M4 | Final Milestone: 100% E2E Test Suite Pass & Adversarial Hardening | Verification of all test tiers (Tiers 1-4) published by E2E Testing Track, followed by Phase 2 adversarial stress-testing (Tier 5). | M3, TEST_READY | DONE |
 
 ## Interface Contracts
 
-### Shared MCP Catalog (`@rakazo/contracts` -> `apps/web`, `apps/api`, `packages/adapters`)
-```typescript
-export interface McpToolDefinition {
-  name: string;
-  label: string;
-  description: string;
-  category: string;
-  isSensitive?: boolean;
-  requiredParams: string[];
-}
+### `packages/adapters/src/tool-compacting.ts`
+- `export function compactToolResult(toolName: string, result: unknown): string`
+  - Compresses `list_files` (> 40 entries -> summary + sample), `shell` (> 4,000 chars -> head/tail window with marker), `github_search_repos`, `github_list_issues`, `notion_search`, `notion_query_database`, `cloudflare_list_dns_records`.
+  - Fallback: Removes nulls/empty objects, preserves valid JSON formatting up to 12,000 characters, safe against throwing `toString` / `toJSON`.
 
-export interface SovereignMcpConnector {
-  id: string;
-  slug: string;
-  name: string;
-  category: "search" | "code" | "workspace" | "social" | "cms" | "automation" | "infra" | "system";
-  categoryLabel: string;
-  description: string;
-  icon: string;
-  endpoint: string;
-  status: "connected" | "operational" | "disconnected";
-  badgeText: string;
-  tools: McpToolDefinition[];
-}
+### `packages/adapters/src/loop-guards.ts`
+- `export const MAX_TOOL_ITERATIONS_PER_TURN = 25;`
+- `export const MAX_CONSECUTIVE_REDUNDANT_CALLS = 3;`
+- `export interface ToolCallTracker { stepCount: number; lastCallSignature: string | null; consecutiveSameCallCount: number; }`
+- `export function createToolCallTracker(): ToolCallTracker;`
+- `export function computeToolCallSignature(name: string, args: unknown): string;`
+- `export function evaluateToolCallGuard(tracker: ToolCallTracker, name: string, args: unknown): { allow: true } | { allow: false; reason: string; terminate: boolean };`
 
-export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[];
-```
+### `packages/adapters/src/enterprise-tools.ts`
+- `export function sanitizeToolError(message: string): string`
+  - Masks tokens for GitHub, Notion, Postiz, Novamira, n8n, Cloudflare, OpenRouter, Anthropic, OpenAI, PostgreSQL URLs, Bearer and Basic headers.
 
-### Bot Metadata Schema (`@rakazo/contracts` & `@rakazo/db`)
-```typescript
-export interface BotMcpConfig {
-  connectors?: Record<string, boolean>; // connectorId -> boolean
-  tools?: Record<string, boolean>;      // toolName -> boolean (override)
-}
-
-export interface BotMetadata {
-  mcp?: BotMcpConfig;
-  [key: string]: unknown;
-}
-```
-
-### Runtime Dynamic Tool Filtering Contract (`packages/adapters`)
-```typescript
-export function filterToolsForBot(
-  allTools: ConnectorTool[],
-  mcpConfig?: BotMcpConfig | null,
-  isGraphical?: boolean
-): ConnectorTool[];
-```
+### `packages/adapters/src/child-bots.ts`
+- `destroyBot(deps, bot, options)`:
+  - Purges Prisma database records with cascade.
+  - Purges physical directories on disk under `/data/homes/<botId>`, `/data/home-revisions/<botId>.txt`, `/data/desktop-computers/<botId>`, `/data/artifacts/...`.
 
 ## Code Layout
-- `apps/web/src/pages/Shell.tsx` — Mobile drawer, compact header, chat layout, `CreateBotForm`, `BotSettings`
-- `apps/web/src/pages/PluginsOverlay.tsx` — Sovereign Enterprise MCP Manager UI & Detail Inspector
-- `apps/web/src/pages/BotMcpToolSelector.tsx` — Reusable hybrid MCP selector (switches + accordions)
-- `apps/web/src/pages/SkillLibraryOverlay.tsx` — Adaptive responsive modal
-- `apps/web/src/pages/ModelSettingsOverlay.tsx` — Adaptive responsive modal
-- `apps/web/src/pages/VoiceSettingsOverlay.tsx` — Adaptive responsive modal
-- `apps/web/src/pages/Onboarding.tsx` & `Auth.tsx` — Mobile responsive containers
-- `packages/contracts/src/mcp-catalog.ts` — Sovereign Enterprise MCP Connectors definition matrix
-- `packages/contracts/src/domain.ts` — Zod schemas with metadata support
-- `packages/db/prisma/schema.prisma` & `packages/db/src/repos.ts` — Bot model metadata persistence
-- `packages/adapters/src/enterprise-tools.ts` — Enterprise tools execution and `sanitizeToolError`
-- `packages/adapters/src/executor.ts` — Dynamic per-agent tool filtering and effect logging
-- `packages/adapters/src/pi-runtime.ts` — Agent execution pipeline and subagent inheritance
+- `packages/adapters/src/pi-runtime.ts` — Agent runtime, elevated `maxTokens`, tool dispatch, subagent host.
+- `packages/adapters/src/tool-compacting.ts` — Semantic tool output compacting implementation.
+- `packages/adapters/src/loop-guards.ts` — Circuit breaker and redundancy detector logic.
+- `packages/adapters/src/executor.ts` — System prompt builder, tool dispatch error sanitization.
+- `packages/adapters/src/enterprise-tools.ts` — Sovereign MCP tools, comprehensive regex token sanitizer.
+- `packages/adapters/src/child-bots.ts` — Physical file and database destruction routines.
+- `packages/adapters/src/home.ts` — Local agent home directory management.
+- `apps/web/src/pages/PluginsOverlay.test.tsx` — Test file for sovereign tools overlay.
+- `apps/web/src/pages/BotMcpToolSelector.test.tsx` — Test file for bot MCP tool selection.
+- `packages/adapters/src/__tests__/` — Test suites created by E2E Testing Track.

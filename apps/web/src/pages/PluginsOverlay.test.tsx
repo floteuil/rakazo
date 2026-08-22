@@ -34,7 +34,7 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       const allTools = getAllSovereignTools();
       expect(allTools).toHaveLength(40);
       expect(ALL_SOVEREIGN_TOOL_NAMES).toHaveLength(40);
-      expect(DEFAULT_ENABLED_SOVEREIGN_TOOLS).toHaveLength(40);
+      expect(DEFAULT_ENABLED_SOVEREIGN_TOOLS).toHaveLength(7);
     });
 
     it("correctly identifies sovereign tools with isSovereignTool", () => {

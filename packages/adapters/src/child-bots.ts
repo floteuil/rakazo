@@ -1,4 +1,5 @@
 import { rm } from "node:fs/promises";
+import path from "node:path";
 import type {
   AdapterContext,
   AgentHomeStore,
@@ -388,12 +389,19 @@ export async function destroyBot(
     await tx.bot.delete({ where: { id: bot.id } });
     if (dedicated) await tx.computer.delete({ where: { id: dedicated.id } });
   });
-  if (dedicated) {
-    await rm(resolveAgentHomePath(deps.home, dedicated.homeKey, deps.dataDir ?? "./data"), {
-      recursive: true,
-      force: true,
-    }).catch(() => undefined);
-  }
+  const baseDataDir = deps.dataDir ?? "./data";
+  const homePath = dedicated?.homeKey
+    ? resolveAgentHomePath(deps.home, dedicated.homeKey, baseDataDir)
+    : path.resolve(baseDataDir, "homes", bot.id);
+  const homeRevisionPath = path.resolve(baseDataDir, "home-revisions", `${bot.id}.txt`);
+  const desktopComputerPath = path.resolve(baseDataDir, "desktop-computers", bot.id);
+
+  await Promise.allSettled([
+    rm(homePath, { recursive: true, force: true }),
+    rm(path.resolve(baseDataDir, "homes", bot.id), { recursive: true, force: true }),
+    rm(homeRevisionPath, { recursive: true, force: true }),
+    rm(desktopComputerPath, { recursive: true, force: true }),
+  ]);
   const artifactStore = deps.artifacts;
   if (artifactStore) {
     await Promise.all(

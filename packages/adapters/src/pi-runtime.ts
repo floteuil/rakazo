@@ -10,7 +10,14 @@ import type {
   ConnectorTool,
 } from "@rakazo/adapter-kit";
 import { builtinAgentTools, DELEGATION_TOOL_NAMES } from "./builtin-tools.js";
+import { sanitizeToolError } from "./enterprise-tools.js";
+import {
+  createToolCallTracker,
+  evaluateToolCallGuard,
+  type ToolCallTracker,
+} from "./loop-guards.js";
 import { PiRuntimeCredentialStore, toOAuthCredential } from "./pi-credentials.js";
+import { compactToolResult } from "./tool-compacting.js";
 
 const running = new Map<string, AbortController>();
 const catalogModels = builtinModels();
@@ -72,6 +79,7 @@ export class PiAgentRuntime implements AgentRuntime {
           subagentGate: createGate(MAX_PARALLEL_SUBAGENTS),
           signal,
           depth: 0,
+          tracker: createToolCallTracker(),
         };
         const tools = toAgentTools(toolDefs, host);
         const history = toHistory(request.history, request.prompt);
@@ -80,6 +88,7 @@ export class PiAgentRuntime implements AgentRuntime {
           streamFn: (m, ctx, options) =>
             models.streamSimple(m, ctx, {
               ...options,
+              maxTokens: Math.max(options?.maxTokens ?? 0, 16384),
               reasoning: options?.reasoning ?? "low",
               onPayload: (payload: unknown) => {
                 if (
@@ -160,8 +169,8 @@ export class PiAgentRuntime implements AgentRuntime {
 
         const error = agent.state.errorMessage;
         if (error) {
-          queue.push({ type: "text", text: `I hit a problem: ${sanitizeError(error)}` });
-          queue.push({ type: "done", text: sanitizeError(error) });
+          queue.push({ type: "text", text: `I hit a problem: ${sanitizeToolError(error)}` });
+          queue.push({ type: "done", text: sanitizeToolError(error) });
           return;
         }
         if (!streamed) {
@@ -171,7 +180,7 @@ export class PiAgentRuntime implements AgentRuntime {
         }
         queue.push({ type: "done", text: streamed });
       } catch (error) {
-        const message = sanitizeError(error instanceof Error ? error.message : String(error));
+        const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
         queue.push({ type: "text", text: `I hit a problem: ${message}` });
         queue.push({ type: "done", text: message });
       } finally {
@@ -656,6 +665,14 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
       return raw as never;
     },
     execute: async (toolCallId, params) => {
+      const guard = evaluateToolCallGuard(host.tracker, tool.name, params);
+      if (!guard.allow) {
+        return {
+          content: [{ type: "text", text: guard.reason }],
+          details: { error: guard.reason },
+          terminate: guard.terminate,
+        };
+      }
       const args = (params ?? {}) as Record<string, unknown>;
       const executionId = toolCallId || `${host.request.runId}:${tool.name}`;
       host.queue.push({ type: "tool", name: tool.name, args, executionId });
@@ -681,7 +698,7 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         const result = await host.request.executeTool(tool.name, args, executionId);
         if (isAgentToolExecutionResult(result)) return result;
         return {
-          content: [{ type: "text", text: summarizeToolResult(result) }],
+          content: [{ type: "text", text: compactToolResult(tool.name, result) }],
           details: result,
         };
       }
@@ -721,6 +738,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
   const nestedHost: ToolHost = {
     ...host,
     depth: 1,
+    tracker: createToolCallTracker(),
     request: {
       ...host.request,
       tools: childDefs,
@@ -730,6 +748,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
     streamFn: (m, ctx, options) =>
       host.models.streamSimple(m, ctx, {
         ...options,
+        maxTokens: Math.max(options?.maxTokens ?? 0, 8192),
         reasoning: options?.reasoning ?? "low",
         onPayload: (payload: unknown) => {
           if (
@@ -749,7 +768,10 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
       systemPrompt: [
         `You are a Rakazo subagent named "${name}".`,
         "You run inside the parent bot's turn — you are not a separate bot chat.",
-        "Complete the task and return a concise result. Do not spawn bots or further subagents.",
+        "Complete the delegated task and return a concise, fully synthesized result.",
+        "Execute only the specific objective assigned: do not perform unrelated actions, exploratory browsing, or speculative tool calls.",
+        "Invoke only the strictly necessary tools required for this specific subtask.",
+        "Do not attempt to spawn bots or further subagents (subagent depth is strictly 1).",
         extra,
       ]
         .filter(Boolean)
@@ -828,7 +850,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
     host.signal.removeEventListener("abort", onAbort);
     const error = nested.state.errorMessage;
     if (error) {
-      const message = sanitizeError(error);
+      const message = sanitizeToolError(error);
       host.queue.push({ type: "subagent", agentId, name, task, status: "failed", result: message });
       return `Subagent failed: ${message}`;
     }
@@ -844,7 +866,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
     });
     return clipped;
   } catch (error) {
-    const message = sanitizeError(error instanceof Error ? error.message : String(error));
+    const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
     host.queue.push({ type: "subagent", agentId, name, task, status: "failed", result: message });
     return `Subagent failed: ${message}`;
   } finally {
@@ -1227,15 +1249,6 @@ function jsonField(spec: unknown): ReturnType<typeof Type.String> {
   return Type.String();
 }
 
-function summarizeToolResult(result: unknown) {
-  try {
-    const text = JSON.stringify(result);
-    if (!text) return "ok";
-    return text.length > 12_000 ? `${text.slice(0, 12_000)}…` : text;
-  } catch {
-    return "ok";
-  }
-}
 
 function assistantText(message: unknown): string {
   if (!message || typeof message !== "object" || !("content" in message)) return "";
@@ -1249,15 +1262,6 @@ function assistantText(message: unknown): string {
         : "",
     )
     .join("");
-}
-
-function sanitizeError(message: string) {
-  return message
-    .replace(/sk-or-v1-[a-zA-Z0-9]+/g, "[redacted]")
-    .replace(/sk-[a-zA-Z0-9-]+/g, "[redacted]")
-    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
-    .replace(/eyJ[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+\.[a-zA-Z0-9_-]+/g, "[redacted]")
-    .replace(/COMPOSIO_API_KEY[=:]?\s*\S+/gi, "COMPOSIO_API_KEY=[redacted]");
 }
 
 interface EventQueue {
@@ -1276,6 +1280,7 @@ interface ToolHost {
   subagentGate: { acquire(): Promise<void>; release(): void };
   signal: AbortSignal;
   depth: number;
+  tracker: ToolCallTracker;
 }
 
 function createGate(max: number) {

@@ -73,7 +73,7 @@ import {
 } from "./computer-support.js";
 import { observationToolResult, parseComputerActions } from "./computer-tools.js";
 import { checkpointAndRecordComputerWorkspace } from "./computer-workspace.js";
-import { executeEnterpriseTool, isEnterpriseTool } from "./enterprise-tools.js";
+import { executeEnterpriseTool, isEnterpriseTool, sanitizeToolError } from "./enterprise-tools.js";
 import {
   COMPACTION_BATCH_SIZE,
   formatRecalledMemory,
@@ -693,7 +693,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return result;
         };
 
-        const applyTool = async (
+        const rawApplyTool = async (
           name: string,
           args: Record<string, unknown>,
           executionId: string,
@@ -715,8 +715,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }
           }
           const finish = async (result: unknown) => {
-            if (applied) await completeEffect(deps, applied.effect.id, result);
-            return result;
+            const sanitized = sanitizeToolResult(result);
+            if (applied) await completeEffect(deps, applied.effect.id, sanitized);
+            return sanitized;
           };
           if (name === "computer_observe") {
             if (await getActiveTeachingSession(deps.prisma, run.workspaceId, run.botId)) {
@@ -1120,6 +1121,24 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return finish({ error: `unknown tool ${name}` });
         };
 
+        const applyTool = async (
+          name: string,
+          args: Record<string, unknown>,
+          executionId: string,
+        ) => {
+          try {
+            const result = await rawApplyTool(name, args, executionId);
+            return sanitizeToolResult(result);
+          } catch (error) {
+            const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
+            if (error instanceof Error) {
+              error.message = message;
+              throw error;
+            }
+            throw new Error(message);
+          }
+        };
+
         const pluginLine =
           connectedPlugins.length > 0
             ? `Connected plugins: ${connectedPlugins.map((row) => `${row.displayName} (${row.provider})`).join(", ")}. Use those plugin tools when the user asks about those apps.`
@@ -1190,6 +1209,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 "run_subagent is a short helper inside this turn only. It is not a bot, has no thread, and does not show in the list. Use it for parallel work you will summarize here.",
                 "archive_bot safely archives a bot this bot created, and only that bot. Use it when the user asks to remove that bot or when it is finished and unused. The user can restore it or permanently delete it later. confirm_name must exactly match its name.",
                 "Enterprise integrations: You have direct native tools for GitHub (search, read files, issues, PRs, comments), Notion (search, pages, databases), Postiz (social posts & channels), WordPress/Novamira (posts & abilities), n8n (workflows & webhooks), and Cloudflare (zones, DNS, cache purge). Use them directly when requested.",
+                "Tool Parsimony & Targeting: Call only the tools strictly required to fulfill the user's explicit request. Do not speculatively invoke multiple unrelated connectors or tools in parallel (e.g., do not query GitHub, Notion, or Cloudflare simultaneously unless explicitly requested). If a task targets a specific service or can be answered directly from context, use only the relevant tool and stop calling tools as soon as sufficient data is obtained.",
+                "Anti-Speculation: Do not invent, hallucinate, or pretend tool execution outcomes. Never claim an action succeeded or data was retrieved without actually executing the respective tool. When code or command execution is needed, run the command and inspect the output.",
+                "Code Completeness: When generating, editing, or refactoring code or files, always produce complete, fully realized, and syntactically valid code. Never emit lazy placeholders, ellipsis comments, or truncated snippets (such as '// ... existing code ...', '/* rest of implementation */', or '// TODO'). Output complete code to ensure seamless automated execution.",
                 pluginLine,
                 taughtSkillsLine,
                 skillsPrompt,
@@ -1880,4 +1902,27 @@ async function loadCurrentTurnImages(
   }
 
   return images.length ? images : undefined;
+}
+
+function sanitizeToolResult<T>(result: T): T {
+  if (!result) return result;
+  if (typeof result === "string") {
+    return sanitizeToolError(result) as unknown as T;
+  }
+  if (typeof result === "object") {
+    if ("error" in result && typeof (result as { error?: unknown }).error === "string") {
+      const record = { ...result } as Record<string, unknown>;
+      record.error = sanitizeToolError((result as { error: string }).error);
+      if ("stderr" in record && typeof record.stderr === "string") {
+        record.stderr = sanitizeToolError(record.stderr);
+      }
+      return record as T;
+    }
+    if ("stderr" in result && typeof (result as { stderr?: unknown }).stderr === "string") {
+      const record = { ...result } as Record<string, unknown>;
+      record.stderr = sanitizeToolError((result as { stderr: string }).stderr);
+      return record as T;
+    }
+  }
+  return result;
 }

@@ -57,15 +57,16 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
     it("getRecommendedMcpConfig provides standard sovereign suite", () => {
       const config = getRecommendedMcpConfig();
       expect(config.connectors?.searxng_scraperr).toBe(true);
-      expect(config.connectors?.github).toBe(true);
-      expect(config.connectors?.notion).toBe(true);
+      expect(config.connectors?.github).toBe(false);
+      expect(config.connectors?.notion).toBe(false);
       expect(config.connectors?.system_platform).toBe(true);
       expect(config.tools?.web_search).toBe(true);
     });
 
-    it("isToolActive correctly falls back to true when unconfigured", () => {
+    it("isToolActive correctly falls back to defaults when unconfigured", () => {
       expect(isToolActive(undefined, "web_search")).toBe(true);
       expect(isToolActive({}, "web_search")).toBe(true);
+      expect(isToolActive({}, "github_search_repos")).toBe(false);
       expect(isToolActive({ tools: { web_search: false } }, "web_search")).toBe(false);
       expect(isToolActive({ tools: { web_search: true } }, "web_search")).toBe(true);
     });
@@ -81,7 +82,7 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
       // Verify title & badges
       expect(markup).toContain("Connecteurs &amp; Outils MCP Souverains");
       expect(markup).toContain("Souverain");
-      expect(markup).toContain("40 / 40 outils actifs");
+      expect(markup).toContain("6 / 40 outils actifs");
 
       // Verify Quick Action Buttons
       expect(markup).toContain("Tout activer");

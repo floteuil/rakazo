@@ -1,96 +1,146 @@
-# TEST_READY — Rakazo WebUI Mobile-First & Sovereign Enterprise MCP Connectors
+# TEST_READY: Rakazo Token Efficiency, AI Guardrails & Calibration Engine
 
-**Status**: READY & CERTIFIED  
-**Date**: 2026-08-22  
-**Framework**: Vitest (`v4.1.10`) + React 19 (`renderToStaticMarkup`)  
-**Target Suite**: `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx`  
-**Total Tests**: 110 passing (0 failing, 0 flaky)  
-**Success Rate**: 100%  
-**Coverage Level**: All 17 Features across Tiers 1–4  
-
----
-
-## 1. Test Suite Summary
-
-The comprehensive 4-Tier E2E Master Test Suite for **Rakazo WebUI Mobile-First & Sovereign Enterprise MCP Connectors** has been created and certified. It guarantees complete opaque-box verification of mobile drawer navigation, responsive touch ergonomics, iOS Safari zoom prevention, safe-area padding, adaptive overlays, desktop layout preservation, 8 Sovereign MCP Connectors (40 tools), hybrid tool selector UI, bot metadata persistence, runtime dynamic tool filtering, subagent permission inheritance, and security token redactions.
-
-| Test File | Layer / Target | Tiers Covered | Tests Count | Pass Rate |
-|---|---|:---:|:---:|:---:|
-| `apps/web/src/pages/e2e-mobile-and-mcp.test.tsx` | WebUI Mobile-First, Overlays & Sovereign MCP Connectors | Tiers 1, 2, 3, 4 | **110** | **100%** |
-| **TOTAL** | **Full Monorepo E2E Mobile & MCP** | **Tiers 1–4** | **110** | **100%** |
+## Test Suite Certification
+- **Status**: CERTIFIED & READY
+- **Date**: 2026-08-22
+- **Framework**: Vitest 4.1.10 & TypeScript 5.9.2 (Strict Mode)
+- **Target Package**: `@rakazo/adapters` (`packages/adapters/src/`)
+- **Total Test Cases**: 65 automated tests across 4 suites
+- **Pass Rate**: 100% (65 / 65 passed)
 
 ---
 
-## 2. 4-Tier Test Coverage Breakdown
+## 4-Tier Test Architecture Summary
 
-### Tier 1: Feature Coverage (85 tests — >= 5 tests per feature for all 17 features)
-- **F1: Mobile Drawer Navigation** (5 tests): Off-canvas `-translate-x-full` initial state, `translate-x-0` open drawer, semi-transparent backdrop blur, tap-to-close behavior, desktop docked sidebar (`md:relative`).
-- **F2: Mobile Header & Hamburger Menu** (5 tests): Compact top header (`h-14 md:hidden`), accessible hamburger button, active agent name display, online status dot, new chat action.
-- **F3: iOS Safari Auto-Zoom Prevention** (5 tests): Chat composer `text-[16px]` styling, MCP search input `text-[16px]`, Auth form input typography (`text-[17px]`), `sm:text-[15.5px]` desktop scale, `min-h-[44px]` height protection.
-- **F4: Mobile Touch Ergonomics** (5 tests): Send button `min-w-[44px]` touch target, hamburger hit-box `h-11 w-11`, navigation drawer links `min-h-[44px]`, modal dismiss button `h-10 w-10`, horizontal scrolling category pills.
-- **F5: Safe-Area Inset Handling** (5 tests): Composer bottom padding `env(safe-area-inset-bottom)`, fallback `max(12px, env(safe-area-inset-bottom))`, full viewport protection (`h-screen`), Auth screen protection (`min-h-full`), smooth inner scroll containers.
-- **F6: Adaptive Overlays & Modals** (5 tests): `SkillLibraryOverlay` responsive padding (`p-4 sm:p-10`), `ModelSettingsOverlay` adaptive height `h-[min(760px,100%)]`, `VoiceSettingsOverlay` tokens, dark elevated backdrop (`bg-[rgba(4,4,5,.62)]`), `McpShowcaseHarness` responsive rendering.
-- **F7: Desktop High-Fidelity UI** (5 tests): 316px docked sidebar (`w-[316px]`), 1080px dialog width (`w-[1080px]`), `rounded-[26px]` radius, elevation shadow `shadow-[0_40px_90px_rgba(0,0,0,.55)]`, 2-column inspector layout on desktop (`md:w-1/2`).
-- **F8: Sovereign MCP Catalog Matrix** (5 tests): Exactly 8 Sovereign Connectors, exactly 40 tools, required enterprise slugs validation, complete metadata & security levels, category and connector query helpers.
-- **F9: Plugins & Integrations Showcase** (5 tests): 8 connector cards rendered, all category filter pills (`all`, `connected`, `search`, `code`, `workspace`, `social`, `cms`, `automation`, `infra`, `system`), category filtering, keyword search, operational green status badges.
-- **F10: MCP Connector Detail Inspector** (5 tests): Endpoint and protocol inspection, sovereign security banner (`Bearer Token Sanitized`), complete connector tools table, required parameter signatures, `Sensible` tool badges.
-- **F11: Hybrid Agent Tool Selector UI** (5 tests): 1-click global toggle switch per connector, expandable accordions (`▶`/`▼`), active tool counts (`X / Y outils actifs`), enabled green state styling, disabled toggle styling.
-- **F12: Per-Agent Tool Permissions DB Persistence** (5 tests): `BotMcpConfig` JSON schema validation, lossless metadata serialization/deserialization, undefined/empty metadata safety, non-MCP metadata preservation, granular tool overrides persistence.
-- **F13: Dynamic Runtime Tool Filtering** (5 tests): Unrestricted baseline execution, connector-level tool disablement, individual tool override disablement, individual tool override enablement, tool lookup by name fallback.
-- **F14: Subagent Permission Inheritance** (5 tests): Subagent restriction inheritance from parent bot, denial of permission escalation beyond parent, subagent further permission restrictions, system builtin tools preservation (`remember`, `run_subagent`, `spawn_bot`), deeply nested subagent chain idempotency.
-- **F15: Multi-Layer Security Sanitization** (5 tests): GitHub PAT token scrubbing (`ghp_[redacted]`), Notion token scrubbing (`secret_[redacted]`), Bearer authorization header redaction (`Bearer [redacted]`), URL and secret token sanitization, standard diagnostic error preservation.
-- **F16: Monorepo CI/CD Validation** (5 tests): Contracts index export conformance, zero parameter schema collisions, unique connector IDs and slugs, unique tool names across 40 tools, declared required parameter consistency.
-- **F17: Adversarial Coverage Hardening** (5 tests): XSS and script payload HTML sanitization during rendering, malformed JSON objects handling in runtime filter, extreme tool overrides stress (1000+ entries), multi-line secret redactions and stack traces, unknown tool query resilience.
-
-### Tier 2: Boundary & Corner Cases (15 tests)
-- **2.1 Viewport Breakpoints & Widths** (5 tests): Ultra-compact mobile (320px), iPhone SE (375px), tablet breakpoint (767px vs 768px), desktop (1440px), ultra-wide (2560px).
-- **2.2 Extreme Tool Configurations** (5 tests): All 8 connectors disabled (0 tools), all 8 connectors enabled (40 tools), single tool on with connector off, single tool off with connector on, conflicting nested overrides.
-- **2.3 Malformed & Corrupted Metadata** (5 tests): Non-boolean primitives, array inputs in tools map, empty string tool names, null connector references, safe circular reference serialization.
-
-### Tier 3: Cross-Feature Combinations (5 tests)
-- **3.1 Mobile Drawer Navigation + Modal Overlay Stacking**: Stacking z-index and drawer dismissal upon modal overlay.
-- **3.2 Hybrid Selector UI + Bot Metadata Serialization + Runtime Resolution**: End-to-end flow from toggle switches to JSON serialization to runtime filtering.
-- **3.3 MCP Showcase Category Pills + Substring Search Filtering**: Simultaneous category pill selection and search query filtering.
-- **3.4 Subagent Spawning + Permission Inheritance + Security Sanitization**: Subagent least-privilege tool execution with error secret scrubbing.
-- **3.5 Responsive Breakpoint Dynamic Transition**: Fluid transition between mobile hamburger and desktop docked sidebar.
-
-### Tier 4: Real-World Application Scenarios (5 tests)
-- **4.1 Scenario 1: Mobile User Daily Journey**: User opens hamburger menu on iPhone, navigates to agent chat, enters message in zoom-protected composer with safe-area padding, and submits via 44px touch target button.
-- **4.2 Scenario 2: Sovereign MCP Explorer Journey**: User browses Sovereign MCP catalogue, filters by 'Ingénierie', inspects GitHub MCP connector, views 6 tools and parameter definitions, and checks operational status.
-- **4.3 Scenario 3: Custom Specialist Bot Creation with Hybrid MCP Permissions**: User creates a specialized RAG bot with SearXNG + Notion, disables sensitive page creation tool, and verifies runtime tool resolution.
-- **4.4 Scenario 4: Multi-Agent Autonomous Delegation Flow**: Coordinator bot with Notion + SearXNG spawns subagent; subagent attempts restricted action and any returned error is sanitized.
-- **4.5 Scenario 5: Responsive Modal Adaptability across 6 Device Profiles**: Full rendering test across iPhone SE, iPhone 15, iPad Mini, iPad Pro, MacBook Pro, and 4K Display.
+| Tier | Focus | Test Count | Key Invariants Verified |
+|------|-------|:----------:|-------------------------|
+| **Tier 1: Feature Coverage** | Primary Happy Paths | 35 | `maxTokens` allocation (16,384), `thinkingLevel: "low"`, tool parsimony directives, `compactToolResult` across 6 connectors, 25-step circuit breaker, 3-call redundancy detector, subagent depth 1, 12+ token error sanitization regexes, physical storage cleanup on `/data`. |
+| **Tier 2: Boundary & Corner Cases** | Edge & Threshold Conditions | 18 | Step 24 vs 25 vs 26 (circuit breaker cutoff), 1 vs 2 vs 3 consecutive calls (redundancy trigger & reset on different tool), 4,000 char threshold on shell output, 40 entries threshold on file lists, empty collections, payloads > 12,000 chars, non-existent directories, multi-secret strings. |
+| **Tier 3: Cross-Feature Combinations** | Pairwise Inter-Module Flows | 6 | Subagent + tool compacting + secret sanitization; circuit breaker + redundant call termination; physical disk cleanup + database cascade under concurrency; tool parsimony + maxTokens. |
+| **Tier 4: Real-World Scenarios** | Complex End-to-End Workloads | 6 | Multi-module full code refactoring; runaway search loop intercepted at step 25; oscillating failing shell command halted at call 3; multi-database Notion & Cloudflare zone audits; full bot lifecycle provisioning & physical disk purge. |
+| **Total** | **All Tiers** | **65** | **100% Pass Rate** |
 
 ---
 
-## 3. Feature Inventory Verification Checklist
+## Feature Inventory & Requirement Mapping
 
-- [x] **Feature 1: Mobile Drawer Navigation** — Verified (Tiers 1, 2, 3, 4)
-- [x] **Feature 2: Mobile Header & Hamburger** — Verified (Tiers 1, 2, 3)
-- [x] **Feature 3: iOS Safari Auto-Zoom Prevention** — Verified (Tiers 1, 2)
-- [x] **Feature 4: Mobile Touch Ergonomics** — Verified (Tiers 1, 2)
-- [x] **Feature 5: Safe-Area Inset Handling** — Verified (Tiers 1, 2)
-- [x] **Feature 6: Adaptive Overlays & Modals** — Verified (Tiers 1, 2, 3, 4)
-- [x] **Feature 7: Desktop High-Fidelity UI** — Verified (Tiers 1, 2)
-- [x] **Feature 8: Sovereign MCP Catalog Matrix** — Verified (Tiers 1, 2, 4)
-- [x] **Feature 9: Plugins & Integrations Showcase** — Verified (Tiers 1, 2, 3, 4)
-- [x] **Feature 10: MCP Connector Detail Inspector** — Verified (Tiers 1, 2, 4)
-- [x] **Feature 11: Hybrid Agent Tool Selector UI** — Verified (Tiers 1, 2, 3, 4)
-- [x] **Feature 12: Per-Agent Tool Permissions DB Persistence** — Verified (Tiers 1, 2, 3)
-- [x] **Feature 13: Dynamic Runtime Tool Filtering** — Verified (Tiers 1, 2, 3, 4)
-- [x] **Feature 14: Subagent Permission Inheritance** — Verified (Tiers 1, 2, 3, 4)
-- [x] **Feature 15: Multi-Layer Security Sanitization** — Verified (Tiers 1, 2, 4)
-- [x] **Feature 16: Monorepo CI/CD Validation** — Verified (Tiers 1, 3)
-- [x] **Feature 17: Adversarial Coverage Hardening** — Verified (Tiers 1, 2, 3, 4)
+| # | Feature | Requirement | Test Suite | Status |
+|---|---------|-------------|------------|:------:|
+| 1 | High Output Token Budget (16,384) | ORIGINAL_REQUEST §R1 | `e2e-token-efficiency.test.ts` | PASS (100%) |
+| 2 | System Prompt Tool Parsimony & Anti-Speculation | ORIGINAL_REQUEST §R1 | `e2e-token-efficiency.test.ts` | PASS (100%) |
+| 3 | Tool Response Semantic Compacting (`compactToolResult`) | ORIGINAL_REQUEST §R1 | `tool-compacting.test.ts` | PASS (100%) |
+| 4 | Iteration Circuit Breaker (Max 25 steps) | ORIGINAL_REQUEST §R2 | `loop-guards.test.ts` | PASS (100%) |
+| 5 | Redundant Tool Call Detection (Max 3 calls) | ORIGINAL_REQUEST §R2 | `loop-guards.test.ts` | PASS (100%) |
+| 6 | Subagent Depth Safeguard (Max depth 1) | ORIGINAL_REQUEST §R2 | `loop-guards.test.ts`, `e2e-token-efficiency.test.ts` | PASS (100%) |
+| 7 | Unified Secret & Token Sanitization (`sanitizeToolError`) | ORIGINAL_REQUEST §R4 | `loop-guards.test.ts`, `e2e-token-efficiency.test.ts` | PASS (100%) |
+| 8 | Zero-Bloat Physical Storage Cleanup on `/data` | ORIGINAL_REQUEST §R3 | `storage-cleanup.test.ts` | PASS (100%) |
+| 9 | Database Cascades & Zero Orphans | ORIGINAL_REQUEST §R3 | `storage-cleanup.test.ts` | PASS (100%) |
 
 ---
 
-## 4. Test Execution Command
+## Detailed Test Suite Inventory
 
-To execute the test suite:
+### 1. `packages/adapters/src/tool-compacting.test.ts` (24 Tests)
+- **Tier 1 (Feature Coverage)**:
+  - `list_files` preservation for <= 40 items.
+  - `list_files` compacting & sampling for > 40 items.
+  - `shell` output preservation for <= 4,000 characters.
+  - `shell` output head/tail truncation with marker for > 4,000 characters.
+  - `github_search_repos` filtering verbose fields (retaining name, stars, url).
+  - `github_list_issues` extracting number, title, state, user, labels.
+  - `notion_search` omitting heavy block trees (retaining id, title, url).
+  - `cloudflare_list_dns_records` extracting DNS record properties.
+  - Fallback JSON null pruning and structural cleanup.
+  - Nil/empty input handling (`null`, `undefined` -> `"ok"`).
+- **Tier 2 (Boundary & Corner Cases)**:
+  - Exact 40 entries (not compressed) vs 41 entries (compressed).
+  - Exact 4,000 characters (not truncated) vs 4,001 characters (truncated).
+  - Empty collections (`[]`, `{}`).
+  - Massive generic JSON payloads (> 12,000 characters capped with `…`).
+  - Unicode, French accents, emojis, and multiline preserving.
+  - Object wrapper shapes (`{ output }` and `{ stdout }`).
+- **Tier 3 (Cross-Feature Combinations)**:
+  - Compacting + embedded secret tokens in shell output.
+  - 50-file list with sensitive paths.
+  - Multi-connector batch outputs (GitHub + Cloudflare).
+- **Tier 4 (Real-World Scenarios)**:
+  - Scenario 1: Large Monorepo File Tree (250 files across packages and apps).
+  - Scenario 2: TypeScript Compiler Build Failure (20,000 character log with 14 errors).
+  - Scenario 3: Cloudflare DNS Zone Audit (100 DNS records compacted to essential records).
 
+### 2. `packages/adapters/src/loop-guards.test.ts` (21 Tests)
+- **Tier 1 (Feature Coverage)**:
+  - `createToolCallTracker` initialization with zero state.
+  - Step counter incrementing and normal execution allowance.
+  - Circuit breaker triggering at step 26 (`terminate: true`).
+  - Redundant call detection on 3rd identical call (`terminate: true`).
+  - Subagent depth safeguard (depth 0 vs depth 1).
+  - Secret sanitization: GitHub (`ghp_`, `github_pat_`).
+  - Secret sanitization: Notion, Postiz, Novamira, n8n, Cloudflare (`secret_`, `ntn_`, `pk_`, `nova_`, `n8n_api_`, `cf_token_`, `cfat_`).
+  - Secret sanitization: OpenAI, OpenRouter, Anthropic (`sk-`, `sk-or-`, `sk-ant-`).
+  - Secret sanitization: PostgreSQL connection URLs with passwords.
+  - Secret sanitization: Bearer and Basic authentication headers.
+- **Tier 2 (Boundary & Corner Cases)**:
+  - Step 24 (allow), Step 25 (allow), Step 26 (blocked).
+  - Consecutive redundancy reset when intermediate tool call differs (A -> A -> B -> A).
+  - Canonical argument signature: JSON key ordering normalization (`{a:1, b:2}` vs `{b:2, a:1}`).
+  - Empty, null, and primitive arguments in signature computation.
+  - Sanitization of empty strings and clean strings.
+  - Multiple credentials in a single error message.
+- **Tier 3 (Cross-Feature Combinations)**:
+  - Circuit breaker + Redundant call: Loop halted at step 3 before step 25.
+  - Failing tool returning sanitized error retried 3 times triggers redundancy guard.
+- **Tier 4 (Real-World Scenarios)**:
+  - Scenario 1: Oscillating failing tool call loop (retrying failing `git pull` 3 times).
+  - Scenario 2: Runaway search loop stopped at step 25 with synthesis directive.
+  - Scenario 3: Deep nested error diagnostic with 5 exposed credential types sanitized simultaneously.
+
+### 3. `packages/adapters/src/storage-cleanup.test.ts` (7 Tests)
+- **Tier 1 (Feature Coverage)**:
+  - Unconditional physical purge of `/data/homes/<botId>` directory on disk.
+  - Artifact store cleanup: calls `artifactStore.remove` for all bot artifacts.
+  - Active runs and routines cancellation in DB and queue.
+  - Memory archival: Preserves memories under `Archived bots/...` when `deleteMemories: false`.
+- **Tier 2 (Boundary & Corner Cases)**:
+  - Non-existent directory resilience (does not throw when directories on disk are missing).
+  - Transaction failure propagation (surfaces database errors honestly).
+- **Tier 3 & 4 (Real-World Scenarios)**:
+  - Scenario: Full Lifecycle Provisioning, Disk Footprint (`/data/homes`, revisions, desktop workspaces) & Zero-Bloat Purge.
+
+### 4. `packages/adapters/src/e2e-token-efficiency.test.ts` (13 Tests)
+- **Tier 1 (Feature Coverage)**:
+  - `PiAgentRuntime` capabilities declaration (compaction, streaming, tools).
+  - Elevated output token budget (16,384 tokens).
+  - Economic thinking budget (`thinkingLevel: "low"`).
+  - Tool parsimony and anti-speculation directives in system instructions.
+  - Subagent depth restriction (depth > 0 blocked).
+- **Tier 2 (Boundary & Corner Cases)**:
+  - Large prompt output handling without truncation.
+  - Missing system instruction fallback.
+  - Immediate refusal for subagent nesting.
+  - Error stream credential masking.
+- **Tier 3 (Cross-Feature Combinations)**:
+  - Subagent + Tool Compacting + Secret Masking pipeline.
+  - Circuit breaker + Tool Parsimony alignment.
+- **Tier 4 (Real-World Scenarios)**:
+  - Scenario 1: Full-file multi-module code generation workload.
+  - Scenario 2: Multi-agent autonomous delegation with single-depth guard.
+
+---
+
+## Verification Commands
+
+Run the complete 4-tier token efficiency test suite:
 ```bash
-pnpm vitest run apps/web/src/pages/e2e-mobile-and-mcp.test.tsx
+pnpm vitest run packages/adapters/src/tool-compacting.test.ts packages/adapters/src/loop-guards.test.ts packages/adapters/src/storage-cleanup.test.ts packages/adapters/src/e2e-token-efficiency.test.ts
 ```
 
-All 110 tests pass deterministically in under 10 seconds.
+Run full monorepo type checking:
+```bash
+pnpm check
+```
+
+Run all adapter tests:
+```bash
+pnpm --filter @rakazo/adapters test
+```
