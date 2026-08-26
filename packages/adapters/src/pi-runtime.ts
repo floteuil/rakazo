@@ -146,10 +146,21 @@ export class PiAgentRuntime implements AgentRuntime {
               queue.push({ type: "text", text });
             }
             if ("usage" in event.message && event.message.usage) {
+              const usage = event.message.usage as unknown as Record<string, unknown>;
+              const inputTokens = (usage.input ?? usage.prompt_tokens ?? 0) as number;
+              const outputTokens = (usage.output ?? usage.completion_tokens ?? 0) as number;
+              const cachedTokens = ((usage.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens ??
+                usage.cached_tokens ??
+                (usage as Record<string, unknown>).cache_read_input_tokens ??
+                0) as number;
+              const totalPromptTokens = cachedTokens + inputTokens;
+              const cacheHitRatio = totalPromptTokens > 0 ? cachedTokens / totalPromptTokens : 0;
               queue.push({
                 type: "usage",
-                inputTokens: event.message.usage.input ?? 0,
-                outputTokens: event.message.usage.output ?? 0,
+                inputTokens,
+                outputTokens,
+                cachedTokens,
+                cacheHitRatio: Math.min(1.0, Math.max(0.0, cacheHitRatio)),
                 provider: model.provider,
                 model: model.id,
               });

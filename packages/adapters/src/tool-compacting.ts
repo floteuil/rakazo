@@ -122,10 +122,20 @@ export function safelyTruncateJson(value: unknown, maxChars = MAX_GENERIC_RESULT
     return `${text.slice(0, maxChars - 1)}…`;
   } catch {
     try {
-      const fallback =
-        typeof value === "object" && value !== null
-          ? Object.prototype.toString.call(value)
-          : String(value);
+      let fallback: string;
+      if (typeof value === "object" && value !== null) {
+        try {
+          fallback = Object.prototype.toString.call(value);
+        } catch {
+          fallback = "[object Object]";
+        }
+      } else {
+        try {
+          fallback = String(value);
+        } catch {
+          fallback = "[unserializable value]";
+        }
+      }
       return fallback.length > maxChars ? `${fallback.slice(0, maxChars - 1)}…` : fallback;
     } catch {
       return "[unserializable payload]";

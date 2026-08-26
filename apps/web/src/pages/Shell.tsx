@@ -17,6 +17,7 @@ import type {
   VoiceStatus,
 } from "@rakazo/contracts";
 import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelector";
+import { PromptCompilerModal } from "./PromptCompilerModal";
 import {
   ATTACHMENT_ALLOWED_MIME_TYPES,
   ATTACHMENT_MAX_BYTES,
@@ -2564,6 +2565,7 @@ function CreateBotForm({
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [instructions, setInstructions] = useState("");
+  const [isCompilerOpen, setIsCompilerOpen] = useState(false);
   const [computerMode, setComputerMode] = useState<ComputerMode>("team");
   const [availableSkills, setAvailableSkills] = useState<SkillSummary[]>([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
@@ -2612,8 +2614,22 @@ function CreateBotForm({
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
-      <label className="mt-4 block text-[14px] text-[#85858A]">
-        Instructions personnalisées / Prompt système
+      <div className="mt-4">
+        <div className="flex items-center justify-between">
+          <label className="text-[14px] text-[#85858A]">
+            Instructions personnalisées / Prompt système
+          </label>
+          <button
+            type="button"
+            data-testid="rendre-pro-btn"
+            onClick={() => setIsCompilerOpen(true)}
+            disabled={!instructions.trim()}
+            className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-indigo-600/20 px-3 py-1.5 text-xs font-medium text-indigo-400 hover:bg-indigo-600/30 disabled:opacity-40"
+          >
+            <Sparkles size={13} />
+            Rendre professionnelles
+          </button>
+        </div>
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
@@ -2621,7 +2637,7 @@ function CreateBotForm({
           rows={5}
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
-      </label>
+      </div>
       <div className="mt-4">
         <span className="block text-[14px] text-[#85858A]">
           Compétences de la bibliothèque (Skills)
@@ -2710,6 +2726,18 @@ function CreateBotForm({
       >
         Créer l'agent
       </button>
+
+      <PromptCompilerModal
+        isOpen={isCompilerOpen}
+        rawDraft={instructions}
+        botName={name}
+        botTitle={title}
+        onClose={() => setIsCompilerOpen(false)}
+        onApply={(compiled) => {
+          setInstructions(compiled);
+          setIsCompilerOpen(false);
+        }}
+      />
     </div>
   );
 }
@@ -2739,6 +2767,7 @@ function BotSettings({
   const [title, setTitle] = useState(bot.title);
   const [description, setDescription] = useState(bot.description);
   const [instructions, setInstructions] = useState(bot.instructions || bot.description || "");
+  const [isCompilerOpen, setIsCompilerOpen] = useState(false);
   const [computerMode, setComputerMode] = useState(bot.computerMode);
   const [autoSpeak, setAutoSpeak] = useState(bot.autoSpeak);
   const [voiceId, setVoiceId] = useState(bot.voiceId ?? "");
@@ -2850,8 +2879,22 @@ function BotSettings({
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </label>
-      <label className="mt-4 block text-[14px] text-[#85858A]">
-        Instructions personnalisées / Prompt système
+      <div className="mt-4">
+        <div className="flex items-center justify-between">
+          <label className="text-[14px] text-[#85858A]">
+            Instructions personnalisées / Prompt système
+          </label>
+          <button
+            type="button"
+            data-testid="rendre-pro-btn"
+            onClick={() => setIsCompilerOpen(true)}
+            disabled={!instructions.trim()}
+            className="flex min-h-[44px] items-center gap-1.5 rounded-lg bg-indigo-600/20 px-3 py-1.5 text-xs font-medium text-indigo-400 hover:bg-indigo-600/30 disabled:opacity-40"
+          >
+            <Sparkles size={13} />
+            Rendre professionnelles
+          </button>
+        </div>
         <textarea
           value={instructions}
           onChange={(e) => setInstructions(e.target.value)}
@@ -2859,7 +2902,7 @@ function BotSettings({
           rows={6}
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
-      </label>
+      </div>
       <ComputerModePicker value={computerMode} onChange={setComputerMode} />
       <div className="mt-6 border-t border-[#26262A] pt-5">
         <div className="flex items-center justify-between">
@@ -3014,6 +3057,18 @@ function BotSettings({
           Effacer la conversation
         </button>
       </div>
+
+      <PromptCompilerModal
+        isOpen={isCompilerOpen}
+        rawDraft={instructions}
+        botName={name}
+        botTitle={title}
+        onClose={() => setIsCompilerOpen(false)}
+        onApply={(compiled) => {
+          setInstructions(compiled);
+          setIsCompilerOpen(false);
+        }}
+      />
     </div>
   );
 }

@@ -44,6 +44,10 @@ import {
 } from "./domain.js";
 import { ProductEventSchema } from "./events.js";
 import { Id } from "./ids.js";
+import {
+  PromptCompileInputSchema,
+  PromptCompileOutputSchema,
+} from "./prompt-compiler.js";
 import { SearchQueryOutputSchema } from "./search.js";
 
 const botId = z.object({ botId: Id });
@@ -360,6 +364,9 @@ export const appContract = {
         }),
       )
       .output(z.object({ ready: z.boolean(), utterances: z.array(z.string()) })),
+  },
+  prompts: {
+    compile: oc.input(PromptCompileInputSchema).output(PromptCompileOutputSchema),
   },
 };
 

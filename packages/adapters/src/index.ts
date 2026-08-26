@@ -36,6 +36,8 @@ export * from "./openai-voice.js";
 export * from "./pi-models.js";
 export * from "./pi-oauth.js";
 export * from "./pi-runtime.js";
+export * from "./prefix-caching.js";
+export * from "./prompt-compiler.js";
 export * from "./realtime.js";
 export * from "./sandbox-factory.js";
 export * from "./scripted-runtime.js";

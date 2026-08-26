@@ -21,6 +21,7 @@ import {
   ComputerBusyError,
   type ComputerExecutionLease,
   checkpointAndRecordComputerWorkspace,
+  createPromptCompilerService,
   createVoiceProvider,
   deleteSupermemoryContainer,
   destroyBot,
@@ -1711,6 +1712,15 @@ export function createRouter(deps: RouterDeps) {
       prepare: authed.voice.prepare.handler(async ({ context, input }) =>
         prepareVoice(deps, context.actor, input),
       ),
+    },
+    prompts: {
+      compile: authed.prompts.compile.handler(async ({ input }) => {
+        const promptCompiler = createPromptCompilerService({
+          apiKey: deps.env.openRouterKey,
+          modelId: deps.env.defaultModel,
+        });
+        return promptCompiler.compile(input);
+      }),
     },
   });
 }

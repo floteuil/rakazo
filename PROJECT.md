@@ -1,113 +1,129 @@
-# Project: Rakazo Token Efficiency, AI Guardrails & Calibration Engine
+# Project: Rakazo Major Iteration — Prompt Compiler, Prefix Caching, Responsive WebUI & Upstream Coexistence
 
 ## Architecture
-Rakazo operates an autonomous multi-agent platform using a modular monorepo architecture (`pnpm` + Turborepo + TypeScript).
-- **Core Engine & Adapters (`packages/adapters`)**:
-  - `pi-runtime.ts`: Agent loop orchestrator wrapping `@earendil-works/pi-agent-core` with tool execution, streaming events, and subagents.
-  - `executor.ts`: Worker task runner handling database persistence, secret gathering, tool dispatch, and prompt assembly.
-  - `enterprise-tools.ts`: Sovereign connectors (SearXNG, GitHub, Notion, Postiz, WordPress/Novamira, n8n, Cloudflare) and error sanitizer (`sanitizeToolError`).
-  - `child-bots.ts`: Agent lifecycle, spawning, archiving, and physical/database destruction (`destroyBot`).
-  - `tool-compacting.ts`: Semantic tool output compactor for files, shell, GitHub, Notion, and Cloudflare.
-  - `loop-guards.ts`: 25-step circuit breaker and 3-consecutive redundant tool call detector.
-  - `home.ts`, `artifacts.ts`, `desktop-sandbox.ts`: Local filesystem storage on `/data`.
-- **Contracts & Types (`packages/contracts`)**:
-  - `mcp-catalog.ts`: Registry of 40 sovereign tools across 7 connectors, permissions, and tool schemas.
-- **Database & Persistence (`packages/db`)**:
-  - Prisma ORM managing 15 cascaded relational tables linked to `Bot`.
-- **User Interface (`apps/web`, `apps/mobile`, `apps/desktop`)**:
-  - Mobile-first WebUI, Desktop Electron, Expo Mobile apps with real-time streaming chat, tool overlays, and skills management.
+Rakazo is a full-stack, enterprise-grade AI agent platform built as a Turborepo monorepo with 19 packages across `apps/`, `packages/`, and `infra/`.
 
 ```
-┌─────────────────────────────────────────────────────────────────────────────────────────┐
-│                                    Rakazo Agent Engine                                  │
-│                                                                                         │
-│   ┌────────────────────────┐    ┌──────────────────────────────────────────────────┐   │
-│   │   System Instructions  │    │            LLM Runtime (PiAgentRuntime)          │   │
-│   │   (executor.ts)        │    │            (packages/adapters/src/pi-runtime.ts) │   │
-│   │                        │    │                                                  │   │
-│   │ + Tool Parsimony Rule  │    │ + maxTokens: 16,384 (Elevated Output Ceiling)    │   │
-│   │ + Anti-Speculation     │    │ + thinkingLevel: "low" (Economic CoT Budget)     │   │
-│   │ + Full Code Directive  │    │ + compactToolResult() (Semantic Data Reducer)    │   │
-│   └───────────┬────────────┘    └────────────────────────┬─────────────────────────┘   │
-│               │                                          │                             │
-│               ▼                                          ▼                             │
-│   ┌────────────────────────┐    ┌──────────────────────────────────────────────────┐   │
-│   │  Model Context Buffer  │◄───┤    Loop Guards & Circuit Breaker Interceptors    │   │
-│   │  (Optimized History)   │    │    - Step Cap: max 25 tool iterations / turn     │   │
-│   └────────────────────────┘    │    - Redundant Detector: max 3 consecutive same  │   │
-│                                 │    - Subagent Depth: max depth 1                 │   │
-│                                 │    - Unified sanitizeToolError()                 │   │
-│                                 └────────────────────────┬─────────────────────────┘   │
-│                                                          │                             │
-│                                                          ▼                             │
-│   ┌────────────────────────────────────────────────────────────────────────────────┐   │
-│   │            Physical Storage & Cascade Cleanup Engine (child-bots.ts)           │   │
-│   │            - Unconditional purge of /data/homes/<botId>                        │   │
-│   │            - Unconditional purge of /data/home-revisions/<botId>.txt           │   │
-│   │            - Purge of /data/desktop-computers/<botId>                          │   │
-│   │            - 15 relational tables cascaded via Prisma / PostgreSQL             │   │
-│   └────────────────────────────────────────────────────────────────────────────────┘   │
-└─────────────────────────────────────────────────────────────────────────────────────────┘
+                        ┌──────────────────────────────────────────┐
+                        │      apps/web (React 19 / Vite 7 /       │
+                        │      Tailwind v4 / @rakazo/chat-ui)      │
+                        └────────────────────┬─────────────────────┘
+                                             │ oRPC / HTTP
+                                             ▼
+                        ┌──────────────────────────────────────────┐
+                        │          apps/api (Hono / Node)          │
+                        └────────────────────┬─────────────────────┘
+                                             │
+                      ┌──────────────────────┼──────────────────────┐
+                      ▼                      ▼                      ▼
+             @rakazo/contracts       @rakazo/adapters         @rakazo/db
+            (Zod schemas, RPC,      (Pi Runtime, Prompt      (Prisma, Pg,
+             Domain, MCP types)      Compiler, Loop Guards)   Repositories)
+                      │                      │
+                      └──────────────────────┴──────────────────────┐
+                                                                    ▼
+                                                             OpenRouter API
+                                                            (gpt-oss-120b)
 ```
+
+### Module Boundaries
+1. `@rakazo/contracts`: Pure contract/domain layer. Declares Zod schemas, RPC routes, and domain types. No side-effects or heavy runtime dependencies.
+2. `@rakazo/adapters`: Execution and integration layer. Implements `PromptCompilerService`, Pi runtime agent execution, loop guards, tool compacting, and OpenRouter client adapters.
+3. `apps/web` & `@rakazo/chat-ui`: Presentation layer. `Shell.tsx`, `CreateBotModal`, `BotSettings`, `PromptCompilerModal`, responsive layouts, and safe-area touch ergonomics.
+4. `@rakazo/db` & `apps/api`: Persistence and routing layer. Exposes RPC procedures, enforces authentication, and applies defensive HTTP security headers.
+5. `packages/testkit`: Unified test harness for integration and E2E testing.
+
+---
 
 ## Feature Inventory
-Every feature from the Survey phase and `ORIGINAL_REQUEST.md` is assigned to a milestone:
-
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| 1 | High Output Token Budget | Configure `maxTokens` (16,384) in `pi-runtime.ts` for root and subagents to prevent truncation of full code files | M1 | ORIGINAL_REQUEST §R1 (DONE) |
-| 2 | System Prompt Tool Parsimony | Inject strict tool targeting, anti-speculation, and code completeness directives in `executor.ts` | M1 | ORIGINAL_REQUEST §R1 (DONE) |
-| 3 | Tool Response Semantic Compacting | Implement `compactToolResult` to compress large file lists, shell logs, GitHub, Notion, and Cloudflare payloads | M1 | ORIGINAL_REQUEST §R1 (DONE) |
-| 4 | Iteration Circuit Breaker | Limit tool execution steps per user turn to max 25 iterations with clean synthesis warning | M2 | ORIGINAL_REQUEST §R2 (DONE) |
-| 5 | Redundant Tool Call Detection | Detect 3 consecutive identical tool calls (`toolName` + canonical args hash) and intercept execution | M2 | ORIGINAL_REQUEST §R2 (DONE) |
-| 6 | Subagent Depth Safeguard | Verify and reinforce subagent depth limit (max depth 1) preventing recursive loops | M2 | ORIGINAL_REQUEST §R2 (DONE) |
-| 7 | Unified Error & Secret Sanitization | Unify `sanitizeToolError` across `pi-runtime.ts`, `executor.ts`, and all tool error pipelines | M2 | ORIGINAL_REQUEST §R4 (DONE) |
-| 8 | Unconditional Physical Storage Cleanup | Purge `/data/homes/<botId>`, `/data/home-revisions/<botId>.txt`, and `/data/desktop-computers/<botId>` in `destroyBot` | M3 | ORIGINAL_REQUEST §R3 (DONE) |
-| 9 | Monorepo Test Alignment & Fixes | Align assertions in `PluginsOverlay.test.tsx` and `BotMcpToolSelector.test.tsx` with sovereign tool catalog | M3 | ORIGINAL_REQUEST §R5 (DONE) |
-| 10 | Comprehensive Test Suite & Monorepo Validation | Verify 100% test pass rate on `pnpm test` and 0 TypeScript errors on `pnpm check` | M4 | ORIGINAL_REQUEST §R5 (DONE) |
-| 11 | Adversarial Hardening (Tier 5) | Adversarial stress testing for loop breaking, memory leaks, secret exposure, and token limits | M4 | Project Pattern (DONE) |
+| F1.1 | Prompt Compiler Schemas | Zod validation schemas for prompt compile input/output, levels (1 & 2), and cache telemetry in `@rakazo/contracts` | M1 | ORIGINAL_REQUEST §R1 |
+| F1.2 | PromptCompilerService Level 1 & Level 2 | Service in `@rakazo/adapters` transforming messy draft into structured prompt for `gpt-oss-120b` (Level 1 deterministic rule-based, Level 2 OpenRouter LLM) | M1 | ORIGINAL_REQUEST §R1 |
+| F1.3 | MCP Immutability Invariant | Guarantee Prompt Compiler never touches, enables, or modifies `bot.metadata.mcp` configuration | M1 | ORIGINAL_REQUEST §R1 |
+| F1.4 | RPC Route `prompts.compile` | Exposing prompt compilation endpoint via oRPC in `@rakazo/contracts` and `apps/api` | M1 | ORIGINAL_REQUEST §R1 |
+| F2.1 | 4-Block Cache-Friendly System Prompt | Refactoring prompt assembly in `@rakazo/adapters` (Bloc A: stable guards -> Bloc B: bot config -> Bloc C: compact history -> Bloc D: ephemeral turn) | M2 | ORIGINAL_REQUEST §R2 |
+| F2.2 | Prefix Caching Telemetry & Sticky Routing | Extracting `cached_tokens`, `cacheHitRatio` in `pi-runtime.ts` and `executor.ts` with session affinity routing | M2 | ORIGINAL_REQUEST §R2 |
+| F2.3 | Guardrails & Compacting Preservation | Preserving and validating `loop-guards.ts` (redundant calls, iteration limits) and `tool-compacting.ts` | M2 | ORIGINAL_REQUEST §R2 |
+| F3.1 | "Rendre professionnelles" Action Button | Adding action trigger in `CreateBotModal` and `BotSettings` in `apps/web/src/pages/Shell.tsx` | M3 | ORIGINAL_REQUEST §R1, R3 |
+| F3.2 | Editable Diff & Preview Modal | `PromptCompilerModal.tsx` providing live diff, editable output, loading state, error alerts, and double-submission protection | M3 | ORIGINAL_REQUEST §R1, R3 |
+| F3.3 | Draft Preservation & Rollback Buffer | Preserving initial user draft upon cancellation or network failure with 0 data loss | M3 | ORIGINAL_REQUEST §R1 |
+| F3.4 | Multi-Device Responsive Ergonomics | Mobile (<768px: `max-w-[98%]`, composer `min-w-0 shrink-0`, safe-area insets, virtual keyboard), Tablet (768-1024px: drawer/modal fluid layouts), Desktop (>=1024px: 3-tab MCP inspector) | M3 | ORIGINAL_REQUEST §R3 |
+| F4.1 | Additive Upstream Architecture | Ensuring all new files and services are isolated to prevent git merge conflicts with `elie222/rakazo` | M4 | ORIGINAL_REQUEST §R4 |
+| F4.2 | Upstream Compatibility & Customization Map | Creating comprehensive `UPSTREAM COMPATIBILITY & CUSTOMIZATION MAP` detailing all additive touchpoints | M4 | ORIGINAL_REQUEST §R4 |
+| F5.1 | Security & Zero-Secret Policy | Enforcing unified `sanitizeToolError`, defensive HTTP headers in `apps/api`, and anti-SSRF protections | M5 | ORIGINAL_REQUEST §R5 |
+| F5.2 | Monorepo Quality Baseline | 0 TypeScript errors on `pnpm check` across all 19 packages and 100% test pass rate | M5 | ORIGINAL_REQUEST §R5 |
+| F5.3 | Master Closing Artifacts | Authoring `RAKAZO_MASTER_BLUEPRINT_CURRENT.md` and `ITERATION_REPORT.md` | M5 | ORIGINAL_REQUEST §R5 |
+| F6.1 | E2E Testing Suite (Tiers 1-4) | Comprehensive opaque-box test suite validating all features across 4 tiers | Final Milestone | ORIGINAL_REQUEST §Acceptance Criteria |
+| F6.2 | Adversarial Hardening (Tier 5) | White-box stress testing, boundary fuzzing, and coverage audit | Final Milestone | ORIGINAL_REQUEST §Acceptance Criteria |
+
+---
 
 ## Milestones
-
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | LLM Runtime Calibration & Tool Response Semantic Compacting | Elevated `maxTokens` (16,384), economic reasoning budget, system prompt tool parsimony directives, and semantic tool compacting (`compactToolResult`). | None | DONE |
-| M2 | AI Guardrails, Circuit Breaker & Unified Secret Sanitization | Loop guards module (`loop-guards.ts`), 25-step circuit breaker, consecutive redundant call detector, subagent depth 1 verification, and full `sanitizeToolError` propagation. | M1 | DONE |
-| M3 | Zero-Bloat Storage Auto-Cleanup & Monorepo Test Alignment | Unconditional physical cleanup in `destroyBot` (`/data/homes`, revisions, desktop workspaces), Prisma cascades audit, and sovereign tools test fixes. | M2 | DONE |
-| M4 | Final Milestone: 100% E2E Test Suite Pass & Adversarial Hardening | Verification of all test tiers (Tiers 1-4) published by E2E Testing Track, followed by Phase 2 adversarial stress-testing (Tier 5). | M3, TEST_READY | DONE |
+| M1 | Prompt Compiler Engine & 2-Level Compilation | F1.1, F1.2, F1.3, F1.4 (`@rakazo/contracts`, `@rakazo/adapters`, `apps/api`) | none | DONE |
+| M2 | Context Optimization, Prefix Caching & Telemetry | F2.1, F2.2, F2.3 (`@rakazo/adapters`, runtime prompt layout, telemetry) | M1 | IN_PROGRESS |
+| M3 | Responsive WebUI & Prompt Compiler Action | F3.1, F3.2, F3.3, F3.4 (`apps/web`, `PromptCompilerModal`, responsive design) | M1, M2 | PLANNED |
+| M4 | Additive Upstream Compatibility & Customization Map | F4.1, F4.2 (Upstream verification, isolation map artifact) | M1, M2, M3 | PLANNED |
+| M5 | Security, 100% Tests, 0 TS Errors & Master Blueprint | F5.1, F5.2, F5.3 (Security audit, `pnpm check`, `pnpm test`, Master Blueprint, Iteration Report) | M1, M2, M3, M4 | PLANNED |
+| M_E2E | E2E Testing Track | F6.1, F6.2 (`packages/testkit`, 150 tests across Tiers 1-4) | M1 | DONE (TEST_READY.md) |
+
+---
 
 ## Interface Contracts
 
-### `packages/adapters/src/tool-compacting.ts`
-- `export function compactToolResult(toolName: string, result: unknown): string`
-  - Compresses `list_files` (> 40 entries -> summary + sample), `shell` (> 4,000 chars -> head/tail window with marker), `github_search_repos`, `github_list_issues`, `notion_search`, `notion_query_database`, `cloudflare_list_dns_records`.
-  - Fallback: Removes nulls/empty objects, preserves valid JSON formatting up to 12,000 characters, safe against throwing `toString` / `toJSON`.
+### `@rakazo/contracts` ↔ `@rakazo/adapters` & `apps/api`
+```typescript
+// Prompt Compilation Types
+export type PromptCompilationLevel = "level1_deterministic" | "level2_llm";
 
-### `packages/adapters/src/loop-guards.ts`
-- `export const MAX_TOOL_ITERATIONS_PER_TURN = 25;`
-- `export const MAX_CONSECUTIVE_REDUNDANT_CALLS = 3;`
-- `export interface ToolCallTracker { stepCount: number; lastCallSignature: string | null; consecutiveSameCallCount: number; }`
-- `export function createToolCallTracker(): ToolCallTracker;`
-- `export function computeToolCallSignature(name: string, args: unknown): string;`
-- `export function evaluateToolCallGuard(tracker: ToolCallTracker, name: string, args: unknown): { allow: true } | { allow: false; reason: string; terminate: boolean };`
+export interface PromptCompileInput {
+  rawInstruction: string;
+  botName?: string;
+  botTitle?: string;
+  level?: PromptCompilationLevel;
+  existingMetadata?: Record<string, unknown>; // READ-ONLY context, MCP fields are ignored
+}
 
-### `packages/adapters/src/enterprise-tools.ts`
-- `export function sanitizeToolError(message: string): string`
-  - Masks tokens for GitHub, Notion, Postiz, Novamira, n8n, Cloudflare, OpenRouter, Anthropic, OpenAI, PostgreSQL URLs, Bearer and Basic headers.
+export interface PromptCompileOutput {
+  compiledInstruction: string;
+  levelUsed: PromptCompilationLevel;
+  explanation?: string;
+  telemetry?: {
+    cachedTokens?: number;
+    promptTokens?: number;
+    completionTokens?: number;
+    durationMs?: number;
+    cacheHitRatio?: number;
+  };
+}
+```
 
-### `packages/adapters/src/child-bots.ts`
-- `destroyBot(deps, bot, options)`:
-  - Purges Prisma database records with cascade.
-  - Purges physical directories on disk under `/data/homes/<botId>`, `/data/home-revisions/<botId>.txt`, `/data/desktop-computers/<botId>`, `/data/artifacts/...`.
+### `@rakazo/adapters` ↔ OpenRouter (`gpt-oss-120b`)
+- Prompt structure formatted with strict system role separation, zero-chatter directive, role tags, and thought token preservation.
+- Prefix caching layout:
+  * **Bloc A (Static, Token 0)**: Invariant platform guardrails, parsimony rules, loop protection limits.
+  * **Bloc B (Semi-Static)**: Bot persona, durable instructions, skill definitions.
+  * **Bloc C (Dynamic History)**: Compacted prior message turns and compacted tool results.
+  * **Bloc D (Ephemeral)**: Current user turn, attached files, execution ephemeral context.
+
+### `apps/web` ↔ `apps/api`
+- oRPC route: `prompts.compile` (with client-side fallback if offline).
+- Invariant: `mcpConfig` state in `Shell.tsx` is completely decoupled and never sent to or returned by the prompt compiler.
+
+---
 
 ## Code Layout
-- `packages/adapters/src/pi-runtime.ts` — Agent runtime, elevated `maxTokens`, tool dispatch, subagent host.
-- `packages/adapters/src/tool-compacting.ts` — Semantic tool output compacting implementation.
-- `packages/adapters/src/loop-guards.ts` — Circuit breaker and redundancy detector logic.
-- `packages/adapters/src/executor.ts` — System prompt builder, tool dispatch error sanitization.
-- `packages/adapters/src/enterprise-tools.ts` — Sovereign MCP tools, comprehensive regex token sanitizer.
-- `packages/adapters/src/child-bots.ts` — Physical file and database destruction routines.
-- `packages/adapters/src/home.ts` — Local agent home directory management.
-- `apps/web/src/pages/PluginsOverlay.test.tsx` — Test file for sovereign tools overlay.
-- `apps/web/src/pages/BotMcpToolSelector.test.tsx` — Test file for bot MCP tool selection.
-- `packages/adapters/src/__tests__/` — Test suites created by E2E Testing Track.
+- `packages/contracts/src/prompt-compiler.ts`: Contracts & Zod schemas for prompt compilation and cache telemetry.
+- `packages/contracts/src/rpc.ts`: oRPC contract registration for `prompts`.
+- `packages/adapters/src/prompt-compiler.ts`: `PromptCompilerService` implementation (Level 1 deterministic + Level 2 `gpt-oss-120b` via OpenRouter) with `sanitizeToolError` credential masking.
+- `packages/adapters/src/executor.ts`: 4-block cache-friendly system prompt assembly.
+- `packages/adapters/src/pi-runtime.ts`: Telemetry extraction for cached tokens and session affinity routing.
+- `packages/adapters/src/tool-compacting.ts`: Semantic tool response compaction with exception-safe fallback.
+- `apps/web/src/pages/PromptCompilerModal.tsx`: Additive UI component for diff preview, editing, and rollback.
+- `apps/web/src/pages/Shell.tsx`: Non-invasive injection points for "Rendre professionnelles" button in `CreateBotModal` and `BotSettings`.
+- `apps/web/src/styles.css` / Tailwind: Multi-device responsive styling rules.
+- `UPSTREAM COMPATIBILITY & CUSTOMIZATION MAP.md`: Upstream isolation inventory.
+- `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`: Master architecture blueprint.
+- `ITERATION_REPORT.md`: Closing iteration report.
