@@ -17,6 +17,7 @@ import {
   type ToolCallTracker,
 } from "./loop-guards.js";
 import { PiRuntimeCredentialStore, toOAuthCredential } from "./pi-credentials.js";
+import { compilePromptLevel1Deterministic } from "./prompt-compiler.js";
 import { compactToolResult } from "./tool-compacting.js";
 
 const running = new Map<string, AbortController>();
@@ -222,7 +223,7 @@ function modelsForRequest(request: AgentRunRequest, provider: string): Models {
   });
 }
 
-function toAgentTools(toolDefs: readonly ConnectorTool[], host: ToolHost): AgentTool[] {
+export function toAgentTools(toolDefs: readonly ConnectorTool[], host: ToolHost): AgentTool[] {
   const names = normalizeAgentToolNames(toolDefs);
   return toolDefs.map((tool, index) => toAgentTool(tool, host, names[index]!));
 }
@@ -721,7 +722,29 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
   };
 }
 
-async function executeSubagent(host: ToolHost, executionId: string, args: Record<string, unknown>) {
+export function buildSubagentPrompt(name: string, task?: string, extra?: string) {
+  const rawInstruction = [
+    `You are a Rakazo subagent named "${name}".`,
+    "You run inside the parent bot's turn — you are not a separate bot chat.",
+    "Complete the delegated task and return a concise, fully synthesized result.",
+    "Execute only the specific objective assigned: do not perform unrelated actions, exploratory browsing, or speculative tool calls.",
+    "Invoke only the strictly necessary tools required for this specific subtask.",
+    "Do not attempt to spawn bots or further subagents (subagent depth is strictly 1).",
+    task ? `Task objective: ${task}` : "",
+    extra,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return compilePromptLevel1Deterministic({
+    rawInstruction,
+    botName: name,
+    botTitle: `Rakazo Subagent (${name})`,
+    level: "level1_deterministic",
+  });
+}
+
+export async function executeSubagent(host: ToolHost, executionId: string, args: Record<string, unknown>) {
   if (host.depth > 0) return "Subagents cannot nest further.";
   await host.subagentGate.acquire();
   const agentId = executionId;
@@ -755,11 +778,13 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
       tools: childDefs,
     },
   };
+  const compiledPrompt = buildSubagentPrompt(name, task, extra);
+
   const nested = new Agent({
     streamFn: (m, ctx, options) =>
       host.models.streamSimple(m, ctx, {
         ...options,
-        maxTokens: Math.max(options?.maxTokens ?? 0, 8192),
+        maxTokens: Math.min(Math.max(options?.maxTokens ?? 8192, 1), 8192),
         reasoning: options?.reasoning ?? "low",
         onPayload: (payload: unknown) => {
           if (
@@ -776,17 +801,7 @@ async function executeSubagent(host: ToolHost, executionId: string, args: Record
     getApiKey: async () => host.apiKey,
     transformContext: async (messages) => pruneComputerScreenshotContext(messages),
     initialState: {
-      systemPrompt: [
-        `You are a Rakazo subagent named "${name}".`,
-        "You run inside the parent bot's turn — you are not a separate bot chat.",
-        "Complete the delegated task and return a concise, fully synthesized result.",
-        "Execute only the specific objective assigned: do not perform unrelated actions, exploratory browsing, or speculative tool calls.",
-        "Invoke only the strictly necessary tools required for this specific subtask.",
-        "Do not attempt to spawn bots or further subagents (subagent depth is strictly 1).",
-        extra,
-      ]
-        .filter(Boolean)
-        .join(" "),
+      systemPrompt: compiledPrompt.compiledInstruction,
       model: host.model,
       thinkingLevel: "low",
       tools: toAgentTools(childDefs, nestedHost),
@@ -1275,13 +1290,13 @@ function assistantText(message: unknown): string {
     .join("");
 }
 
-interface EventQueue {
+export interface EventQueue {
   push(event: AgentRuntimeEvent): void;
   close(): void;
   iterate(): AsyncIterable<AgentRuntimeEvent>;
 }
 
-interface ToolHost {
+export interface ToolHost {
   queue: EventQueue;
   request: AgentRunRequest;
   models: Models;

@@ -72,6 +72,7 @@ import {
   Prisma,
   type PrismaClient,
   parseComputerMode,
+  recordPromptExecutionLogAsync,
   type ThreadEvents,
 } from "@rakazo/db";
 import {
@@ -1719,7 +1720,20 @@ export function createRouter(deps: RouterDeps) {
           apiKey: deps.env.openRouterKey,
           modelId: deps.env.defaultModel,
         });
-        return promptCompiler.compile(input);
+        const result = await promptCompiler.compile(input);
+        if (result.telemetry) {
+          recordPromptExecutionLogAsync(deps.prisma, {
+            provider: "openrouter",
+            model: deps.env.defaultModel,
+            levelUsed: result.levelUsed,
+            promptTokens: result.telemetry.promptTokens,
+            completionTokens: result.telemetry.completionTokens,
+            cachedTokens: result.telemetry.cachedTokens,
+            cacheHitRatio: result.telemetry.cacheHitRatio,
+            durationMs: result.telemetry.durationMs,
+          });
+        }
+        return result;
       }),
     },
   });

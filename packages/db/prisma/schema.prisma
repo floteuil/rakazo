@@ -225,6 +225,7 @@ model Bot {
   tasks          Task[]
   runs           Run[]
   botSkills      BotSkill[]
+  promptExecutionLogs PromptExecutionLog[]
 
   @@index([workspaceId, userId, archivedAt, pinned, updatedAt])
   @@index([computerId])
@@ -683,5 +684,27 @@ model BotSkill {
   @@index([workspaceId, botId])
   @@index([skillId])
   @@map("bot_skills")
+}
+
+model PromptExecutionLog {
+  id               String   @id @default(cuid())
+  botId            String?
+  bot              Bot?     @relation(fields: [botId], references: [id], onDelete: Cascade)
+  executionId      String?
+  provider         String?
+  model            String?
+  levelUsed        String
+  promptTokens     Int      @default(0)
+  completionTokens Int      @default(0)
+  cachedTokens     Int      @default(0)
+  cacheHitRatio    Float    @default(0)
+  durationMs       Int      @default(0)
+  costEstimatedUsd Float?
+  createdAt        DateTime @default(now())
+
+  @@index([botId])
+  @@index([createdAt])
+  @@index([model])
+  @@map("prompt_execution_logs")
 }
 

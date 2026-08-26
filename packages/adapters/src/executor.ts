@@ -42,6 +42,7 @@ import {
   findDefaultModelCredential,
   type PrismaClient,
   parseComputerMode,
+  recordPromptExecutionLogAsync,
   type ThreadEvents,
 } from "@rakazo/db";
 import { builtinAgentTools } from "./builtin-tools.js";
@@ -1416,6 +1417,18 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   inputTokens: event.inputTokens,
                   outputTokens: event.outputTokens,
                 },
+              });
+              recordPromptExecutionLogAsync(deps.prisma, {
+                botId: bot.id,
+                executionId: runId,
+                provider: event.provider,
+                model: event.model,
+                levelUsed: "pi_runtime",
+                promptTokens: event.inputTokens,
+                completionTokens: event.outputTokens,
+                cachedTokens: event.cachedTokens ?? 0,
+                cacheHitRatio: event.cacheHitRatio ?? 0,
+                durationMs: 0,
               });
             } else if (event.type === "done") {
               assembled = assembled || event.text || assembled;
