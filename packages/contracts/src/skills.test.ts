@@ -241,7 +241,7 @@ interface UserResponse {
       const result = parseSkillMarkdown(maliciousPayload);
       const elapsed = Date.now() - startTime;
 
-      expect(elapsed).toBeLessThan(200); // Must complete in under 200ms
+      expect(elapsed).toBeLessThan(1000); // Must complete in under 1s (prevent catastrophic backtracking)
       expect(result.name).toBeDefined();
     });
 

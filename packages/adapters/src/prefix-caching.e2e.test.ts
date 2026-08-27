@@ -133,6 +133,53 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
         expect(assembled.fullSystemPrompt).toContain("BLOC C");
         expect(assembled.fullUserPrompt).toContain("BLOC D");
       });
+
+      it("1.4.6 guarantees Bloc B is 100% byte-identical regardless of activeSkills input order", () => {
+        const skill1: SkillItemLike = {
+          name: "Skill Alpha",
+          slug: "skill-alpha",
+          description: "First skill",
+          content: "Alpha instructions",
+          enabled: true,
+        };
+        const skill2: SkillItemLike = {
+          name: "Skill Beta",
+          slug: "skill-beta",
+          description: "Second skill",
+          content: "Beta instructions",
+          enabled: true,
+        };
+        const skill3: SkillItemLike = {
+          name: "Skill Gamma",
+          slug: "skill-gamma",
+          description: "Third skill",
+          content: "Gamma instructions",
+          enabled: true,
+        };
+
+        const botConfigOrder1 = {
+          botName: "deterministic-bot",
+          instructions: "Strict invariant task.",
+          activeSkills: [skill3, skill1, skill2],
+        };
+        const botConfigOrder2 = {
+          botName: "deterministic-bot",
+          instructions: "Strict invariant task.",
+          activeSkills: [skill1, skill2, skill3],
+        };
+
+        const assembled1 = assemble4BlockCachePrompt({
+          bot: botConfigOrder1,
+          currentTurn: { prompt: "Prompt 1" },
+        });
+        const assembled2 = assemble4BlockCachePrompt({
+          bot: botConfigOrder2,
+          currentTurn: { prompt: "Prompt 2" },
+        });
+
+        expect(assembled1.blocB).toBe(assembled2.blocB);
+        expect(Buffer.byteLength(assembled1.blocB)).toBe(Buffer.byteLength(assembled2.blocB));
+      });
     });
 
     describe("Feature 5: Token & Cache Telemetry Extraction & Sticky Routing", () => {

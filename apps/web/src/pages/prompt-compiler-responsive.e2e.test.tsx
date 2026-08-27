@@ -3,6 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import type { BotMcpConfig } from "@rakazo/contracts";
 import { SOVEREIGN_MCP_CONNECTORS } from "@rakazo/contracts";
+import { PromptCompilerModal } from "./PromptCompilerModal";
 
 // ============================================================================
 // SANITIZATION HELPER (Zero-Secret Invariant)
@@ -148,7 +149,7 @@ export function PromptCompilerModalHarness({
               data-testid="level-toggle-level1"
               onClick={() => handleTriggerCompile("level1_deterministic")}
               disabled={isCompiling}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors ${
                 level === "level1_deterministic"
                   ? "bg-[#2C2C30] text-white"
                   : "text-[#85858A] hover:text-white"
@@ -161,7 +162,7 @@ export function PromptCompilerModalHarness({
               data-testid="level-toggle-level2"
               onClick={() => handleTriggerCompile("level2_llm")}
               disabled={isCompiling}
-              className={`rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
+              className={`flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors ${
                 level === "level2_llm"
                   ? "bg-indigo-600/30 text-indigo-300 border border-indigo-500/40"
                   : "text-[#85858A] hover:text-white"
@@ -196,7 +197,7 @@ export function PromptCompilerModalHarness({
               type="button"
               data-testid="compiler-retry-btn"
               onClick={() => handleTriggerCompile(level)}
-              className="font-medium text-rose-200 underline hover:text-white"
+              className="flex items-center gap-1 font-medium text-rose-200 underline hover:text-white min-h-[44px] px-2"
             >
               Réessayer
             </button>
@@ -245,19 +246,19 @@ export function PromptCompilerModalHarness({
                 value={compiledText}
                 onChange={(e) => setCompiledText(e.target.value)}
                 placeholder="Les instructions compilées apparaîtront ici…"
-                className="flex-1 resize-none rounded-xl border border-[#2A2A2E] bg-[#0E0E10] p-3.5 font-mono text-xs text-[#ECECEE] outline-none focus:border-indigo-500/60"
+                className="flex-1 resize-none rounded-xl border border-[#2A2A2E] bg-[#0E0E10] p-3.5 font-mono text-[16px] text-[#ECECEE] outline-none focus:border-indigo-500/60 sm:text-xs"
               />
             )}
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-[#26262A] bg-[#141416] px-5 py-3.5 sm:px-6">
+        <div className="flex items-center justify-between border-t border-[#26262A] bg-[#141416] px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-3.5">
           <button
             type="button"
             data-testid="compiler-cancel-btn"
             onClick={onClose}
-            className="flex h-11 min-h-[44px] items-center justify-center rounded-xl border border-[#2C2C30] px-4 text-xs font-medium text-[#A1A1AA] hover:bg-[#1E1E22] hover:text-white"
+            className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#2C2C30] px-4 text-xs font-medium text-[#A1A1AA] hover:bg-[#1E1E22] hover:text-white"
           >
             Annuler (Conserver le brouillon)
           </button>
@@ -267,7 +268,7 @@ export function PromptCompilerModalHarness({
             data-testid="compiler-apply-btn"
             disabled={isCompiling || !compiledText.trim()}
             onClick={() => onApply(compiledText)}
-            className="flex h-11 min-h-[44px] items-center justify-center rounded-xl bg-indigo-600 px-5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 disabled:opacity-50"
+            className="flex h-11 min-h-[44px] min-w-[44px] items-center gap-1.5 justify-center rounded-xl bg-indigo-600 px-5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 disabled:opacity-50"
           >
             Appliquer au bot
           </button>
@@ -753,13 +754,29 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
       });
     });
 
-    describe("F8 Boundaries: Viewport Sizes (320px to 1440px)", () => {
-      it("2.8.1 renders responsive layout correctly on compact 320px mobile width (iPhone SE)", () => {
+    describe("F8 Boundaries: Viewport Sizes (320px to 1440px+)", () => {
+      it("2.8.1 renders responsive layout correctly on compact 320px mobile width (iPhone SE 1st gen)", () => {
         const html = renderToStaticMarkup(
           <PromptCompilerModalHarness
             isOpen={true}
-            rawDraft="Consigne courte"
+            rawDraft="Consigne courte 320px"
             viewportWidth={320}
+            onClose={() => {}}
+            onApply={() => {}}
+          />,
+        );
+        expect(html).toContain("w-[98%]");
+        expect(html).toContain("h-[96vh]");
+        expect(html).toContain("text-[16px]");
+        expect(html).toContain("pb-[max(0.875rem,env(safe-area-inset-bottom))]");
+      });
+
+      it("2.8.2 renders 360px compact Android layout (Galaxy S compact)", () => {
+        const html = renderToStaticMarkup(
+          <PromptCompilerModalHarness
+            isOpen={true}
+            rawDraft="Consigne 360px"
+            viewportWidth={360}
             onClose={() => {}}
             onApply={() => {}}
           />,
@@ -768,7 +785,21 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
         expect(html).toContain("h-[96vh]");
       });
 
-      it("2.8.2 renders 390px modern smartphone layout (iPhone 14)", () => {
+      it("2.8.3 renders 375px standard mobile layout (iPhone SE / iPhone X)", () => {
+        const html = renderToStaticMarkup(
+          <PromptCompilerModalHarness
+            isOpen={true}
+            rawDraft="Consigne 375px"
+            viewportWidth={375}
+            onClose={() => {}}
+            onApply={() => {}}
+          />,
+        );
+        expect(html).toContain("w-[98%]");
+        expect(html).toContain("h-[96vh]");
+      });
+
+      it("2.8.4 renders 390px modern smartphone layout (iPhone 14)", () => {
         const html = renderToStaticMarkup(
           <PromptCompilerModalHarness
             isOpen={true}
@@ -779,9 +810,24 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
           />,
         );
         expect(html).toContain("w-[98%]");
+        expect(html).toContain("h-[96vh]");
       });
 
-      it("2.8.3 renders fluid drawer width on 768px tablet portrait", () => {
+      it("2.8.5 renders 430px large smartphone layout (iPhone 16 Pro Max)", () => {
+        const html = renderToStaticMarkup(
+          <PromptCompilerModalHarness
+            isOpen={true}
+            rawDraft="Consigne 430px"
+            viewportWidth={430}
+            onClose={() => {}}
+            onApply={() => {}}
+          />,
+        );
+        expect(html).toContain("w-[98%]");
+        expect(html).toContain("h-[96vh]");
+      });
+
+      it("2.8.6 renders fluid drawer width on 768px tablet portrait", () => {
         const html = renderToStaticMarkup(
           <PromptCompilerModalHarness
             isOpen={true}
@@ -793,9 +839,10 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
         );
         expect(html).toContain("w-[90%]");
         expect(html).toContain("max-w-[90%]");
+        expect(html).toContain("h-[85vh]");
       });
 
-      it("2.8.4 renders tablet landscape width on 1024px", () => {
+      it("2.8.7 renders tablet landscape width on 1024px", () => {
         const html = renderToStaticMarkup(
           <PromptCompilerModalHarness
             isOpen={true}
@@ -806,9 +853,24 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
           />,
         );
         expect(html).toContain("w-[1000px]");
+        expect(html).toContain("h-[800px]");
       });
 
-      it("2.8.5 renders centered desktop modal on 1440px desktop screen", () => {
+      it("2.8.8 renders laptop viewport layout on 1280px (MacBook Air / Pro)", () => {
+        const html = renderToStaticMarkup(
+          <PromptCompilerModalHarness
+            isOpen={true}
+            rawDraft="Consigne 1280px laptop"
+            viewportWidth={1280}
+            onClose={() => {}}
+            onApply={() => {}}
+          />,
+        );
+        expect(html).toContain("w-[1000px]");
+        expect(html).toContain("h-[800px]");
+      });
+
+      it("2.8.9 renders centered desktop modal on 1440px+ desktop screen", () => {
         const html = renderToStaticMarkup(
           <PromptCompilerModalHarness
             isOpen={true}
@@ -819,6 +881,7 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
           />,
         );
         expect(html).toContain("w-[1000px]");
+        expect(html).toContain("h-[800px]");
       });
     });
 
@@ -1020,6 +1083,106 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
       expect(desktopHtml).toContain("max-w-3xl");
       expect(desktopHtml).toContain("Cloudflare");
       expect(desktopHtml).toContain("GitHub");
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TIER 5: PRODUCTION COMPONENT DIRECT RESPONSIVE AUDIT (PromptCompilerModal)
+  // --------------------------------------------------------------------------
+  describe("Tier 5: Production Component Direct Responsive Audit (PromptCompilerModal.tsx)", () => {
+    it("5.1 verifies PromptCompilerModal production component renders closed when isOpen=false", () => {
+      const html = renderToStaticMarkup(
+        <PromptCompilerModal
+          isOpen={false}
+          rawDraft="Test"
+          onClose={() => {}}
+          onApply={() => {}}
+        />,
+      );
+      expect(html).toBe("");
+    });
+
+    it("5.2 verifies PromptCompilerModal production component multi-breakpoint responsive sizing (320px..1440px+)", () => {
+      const viewports = [
+        { width: 320, expectedWidth: "w-[98%]", expectedHeight: "h-[96vh]" },
+        { width: 360, expectedWidth: "w-[98%]", expectedHeight: "h-[96vh]" },
+        { width: 375, expectedWidth: "w-[98%]", expectedHeight: "h-[96vh]" },
+        { width: 390, expectedWidth: "w-[98%]", expectedHeight: "h-[96vh]" },
+        { width: 430, expectedWidth: "w-[98%]", expectedHeight: "h-[96vh]" },
+        { width: 768, expectedWidth: "w-[90%]", expectedHeight: "h-[85vh]" },
+        { width: 1024, expectedWidth: "w-[1000px]", expectedHeight: "h-[800px]" },
+        { width: 1280, expectedWidth: "w-[1000px]", expectedHeight: "h-[800px]" },
+        { width: 1440, expectedWidth: "w-[1000px]", expectedHeight: "h-[800px]" },
+      ];
+
+      for (const vp of viewports) {
+        const html = renderToStaticMarkup(
+          <PromptCompilerModal
+            isOpen={true}
+            rawDraft="Draft instructions pour agent support"
+            initialCompiled="## Rôle & Identité\nSupport client."
+            viewportWidth={vp.width}
+            onClose={() => {}}
+            onApply={() => {}}
+          />,
+        );
+        expect(html).toContain(vp.expectedWidth);
+        expect(html).toContain(vp.expectedHeight);
+      }
+    });
+
+    it("5.3 verifies PromptCompilerModal production component touch targets and safe area insets", () => {
+      const html = renderToStaticMarkup(
+        <PromptCompilerModal
+          isOpen={true}
+          rawDraft="Consigne tactile"
+          initialCompiled="Instructions compilées"
+          viewportWidth={375}
+          onClose={() => {}}
+          onApply={() => {}}
+        />,
+      );
+
+      // Touch targets >= 44px
+      expect(html).toContain("compiler-close-btn");
+      expect(html).toContain("min-h-[44px]");
+      expect(html).toContain("min-w-[44px]");
+
+      expect(html).toContain("compiler-cancel-btn");
+      expect(html).toContain("min-h-[44px]");
+      expect(html).toContain("min-w-[44px]");
+
+      expect(html).toContain("compiler-apply-btn");
+      expect(html).toContain("min-h-[44px]");
+      expect(html).toContain("min-w-[44px]");
+
+      // Safe area bottom padding
+      expect(html).toContain("pb-[max(0.875rem,env(safe-area-inset-bottom))]");
+
+      // iOS auto-zoom prevention
+      expect(html).toContain("text-[16px]");
+    });
+
+    it("5.4 verifies PromptCompilerModal production component Before/After split diff view", () => {
+      const rawText = "Brouillon non structuré";
+      const compiledText = "## Instructions Structurées Professionnelles";
+
+      const html = renderToStaticMarkup(
+        <PromptCompilerModal
+          isOpen={true}
+          rawDraft={rawText}
+          initialCompiled={compiledText}
+          viewportWidth={1024}
+          onClose={() => {}}
+          onApply={() => {}}
+        />,
+      );
+
+      expect(html).toContain("compiler-original-pane");
+      expect(html).toContain(rawText);
+      expect(html).toContain("compiler-compiled-pane");
+      expect(html).toContain(compiledText);
+      expect(html).toContain("Modifiable avant application");
     });
   });
 });

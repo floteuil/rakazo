@@ -61,7 +61,14 @@ export function assemble4BlockCachePrompt(params: {
 
   const botIdentity = `### Identité de l'Agent\nNom: ${params.bot.botName}${params.bot.botTitle ? ` (${params.bot.botTitle})` : ""}`;
   const botInstructions = `### Instructions Durables\n${params.bot.instructions.trim()}`;
-  const skillsSection = params.bot.activeSkills ? formatSkillsPrompt(params.bot.activeSkills) : undefined;
+  const sortedSkills = params.bot.activeSkills
+    ? [...params.bot.activeSkills].sort((a, b) => {
+        const keyA = `${a.slug ?? ""}:${a.name ?? ""}`;
+        const keyB = `${b.slug ?? ""}:${b.name ?? ""}`;
+        return keyA.localeCompare(keyB);
+      })
+    : undefined;
+  const skillsSection = sortedSkills ? formatSkillsPrompt(sortedSkills) : undefined;
   const blocB = [
     "=== BLOC B : CONFIGURATION BOT & COMPÉTENCES DURABLES ===",
     botIdentity,

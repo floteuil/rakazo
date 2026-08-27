@@ -34,24 +34,32 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
   const botName = input.botName?.trim();
   const botTitle = input.botTitle?.trim();
 
-  const lines = raw
-    .split("\n")
-    .map((l) => l.trim())
-    .filter((l) => l.length > 0);
-
-  // Extract explicit role or build from bot name / title
+  const rawLines = raw.split("\n");
+  const lines: string[] = [];
   let roleText = "";
-  const rolePrefixRegex = /^(?:you are|tu es|agir en tant que|act as|role\s*:|identity\s*:)\s*(.+)/i;
-  const explicitRoleLine = lines.find((l) => rolePrefixRegex.test(l));
+  let explicitRoleIndex = -1;
 
-  if (explicitRoleLine) {
-    const match = explicitRoleLine.match(rolePrefixRegex);
-    roleText = match?.[1] ? match[1].trim() : explicitRoleLine;
-  } else if (botTitle || botName) {
-    const name = botTitle || botName;
-    roleText = `You are ${name}, a dedicated and specialized AI assistant configured to execute tasks with high precision and reliability.`;
-  } else {
-    roleText = "You are a professional, autonomous AI assistant focused on high-quality task execution.";
+  const rolePrefixRegex = /^(?:you are|tu es|agir en tant que|act as|role\s*:|identity\s*:)\s*(.+)/i;
+
+  for (const rawLine of rawLines) {
+    const trimmed = rawLine.trim();
+    if (trimmed.length === 0) continue;
+    const idx = lines.length;
+    lines.push(trimmed);
+    if (explicitRoleIndex === -1 && rolePrefixRegex.test(trimmed)) {
+      explicitRoleIndex = idx;
+      const match = trimmed.match(rolePrefixRegex);
+      roleText = match?.[1] ? match[1].trim() : trimmed;
+    }
+  }
+
+  if (!roleText) {
+    if (botTitle || botName) {
+      const name = botTitle || botName;
+      roleText = `You are ${name}, a dedicated and specialized AI assistant configured to execute tasks with high precision and reliability.`;
+    } else {
+      roleText = "You are a professional, autonomous AI assistant focused on high-quality task execution.";
+    }
   }
 
   // Extract rules, constraints, mission items, format, and error handling
@@ -65,13 +73,12 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
   const formatKeywords = /^(?:format|output|deliverable|markdown|json|table|bullet|structure|reponse en|sortie\s*:)/i;
   const errorKeywords = /^(?:if error|in case of|when missing|si erreur|en cas de|fallback|when unclear|si incertain)/i;
   const missionKeywords = /^(?:your mission|mission|goal|objective|help|summarize|analyze|create|manage|generate|tu dois|ton but|ton objectif)/i;
+  const bulletCleanerRegex = /^(?:[-*•]|\d+\.)\s*/;
 
-  for (const line of lines) {
-    // Skip if this was the explicit role line we already consumed
-    if (explicitRoleLine && line === explicitRoleLine) continue;
+  for (const [i, line] of lines.entries()) {
+    if (i === explicitRoleIndex) continue;
 
-    // Clean leading bullet markers if present
-    const cleanLine = line.replace(/^[-*•]\s*/, "").replace(/^\d+\.\s*/, "").trim();
+    const cleanLine = line.replace(bulletCleanerRegex, "").trim();
     if (!cleanLine) continue;
 
     if (ruleKeywords.test(cleanLine)) {
@@ -246,10 +253,10 @@ export function createPromptCompilerService(options: PromptCompilerOptions = {})
         "</raw_user_draft>",
       ].join("\n");
 
-      try {
-        const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
+      try {
         const response = await fetchFn(`${baseUrl}/chat/completions`, {
           method: "POST",
           headers: {
@@ -268,8 +275,6 @@ export function createPromptCompilerService(options: PromptCompilerOptions = {})
           }),
           signal: controller.signal,
         });
-
-        clearTimeout(timeoutId);
 
         if (!response.ok) {
           const errText = await response.text().catch(() => "");
@@ -334,6 +339,8 @@ export function createPromptCompilerService(options: PromptCompilerOptions = {})
             durationMs,
           },
         };
+      } finally {
+        clearTimeout(timeoutId);
       }
     },
 

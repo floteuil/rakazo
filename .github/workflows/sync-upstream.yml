@@ -7,6 +7,10 @@ on:
   workflow_dispatch:
     # Déclenchement manuel possible à tout moment depuis l'interface GitHub Actions
 
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
 permissions:
   contents: write
   pull-requests: write
@@ -71,30 +75,43 @@ jobs:
         id: merge_and_validate
         run: |
           set +e
+          BASE_SHA=$(git rev-parse HEAD)
+          echo "Capture du snapshot SHA de base : $BASE_SHA"
+
           echo "Tentative de merge de upstream/main dans main..."
           git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique avec elie222/rakazo"
           MERGE_EXIT_CODE=$?
 
           if [ $MERGE_EXIT_CODE -ne 0 ]; then
             echo "merge_status=conflict" >> $GITHUB_OUTPUT
-            echo "Conflit Git détecté lors du merge. Annulation..."
-            git merge --abort || true
+            echo "Conflit Git détecté lors du merge. Annulation et rollback vers $BASE_SHA..."
+            git merge --abort || git reset --hard "$BASE_SHA" || true
             exit 0
           fi
 
-          echo "Merge Git réussi au niveau arbre. Exécution de la Gate de Validation Stricte..."
-          pnpm db:generate
-          pnpm exec turbo check --force && pnpm test
-          TEST_EXIT_CODE=$?
+          echo "Merge Git réussi au niveau de l'arbre. Vérification de l'intégrité du lockfile post-merge..."
+          pnpm install --frozen-lockfile
+          LOCKFILE_EXIT_CODE=$?
 
-          if [ $TEST_EXIT_CODE -eq 0 ]; then
+          if [ $LOCKFILE_EXIT_CODE -ne 0 ]; then
+            echo "merge_status=lockfile_error" >> $GITHUB_OUTPUT
+            echo "Erreur d'intégrité du lockfile pnpm après merge amont. Rollback vers $BASE_SHA..."
+            git reset --hard "$BASE_SHA" || true
+            exit 0
+          fi
+
+          echo "Dépendances valides. Exécution de la Gate de Sécurité CI stricte (db:generate && turbo check && test)..."
+          pnpm db:generate && pnpm exec turbo check --force && pnpm test
+          CI_GATE_EXIT_CODE=$?
+
+          if [ $CI_GATE_EXIT_CODE -eq 0 ]; then
             echo "merge_status=success" >> $GITHUB_OUTPUT
             git push origin main
             echo "Validation réussie ! Modifications poussées sur origin/main."
           else
             echo "merge_status=validation_failed" >> $GITHUB_OUTPUT
-            echo "Échec de la validation TypeScript ou des tests. Annulation du merge local..."
-            git reset --hard HEAD~1 || git merge --abort || true
+            echo "Échec de la validation TypeScript ou des tests. Rollback strict vers $BASE_SHA..."
+            git reset --hard "$BASE_SHA" || git merge --abort || true
           fi
         env:
           DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
@@ -120,7 +137,7 @@ jobs:
             Le dépôt amont `elie222/rakazo` contient de nouveaux commits qui ne peuvent pas être intégrés automatiquement sur `main`.
 
             **Raison de l'échec** :
-            - Statut du pipeline : `${{ steps.merge_and_validate.outputs.merge_status }}` (conflit de fusion Git ou échec de la gate `turbo check --force && pnpm test`).
+            - Statut du pipeline : `${{ steps.merge_and_validate.outputs.merge_status }}` (conflit de fusion Git, erreur lockfile ou échec de la gate `turbo check --force && pnpm test`).
 
             **Consignes de résolution** :
             1. Récupérer la branche `upstream-sync-conflict`.

@@ -1,52 +1,41 @@
-# E2E Test Infra: Rakazo Major Iteration
+# E2E Test Infra: Rakazo Excellence Iteration
 
 ## Test Philosophy
-- **Opaque-box & Requirement-driven**: All test scenarios are derived directly from `ORIGINAL_REQUEST.md` and user-facing requirements, independent of internal module implementation details.
-- **Methodology**: Category-Partition + Boundary Value Analysis (BVA) + Pairwise Combinatorial Testing + Real-World Workload Scenarios.
-- **Dual Track Coordination**: E2E tests provide an independent validation harness that every implementation milestone must satisfy.
+- Requirement-driven, opaque-box and contract-driven testing.
+- Comprehensive verification across 5 Tiers:
+  - Tier 1: Feature Coverage (PromptCompilerService, Subagents, 4-Block Cache, Telemetry, MCP, Responsive WebUI, Upstream Sync).
+  - Tier 2: Boundary & Corner Cases (Timeout limits, token budget limits, depth nesting rejection, empty/max string lengths, malformed responses).
+  - Tier 3: Cross-Feature Combinations (PromptCompiler + Subagents + Telemetry, MCP immutability during compilation, Error sanitization across WebUI & API).
+  - Tier 4: Real-World Scenarios (Full bot creation journey with prompt compilation, execution with telemetry, mobile viewport interaction, upstream sync simulation).
+  - Tier 5: Adversarial Coverage Hardening (Prompt injection attempts, secret exfiltration attacks, loop guard stress tests).
 
----
+## Feature Inventory & Test Mapping
+| # | Feature | Requirement | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 |
+|---|---------|-------------|:------:|:------:|:------:|:------:|:------:|
+| 1 | PromptCompilerService Robustness | R1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 2 | Subagent Anti-Loop & Depth 1 Guards | R1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 3 | 4-Block Cache Byte Stability | R1 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 4 | Upstream Sync Workflow Idempotence | R2 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 5 | SQL Telemetry Async & DB Resilience | R3 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 6 | Secret Sanitization Without False Positives | R3 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 7 | MCP Least Privilege & Immutability | R3 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 8 | Responsive WebUI Ergonomics (320px..1440px+) | R4 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 9 | PromptCompilerModal Comparative UX | R4 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 10 | Monorepo TypeScript Zero Error Gate | R5 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 11 | Complete Monorepo Test Pass (>= 1709 tests) | R5 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| 12 | Master Authority Documentation Deliverables | R5 | ✓ | ✓ | ✓ | ✓ | ✓ |
 
-## Feature Inventory
-| # | Feature | Source (Requirement) | Tier 1 (Coverage ≥5) | Tier 2 (Boundary ≥5) | Tier 3 (Pairwise) |
-|---|---------|----------------------|:--------------------:|:--------------------:|:-----------------:|
-| 1 | Prompt Compiler Schemas & Contracts | ORIGINAL_REQUEST §R1 | 5 | 5 | ✓ |
-| 2 | PromptCompilerService (L1 & L2) | ORIGINAL_REQUEST §R1 | 5 | 5 | ✓ |
-| 3 | MCP Immutability Invariant | ORIGINAL_REQUEST §R1 | 5 | 5 | ✓ |
-| 4 | 4-Block Prefix Caching System Prompt | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ |
-| 5 | Token & Cache Telemetry Extraction | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ |
-| 6 | Loop Guards & Tool Compacting | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ |
-| 7 | WebUI "Rendre professionnelles" & Modal | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ |
-| 8 | Multi-Device Responsive Ergonomics | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ |
-| 9 | Additive Upstream Isolation & Map | ORIGINAL_REQUEST §R4 | 5 | 5 | ✓ |
-| 10 | Security, Zero-Secret & 0 TS Errors | ORIGINAL_REQUEST §R5 | 5 | 5 | ✓ |
-
----
-
-## Test Architecture
-- **Test Runner**: Vitest (`packages/testkit` + package-level vitest configurations).
-- **Execution Commands**:
-  * Root Full Monorepo: `pnpm test`
-  * Typecheck: `pnpm check`
-  * E2E Integration Suites: `pnpm --filter @rakazo/contracts test`, `pnpm --filter @rakazo/adapters test`, `pnpm --filter @rakazo/web test`
-- **Pass/Fail Semantics**: All tests must complete with exit code 0. Zero failing tests, zero skipped essential tests.
-
----
-
-## Real-World Application Scenarios (Tier 4)
-| # | Scenario | Features Exercised | Complexity |
-|---|----------|--------------------|------------|
-| 1 | Messy Voice Dictation to Professional Sales Agent | F1, F2, F3, F7, F8 | High |
-| 2 | High-Turn Coding Assistant with Massive Tool Calls & Prefix Cache Hits | F4, F5, F6, F10 | High |
-| 3 | Mobile Onboarding & Bot Creation on Touch Device (<768px) with Keyboard | F3, F7, F8, F10 | Medium |
-| 4 | Temporary Sub-agent Dispatch with Level 1 Deterministic Fast-Path Compilation | F1, F2, F6, F10 | Medium |
-| 5 | Upstream Sync Simulation & Zero-Collision Additive Verification | F9, F10 | High |
-
----
-
-## Coverage Thresholds
-- **Tier 1 (Feature Coverage)**: ≥ 5 test cases per feature (5 × 10 = 50 test cases minimum)
-- **Tier 2 (Boundary & Corner)**: ≥ 5 test cases per feature (5 × 10 = 50 test cases minimum)
-- **Tier 3 (Cross-Feature Combinations)**: ≥ 10 pairwise test cases covering major cross-module interactions
-- **Tier 4 (Real-World Application Scenarios)**: ≥ 5 realistic end-to-end user workflows
-- **Total Minimum Target**: ≥ 115 test cases across the comprehensive E2E suite
+## Test Runners & Commands
+- Monorepo Type Check: `pnpm exec turbo check --force` (19 packages)
+- Monorepo Test Suite: `pnpm test` (1,709 tests)
+- Specific Test Suites:
+  - `pnpm exec vitest run packages/adapters/src/prompt-compiler.test.ts`
+  - `pnpm exec vitest run packages/adapters/src/prompt-compiler.challenger.test.ts`
+  - `pnpm exec vitest run packages/adapters/src/__tests__/subagent-prompt-compilation.test.ts`
+  - `pnpm exec vitest run packages/adapters/src/prefix-caching.e2e.test.ts`
+  - `pnpm exec vitest run packages/db/src/telemetry.test.ts`
+  - `pnpm exec vitest run packages/testkit/src/tests/r1-subagent-compilation.e2e.test.ts`
+  - `pnpm exec vitest run packages/testkit/src/tests/r3-sql-telemetry.e2e.test.ts`
+  - `pnpm exec vitest run packages/adapters/src/security-mcp-adversarial.test.ts`
+  - `pnpm exec vitest run packages/adapters/src/loop-guards.test.ts`
+  - `pnpm exec vitest run packages/chat-ui/src/__tests__/responsive-composer.test.tsx`

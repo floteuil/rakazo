@@ -1,112 +1,75 @@
-# Project: Rakazo Major Iteration (R1 - R5)
+# Project: Rakazo — Itération d'Excellence, Hardening, Performance, QA & Documentation
 
 ## Architecture
-Rakazo is a high-performance sovereign AI agent platform structured as a Turborepo + pnpm monorepo consisting of 19 packages:
-- **Core Applications** (`apps/`): `api` (Fastify / tRPC / REST router), `desktop` (Tauri desktop client), `mobile` (React Native / Expo), `web` (Next.js 15 App Router chat & bot UI), `worker` (Background job runner), `www` (Marketing & documentation).
-- **Core Packages** (`packages/`):
-  - `contracts`: Shared Zod schemas, types, prompt compilation schemas, API contracts.
-  - `adapters`: Pi Runtime, OpenRouter / LiteLLM integrations, prompt compilation service, sandbox executors, tool runners.
-  - `adapter-kit`: Base MCP adapter interfaces and sandbox protocols.
-  - `db`: Prisma ORM schema, migrations, PostgreSQL client, telemetry logging models.
-  - `auth`: Authentication and session management.
-  - `chat-ui`: Reusable chat components and message stream renderers.
-  - `core`: Agent execution graphs, message orchestration, state machines.
-  - `memory`: Working memory, embeddings, vector indexing.
-  - `testkit`: E2E test harness, Testcontainers, Playwright helpers, mock factories.
-  - `ui-tokens`: Tailwind theme design tokens.
-  - `ui-web`: Shared web design system components.
-- **Infrastructure Sandboxes** (`infra/`): `infra/sandboxes/supervisor`.
+- **Monorepo Structure**: Turborepo 2 + pnpm workspaces (19 packages).
+  - `apps/web`: React / Next.js / Vite Web Application.
+  - `apps/api`: Fastify / Node.js Backend API.
+  - `apps/worker`: Asynchronous background jobs worker.
+  - `packages/pi-runtime`: LLM runtime integration, agent loop, subagent depth 1 guardrails.
+  - `packages/adapters`: PromptCompilerService (deterministic/LLM), 4-block cache assembly, loop guards, enterprise tools & secret sanitizer.
+  - `packages/contracts`: Shared TypeScript schemas (Zod), domain interfaces, MCP catalog & immutability invariants.
+  - `packages/db`: Prisma ORM 7+, PostgreSQL schema, async non-blocking telemetry (`PromptExecutionLog`).
+  - `packages/chat-ui`: Responsive React chat interface, composer (touch >= 44px, safe area insets), PromptCompilerModal.
+  - `packages/testkit`: Test harnesses, mocks, integration helpers.
 
 ## Feature Inventory
 | # | Feature | Description | Milestone | Source |
 |---|---------|-------------|-----------|--------|
-| F1 | Subagent L1 Prompt Compilation | Integrate deterministic L1 prompt compilation (`compilePromptLevel1Deterministic`) in `executeSubagent` (`packages/adapters/src/pi-runtime.ts`), enforcing depth max 1, `DELEGATION_TOOL_NAMES` prohibition, and 8,192 token ceiling. | M1 | User Request R1 |
-| F2 | Upstream Sync Security Gate | Replace `.github/workflows/sync-upstream.yml` with workflow that installs dependencies, executes `pnpm exec turbo check --force && pnpm test` after merge, aborts merge on failure, and creates alert PR on `upstream-sync-conflict`. | M2 | User Request R2 |
-| F3 | SQL Telemetry & Prefix Caching | Add `PromptExecutionLog` model to `packages/db/prisma/schema.prisma` with indexes and relations; add migration `0014_prompt_execution_logs`; implement and export non-blocking async logger `recordPromptExecutionLogAsync` and integrate across router and runtime. | M3 | User Request R3 |
-| F4 | Documentation Standardization | Rewrite `AGENTS.md` (6 core pillars, 19-package map, MCP invariants, bot deletion cascade, verification) and create comprehensive `docs/ENVIRONMENT_SETUP.md` (all 43+ env vars categorized). | M4 | User Request R4 |
-| F5 | E2E Opaque-Box Test Suite (Tiers 1-4) | Comprehensive E2E test suite covering feature coverage (T1), boundary & corner cases (T2), pairwise cross-feature combinations (T3), and real-world application scenarios (T4). | Track E2E | User Request R5 & Test Infra |
-| F6 | Master Blueprint & Tier 5 Adversarial Hardening | Pass 100% E2E tests, execute Tier 5 adversarial stress testing, update `RAKAZO_MASTER_BLUEPRINT_CURRENT.md` to v2.3.0-enterprise with zero regressions. | M5 | User Request R5 |
+| 1 | PromptCompilerService Robustness | Fast-path deterministic Level 1, LLM Level 2 with AbortController (15s timeout), deterministic fallbacks, secret-safe errors, Zod validation | M1 | R1 / Survey 1 |
+| 2 | Subagent Anti-Loop & Depth Guards | `buildSubagentPrompt` deterministic 5 sections, `executeSubagent` depth 1 strict, delegation tool exclusion, 8192 token limit, 25 steps / 3 repetitive calls circuit breaker | M1 | R1 / Survey 1 |
+| 3 | 4-Block Cache Byte Stability | `assemble4BlockCachePrompt` with invariant Blocs A+B (no dynamic timestamps, sorted skills), volatile Blocs C+D, session affinity key | M1 | R1 / Survey 1 |
+| 4 | Upstream Sync Workflow Idempotence | `.github/workflows/sync-upstream.yml` with `pnpm install --frozen-lockfile`, secure branch merge, CI security gate, alert PR generation on conflict/failure | M2 | R2 / Survey 2 |
+| 5 | SQL Telemetry Async & DB Resilience | `PromptExecutionLog` model, `recordPromptExecutionLogAsync` fire-and-forget, non-blocking sync void return, catch non-fatal errors | M3 | R3 / Survey 1 |
+| 6 | Secret Sanitization Without False Positives | `sanitizeToolError` covering 12 token families (GitHub, Notion, Postiz, Novamira, n8n, Cloudflare, OpenRouter, Anthropic, OpenAI, PostgreSQL, Bearer/Basic) | M3 | R3 / Survey 1 |
+| 7 | MCP Least Privilege & Immutability | 40 sovereign MCP tools immutable across prompt compilation, system directives, subagent execution | M3 | R3 / Survey 1 & 2 |
+| 8 | Responsive WebUI Multi-Screen Ergonomics | 320px, 360px, 375px, 390px, 430px, 768px, 1024px, 1440px+ viewport compliance, touch targets >= 44px, `env(safe-area-inset-bottom)`, iOS 16px input zoom prevention | M4 | R4 / Survey 3 |
+| 9 | PromptCompilerModal Comparative UX | Before/After split & tab view, diff comparison, mobile modal responsiveness, copy/apply actions | M4 | R4 / Survey 3 |
+| 10 | Monorepo Zero TypeScript Error Gate | `pnpm exec turbo check --force` passing with 0 errors on all 19 packages | M5 | R5 / Survey 3 |
+| 11 | Complete Test Suite Pass (>= 1709 tests) | `pnpm test` passing 100% of tests (>= 1709 tests, 0 failures, 0 fake greens) | M5 | R5 / Survey 3 |
+| 12 | Master Authority Documentation | Deliver `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`, `RAKAZO_ARCHITECT_HANDOFF_POST_EXCELLENCE_ITERATION.md`, and `ITERATION_EXCELLENCE_REPORT.md` | M5 | R5 / Survey 3 |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| E2E | E2E Testing Suite Track | Design and implement 4-Tier test suite (T1-T4) covering R1-R5, publish TEST_READY.md | none | IN_PROGRESS |
-| M1 | Subagent L1 Compilation & Runtime | `packages/adapters/src/pi-runtime.ts` + prompt compilation tests | none | PLANNED |
-| M2 | Upstream Sync Security Gate | `.github/workflows/sync-upstream.yml` | none | PLANNED |
-| M3 | SQL Telemetry & Prefix Caching | `packages/db/prisma/schema.prisma` + migration `0014` + `recordPromptExecutionLogAsync` + wiring | none | PLANNED |
-| M4 | Standardization & Handover Docs | `AGENTS.md` + `docs/ENVIRONMENT_SETUP.md` | none | PLANNED |
-| M5 | Final E2E Pass & Blueprint Update | 100% test pass on T1-T4 + Tier 5 Adversarial Hardening + `RAKAZO_MASTER_BLUEPRINT_CURRENT.md` | E2E, M1, M2, M3, M4 | PLANNED |
+| M1 | AI Runtime, Prompt Compiler & Subagents Hardening | Features 1, 2, 3: `PromptCompilerService`, `buildSubagentPrompt`, `executeSubagent`, `assemble4BlockCachePrompt` | none | DONE |
+| M2 | Upstream Sync Workflow Hardening | Feature 4: `.github/workflows/sync-upstream.yml`, frozen lockfile, CI gates, alert PR | none | DONE |
+| M3 | SQL Telemetry & MCP Security Hardening | Features 5, 6, 7: `recordPromptExecutionLogAsync`, `sanitizeToolError`, MCP immutability | none | DONE |
+| M4 | Responsive WebUI Ergonomics & Composer Hardening | Features 8, 9: `@rakazo/chat-ui`, composer touch targets, safe areas, PromptCompilerModal | none | DONE |
+| M5 | Monorepo QA Gate (turbo check + >= 1709 tests) & Master Documentation | Features 10, 11, 12: `turbo check`, `pnpm test`, 3 Master Documentation artifacts | M1, M2, M3, M4 | DONE |
 
 ## Interface Contracts
+### PromptCompilerService ↔ Chat UI / API
+- `compile(input: PromptCompileInput): Promise<PromptCompileOutput>`
+- `input`: `{ rawInstruction: string, botName?: string, botTitle?: string, level?: PromptCompilationLevel, existingMetadata?: Record<string, unknown> }`
+- `output`: `{ compiledInstruction: string, levelUsed: PromptCompilationLevel, explanation?: string, telemetry?: PromptCacheTelemetry }`
 
-### 1. `executeSubagent` & `compilePromptLevel1Deterministic` (`@rakazo/adapters`)
-- Input: `args.name`, `args.task`, `args.instructions` (extra).
-- Processing:
-  - Compose `rawInstruction`: subagent base role/identity + rules + `task` + `extra`.
-  - Invoke `compilePromptLevel1Deterministic({ rawInstruction, model: host.model, executionLevel: "level_1_deterministic" })`.
-  - System prompt assigned to `compiledPrompt.compiledInstruction` (5 Markdown sections: `# Role & Identity`, `## Core Mission`, `## Operational Rules & Constraints`, `## Output Format & Deliverables`, `## Error Handling & Edge Cases`).
-- Invariants:
-  - `host.depth > 0` returns `"Subagents cannot nest further."`.
-  - Tools filtered via `!DELEGATION_TOOL_NAMES.has(tool.name)`.
-  - `maxTokens` bounded to max 8,192 (`Math.min(Math.max(options?.maxTokens ?? 8192, 1), 8192)`).
+### Pi Runtime ↔ Subagents
+- `executeSubagent(host: AgentHost, executionId: string, args: SubagentArgs): Promise<string>`
+- Constraints: `host.depth == 0`, `maxTokens <= 8192`, `tools excluding DELEGATION_TOOL_NAMES`, max 25 tool iterations / 3 consecutive redundant calls.
 
-### 2. Upstream Sync Security Gate (`.github/workflows/sync-upstream.yml`)
-- Trigger: `schedule` (cron) and `workflow_dispatch`.
-- Steps:
-  1. Checkout repository with full fetch depth.
-  2. Setup Node.js 22 & pnpm 9.
-  3. Install dependencies (`pnpm install --frozen-lockfile`).
-  4. Attempt `git merge upstream/main`.
-  5. If merge succeeds: run `pnpm db:generate && pnpm exec turbo check --force && pnpm test`.
-  6. If test gate passes: `git push origin main`.
-  7. If test gate fails or merge conflicts: `git merge --abort` or `git reset --hard HEAD~1`, checkout `upstream-sync-conflict`, and create alert PR with logs.
-
-### 3. `PromptExecutionLog` & `recordPromptExecutionLogAsync` (`@rakazo/db`)
-- Prisma Model `PromptExecutionLog`:
-  ```prisma
-  model PromptExecutionLog {
-    id              String    @id @default(cuid())
-    botId           String?
-    executionId     String?
-    provider        String
-    model           String
-    levelUsed       String    // "level_1_deterministic" | "level_2_openrouter"
-    promptTokens    Int       @default(0)
-    completionTokens Int      @default(0)
-    cachedTokens    Int       @default(0)
-    cacheHitRatio   Float     @default(0.0)
-    durationMs      Int       @default(0)
-    costEstimatedUsd Float    @default(0.0)
-    createdAt       DateTime  @default(now())
-
-    bot             Bot?      @relation(fields: [botId], references: [id], onDelete: SetNull)
-
-    @@index([botId])
-    @@index([createdAt])
-    @@index([model])
-    @@map("prompt_execution_logs")
-  }
-  ```
-- Async Non-blocking Helper:
-  ```typescript
-  export function recordPromptExecutionLogAsync(
-    prisma: PrismaClient,
-    data: PromptExecutionLogInput
-  ): void {
-    void prisma.promptExecutionLog.create({ data }).catch((err) => {
-      // Non-blocking logger: logs warning, never throws to caller
-    });
-  }
-  ```
+### Telemetry ↔ PostgreSQL DB
+- `recordPromptExecutionLogAsync(prisma: PrismaClient, data: PromptExecutionLogInput): void`
+- Constraints: synchronous `void` return, promise fire-and-forget, internal catch with non-fatal warning.
 
 ## Code Layout
-- `packages/adapters/src/pi-runtime.ts` — Subagent execution & deterministic L1 compile integration.
-- `packages/adapters/src/prompt-compiler.ts` — Deterministic L1 prompt compilation logic.
-- `packages/adapters/src/__tests__/subagent-prompt-compilation.test.ts` — Subagent prompt compilation unit tests.
-- `.github/workflows/sync-upstream.yml` — Upstream synchronization workflow with CI test gate.
-- `packages/db/prisma/schema.prisma` — Database schema with `PromptExecutionLog`.
-- `packages/db/prisma/migrations/0014_prompt_execution_logs/migration.sql` — Additive migration.
-- `packages/db/src/telemetry.ts` — Non-blocking async telemetry persistence.
-- `AGENTS.md` — Autonomous agent operating manual and 6 architectural pillars.
-- `docs/ENVIRONMENT_SETUP.md` — 43+ environment variables documentation and setup guide.
-- `RAKAZO_MASTER_BLUEPRINT_CURRENT.md` — Master platform architecture blueprint v2.3.0-enterprise.
+- `packages/adapters/src/`:
+  - `prompt-compiler.ts`: PromptCompilerService implementation
+  - `pi-runtime.ts`: Pi runtime adapter, subagent execution
+  - `prefix-caching.ts`: 4-block cache prompt assembly
+  - `enterprise-tools.ts`: Tool execution & sanitizeToolError
+  - `loop-guards.ts`: Anti-loop & circuit breakers
+- `packages/contracts/src/`:
+  - `prompt-compiler.ts`: Zod schemas & contract validation
+  - `mcp-catalog.ts`: Sovereign MCP catalog & immutability verifier
+- `packages/db/src/`:
+  - `telemetry.ts`: Async SQL telemetry recording
+- `packages/chat-ui/src/`:
+  - `PromptCompilerModal.tsx`: Comparative modal
+  - `Shell.tsx`: Responsive layout shell
+  - `MessageList.tsx`, `Composer.tsx`: Chat components
+- `.github/workflows/`:
+  - `sync-upstream.yml`: Upstream sync workflow
+- Root / Docs:
+  - `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`
+  - `RAKAZO_ARCHITECT_HANDOFF_POST_EXCELLENCE_ITERATION.md`
+  - `ITERATION_EXCELLENCE_REPORT.md`

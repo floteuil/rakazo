@@ -9,8 +9,8 @@ function sanitizeToolError(message: string): string {
     .replace(/github_pat_[a-zA-Z0-9_]+/g, "github_pat_[redacted]")
     .replace(/secret_[a-zA-Z0-9]+/g, "secret_[redacted]")
     .replace(/sk-or-v1-[a-zA-Z0-9_-]+/g, "sk-or-v1-[redacted]")
-    .replace(/Bearer\\s+\\S+/gi, "Bearer [redacted]")
-    .replace(/Basic\\s+\\S+/gi, "Basic [redacted]");
+    .replace(/Bearer\s+\S+/gi, "Bearer [redacted]")
+    .replace(/Basic\s+\S+/gi, "Basic [redacted]");
 }
 
 export interface PromptCompilerModalProps {
@@ -146,7 +146,7 @@ export function PromptCompilerModal({
               data-testid="level-toggle-level1"
               onClick={() => handleTriggerCompile("level1_deterministic")}
               disabled={isCompiling}
-              className={"rounded-lg px-3 py-1.5 text-xs font-medium transition-colors " +
+              className={"flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors " +
                 (level === "level1_deterministic"
                   ? "bg-[#2C2C30] text-white"
                   : "text-[#85858A] hover:text-white")}
@@ -158,7 +158,7 @@ export function PromptCompilerModal({
               data-testid="level-toggle-level2"
               onClick={() => handleTriggerCompile("level2_llm")}
               disabled={isCompiling}
-              className={"rounded-lg px-3 py-1.5 text-xs font-medium transition-colors " +
+              className={"flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors " +
                 (level === "level2_llm"
                   ? "bg-indigo-600/30 text-indigo-300 border border-indigo-500/40"
                   : "text-[#85858A] hover:text-white")}
@@ -195,7 +195,7 @@ export function PromptCompilerModal({
               type="button"
               data-testid="compiler-retry-btn"
               onClick={() => handleTriggerCompile(level)}
-              className="flex items-center gap-1 font-medium text-rose-200 underline hover:text-white"
+              className="flex items-center gap-1 font-medium text-rose-200 underline hover:text-white min-h-[44px] px-2"
             >
               <RefreshCw size={12} />
               Réessayer
@@ -245,19 +245,19 @@ export function PromptCompilerModal({
                 value={compiledText}
                 onChange={(e) => setCompiledText(e.target.value)}
                 placeholder="Les instructions compilées apparaîtront ici…"
-                className="flex-1 resize-none rounded-xl border border-[#2A2A2E] bg-[#0E0E10] p-3.5 font-mono text-xs text-[#ECECEE] outline-none focus:border-indigo-500/60"
+                className="flex-1 resize-none rounded-xl border border-[#2A2A2E] bg-[#0E0E10] p-3.5 font-mono text-[16px] text-[#ECECEE] outline-none focus:border-indigo-500/60 sm:text-xs"
               />
             )}
           </div>
         </div>
 
         {/* Footer Actions */}
-        <div className="flex items-center justify-between border-t border-[#26262A] bg-[#141416] px-5 py-3.5 sm:px-6">
+        <div className="flex items-center justify-between border-t border-[#26262A] bg-[#141416] px-5 py-3.5 pb-[max(0.875rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-3.5">
           <button
             type="button"
             data-testid="compiler-cancel-btn"
             onClick={onClose}
-            className="flex h-11 min-h-[44px] items-center justify-center rounded-xl border border-[#2C2C30] px-4 text-xs font-medium text-[#A1A1AA] hover:bg-[#1E1E22] hover:text-white"
+            className="flex h-11 min-h-[44px] min-w-[44px] items-center justify-center rounded-xl border border-[#2C2C30] px-4 text-xs font-medium text-[#A1A1AA] hover:bg-[#1E1E22] hover:text-white"
           >
             Annuler (Conserver le brouillon)
           </button>
@@ -267,7 +267,7 @@ export function PromptCompilerModal({
             data-testid="compiler-apply-btn"
             disabled={isCompiling || !compiledText.trim()}
             onClick={() => onApply(compiledText)}
-            className="flex h-11 min-h-[44px] items-center gap-1.5 justify-center rounded-xl bg-indigo-600 px-5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 disabled:opacity-50"
+            className="flex h-11 min-h-[44px] min-w-[44px] items-center gap-1.5 justify-center rounded-xl bg-indigo-600 px-5 text-xs font-semibold text-white shadow-lg shadow-indigo-600/20 hover:bg-indigo-500 disabled:opacity-50"
           >
             <Check size={14} />
             Appliquer au bot
