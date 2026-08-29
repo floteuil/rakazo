@@ -6,6 +6,35 @@ export type { BotMcpConfig } from "./mcp-catalog.js";
 export const ComputerModeSchema = z.enum(["team", "dedicated"]);
 export type ComputerMode = z.infer<typeof ComputerModeSchema>;
 
+export const InferenceModeSchema = z.enum(["premium", "free"]);
+export type InferenceMode = z.infer<typeof InferenceModeSchema>;
+
+export const InferenceUsageTagSchema = z.enum([
+  "coding",
+  "writing",
+  "reasoning",
+  "fast",
+  "analysis",
+]);
+export type InferenceUsageTag = z.infer<typeof InferenceUsageTagSchema>;
+
+export const BotInferenceConfigSchema = z.object({
+  mode: InferenceModeSchema.default("premium"),
+  tags: z.array(InferenceUsageTagSchema).max(3, "Maximum 3 usage tags allowed").default([]),
+});
+export type BotInferenceConfig = z.infer<typeof BotInferenceConfigSchema>;
+
+export const FREE_INFERENCE_UNAVAILABLE_MESSAGE =
+  "Capacité gratuite temporairement indisponible";
+
+export const FREE_INFERENCE_ERROR_CODES = {
+  CAPACITY_UNAVAILABLE: "FREE_CAPACITY_UNAVAILABLE",
+  POLICY_VIOLATION: "FREE_POLICY_VIOLATION",
+  TIMEOUT: "FREE_TIMEOUT",
+} as const;
+export type FreeInferenceErrorCode =
+  (typeof FREE_INFERENCE_ERROR_CODES)[keyof typeof FREE_INFERENCE_ERROR_CODES];
+
 export const BotSchema = z.object({
   id: Id,
   workspaceId: Id,
@@ -28,6 +57,7 @@ export const BotSchema = z.object({
   voiceId: z.string().nullable(),
   autoSpeak: z.boolean(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  inference: BotInferenceConfigSchema.optional(),
 });
 export type Bot = z.infer<typeof BotSchema>;
 
@@ -40,6 +70,7 @@ export const CreateBotInput = z.object({
   color: z.string().optional(),
   computerMode: ComputerModeSchema.default("team"),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  inference: BotInferenceConfigSchema.optional(),
 });
 export type CreateBotInput = z.infer<typeof CreateBotInput>;
 
@@ -55,7 +86,9 @@ export const UpdateBotInput = z.object({
   voiceId: z.string().max(120).nullable().optional(),
   autoSpeak: z.boolean().optional(),
   metadata: z.record(z.string(), z.unknown()).optional(),
+  inference: BotInferenceConfigSchema.optional(),
 });
+export type UpdateBotInput = z.infer<typeof UpdateBotInput>;
 
 export const RoutineSchema = z.object({
   id: Id,

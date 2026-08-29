@@ -1,9 +1,12 @@
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
 import type {
   Bot,
+  BotInferenceConfig,
   BotMcpConfig,
   ComputerMode,
   ComputerStatus,
+  InferenceMode,
+  InferenceUsageTag,
   Me,
   ProductEvent,
   Routine,
@@ -16,8 +19,6 @@ import type {
   VoiceInfo,
   VoiceStatus,
 } from "@rakazo/contracts";
-import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelector";
-import { PromptCompilerModal } from "./PromptCompilerModal";
 import {
   ATTACHMENT_ALLOWED_MIME_TYPES,
   ATTACHMENT_MAX_BYTES,
@@ -92,7 +93,9 @@ import {
 } from "../lib/thread-events";
 import { speaker } from "../lib/tts";
 import type { ContextMenuPosition } from "./BotContextMenu";
+import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelector";
 import { HostComputerPrompt } from "./HostComputerPrompt";
+import { PromptCompilerModal } from "./PromptCompilerModal";
 import { WindowChrome } from "./WindowChrome";
 import { WorkspaceSearchResults } from "./WorkspaceSearch";
 
@@ -846,6 +849,7 @@ export function ShellPage() {
     computerMode: ComputerMode;
     skillIds?: string[];
     metadata?: Record<string, unknown>;
+    inference?: BotInferenceConfig;
   }) {
     const bot = await rpc.bots.create({
       name: input.name.trim(),
@@ -855,6 +859,7 @@ export function ShellPage() {
       notifyOnFinish: true,
       computerMode: input.computerMode,
       metadata: input.metadata,
+      inference: input.inference,
     });
     if (input.skillIds && input.skillIds.length > 0) {
       await rpc.skills
@@ -1369,7 +1374,11 @@ export function ShellPage() {
                   >
                     <Settings size={16} strokeWidth={1.7} />
                   </button>
-                  <button type="button" aria-label="Fermer le panneau" onClick={() => setPanel(null)}>
+                  <button
+                    type="button"
+                    aria-label="Fermer le panneau"
+                    onClick={() => setPanel(null)}
+                  >
                     <X size={16} strokeWidth={1.8} />
                   </button>
                 </div>
@@ -2060,7 +2069,9 @@ const Composer = memo(function Composer({
               ) : (
                 <Paperclip size={14} strokeWidth={1.8} />
               )}
-              <span className="max-w-[140px] sm:max-w-[180px] truncate">{attachment.file.name}</span>
+              <span className="max-w-[140px] sm:max-w-[180px] truncate">
+                {attachment.file.name}
+              </span>
               <button
                 type="button"
                 aria-label={`Remove ${attachment.file.name}`}
@@ -2546,6 +2557,166 @@ function ComputerModePicker({
   );
 }
 
+const USAGE_TAG_OPTIONS: {
+  id: InferenceUsageTag;
+  label: string;
+  description: string;
+  badge: string;
+}[] = [
+  { id: "coding", label: "Code & Scripting", description: "DeepSeek / Qwen Coder", badge: "Dev" },
+  {
+    id: "writing",
+    label: "Rédaction & Synthèse",
+    description: "Mistral Small 24B",
+    badge: "Prose",
+  },
+  { id: "reasoning", label: "Raisonnement & Logique", description: "DeepSeek R1", badge: "Logic" },
+  { id: "fast", label: "Ultra Rapide & Triage", description: "LLaMA 3.2 3B", badge: "Fast" },
+  { id: "analysis", label: "Analyse & Données", description: "Qwen 2.5 72B", badge: "Data" },
+];
+
+export function IntelligenceSelector({
+  inferenceMode,
+  usageTags,
+  onChangeMode,
+  onToggleTag,
+  disabled = false,
+  viewportWidth,
+}: {
+  inferenceMode: InferenceMode;
+  usageTags: InferenceUsageTag[];
+  onChangeMode: (mode: InferenceMode) => void;
+  onToggleTag: (tag: InferenceUsageTag) => void;
+  disabled?: boolean;
+  viewportWidth?: number;
+}) {
+  const isMobile = typeof viewportWidth === "number" ? viewportWidth < 768 : false;
+
+  return (
+    <div
+      data-testid="omniroute-intelligence-panel"
+      className={`mt-6 flex flex-col gap-4 rounded-xl border border-zinc-800 bg-[#0F0F12] p-4 text-white ${
+        isMobile ? "w-full max-w-full px-3 py-4" : "w-full"
+      }`}
+    >
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h3 className="text-sm font-semibold text-zinc-100 flex items-center gap-2">
+            Moteur d'Intelligence
+            {inferenceMode === "free" && (
+              <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
+                100% Gratuit &amp; Zéro-Coût
+              </span>
+            )}
+          </h3>
+          <p className="text-xs text-zinc-400 mt-0.5">
+            Choisissez entre l'intelligence souveraine gratuite ou le modèle haute puissance.
+          </p>
+        </div>
+      </div>
+
+      {/* Segmented Control (Premium vs Gratuit) */}
+      <div
+        role="tablist"
+        aria-label="Sélection du mode d'inférence"
+        className="grid grid-cols-2 gap-1 rounded-lg bg-zinc-900/90 p-1 border border-zinc-800"
+      >
+        <button
+          type="button"
+          role="tab"
+          aria-selected={inferenceMode === "premium"}
+          data-testid="mode-premium-btn"
+          disabled={disabled}
+          onClick={() => onChangeMode("premium")}
+          className={`flex min-h-[44px] items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-all cursor-pointer ${
+            inferenceMode === "premium"
+              ? "bg-zinc-800 text-white shadow-sm border border-zinc-700 font-semibold"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <span className="h-2 w-2 rounded-full bg-purple-500" />
+          <span>Premium (GPT-OSS-120B)</span>
+        </button>
+
+        <button
+          type="button"
+          role="tab"
+          aria-selected={inferenceMode === "free"}
+          data-testid="mode-free-btn"
+          disabled={disabled}
+          onClick={() => onChangeMode("free")}
+          className={`flex min-h-[44px] items-center justify-center gap-2 rounded-md px-3 py-2 text-xs font-medium transition-all cursor-pointer ${
+            inferenceMode === "free"
+              ? "bg-emerald-500/15 text-emerald-300 shadow-sm border border-emerald-500/30 font-semibold"
+              : "text-zinc-400 hover:text-zinc-200"
+          }`}
+        >
+          <span className="h-2 w-2 rounded-full bg-emerald-400" />
+          <span>Gratuit (OmniRoute Free)</span>
+        </button>
+      </div>
+
+      {/* Usage Tags Section (Active only when Free mode is selected) */}
+      {inferenceMode === "free" && (
+        <div
+          data-testid="usage-tags-container"
+          className="flex flex-col gap-2 pt-2 border-t border-zinc-800/80"
+        >
+          <div className="flex items-center justify-between text-xs text-zinc-400">
+            <span>Tags d'usage recommandés (max 3)</span>
+            <span
+              data-testid="tag-count-indicator"
+              className={usageTags.length === 3 ? "text-amber-400 font-medium" : "text-zinc-500"}
+            >
+              {usageTags.length} / 3 sélectionnés
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+            {USAGE_TAG_OPTIONS.map((tag) => {
+              const isSelected = usageTags.includes(tag.id);
+              const isMaxReached = usageTags.length >= 3 && !isSelected;
+
+              return (
+                <button
+                  key={tag.id}
+                  type="button"
+                  data-testid={`tag-chip-${tag.id}`}
+                  aria-pressed={isSelected}
+                  disabled={disabled || (isMaxReached && !isSelected)}
+                  onClick={() => onToggleTag(tag.id)}
+                  className={`flex min-h-[44px] items-center justify-between rounded-lg px-3 py-2.5 text-left text-xs transition-all border ${
+                    isSelected
+                      ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-200 shadow-xs cursor-pointer"
+                      : isMaxReached
+                        ? "border-zinc-800/40 bg-zinc-900/30 text-zinc-600 opacity-50 cursor-not-allowed"
+                        : "border-zinc-800 bg-zinc-900/60 text-zinc-300 hover:border-zinc-700 hover:bg-zinc-800/50 cursor-pointer"
+                  }`}
+                >
+                  <div className="flex flex-col">
+                    <span className="font-medium">{tag.label}</span>
+                    <span className="text-[10px] text-zinc-500">{tag.description}</span>
+                  </div>
+                  <span
+                    className={`rounded px-1.5 py-0.5 text-[10px] font-mono uppercase ${
+                      isSelected
+                        ? "bg-emerald-500/20 text-emerald-300"
+                        : "bg-zinc-800 text-zinc-400"
+                    }`}
+                  >
+                    {tag.badge}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
 function CreateBotForm({
   onCreate,
   onCancel,
@@ -2558,6 +2729,7 @@ function CreateBotForm({
     computerMode: ComputerMode;
     skillIds?: string[];
     metadata?: Record<string, unknown>;
+    inference?: BotInferenceConfig;
   }) => void;
   onCancel: () => void;
 }) {
@@ -2570,6 +2742,8 @@ function CreateBotForm({
   const [availableSkills, setAvailableSkills] = useState<SkillSummary[]>([]);
   const [selectedSkillIds, setSelectedSkillIds] = useState<string[]>([]);
   const [mcpConfig, setMcpConfig] = useState<BotMcpConfig>(() => getRecommendedMcpConfig());
+  const [inferenceMode, setInferenceMode] = useState<InferenceMode>("premium");
+  const [usageTags, setUsageTags] = useState<InferenceUsageTag[]>([]);
 
   useEffect(() => {
     void rpc.skills
@@ -2577,6 +2751,18 @@ function CreateBotForm({
       .then(setAvailableSkills)
       .catch(() => setAvailableSkills([]));
   }, []);
+
+  const handleToggleTag = (tag: InferenceUsageTag) => {
+    setUsageTags((prev) => {
+      if (prev.includes(tag)) {
+        return prev.filter((t) => t !== tag);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, tag];
+    });
+  };
 
   return (
     <div>
@@ -2616,9 +2802,9 @@ function CreateBotForm({
       </label>
       <div className="mt-4">
         <div className="flex items-center justify-between">
-          <label className="text-[14px] text-[#85858A]">
+          <span className="text-[14px] text-[#85858A]">
             Instructions personnalisées / Prompt système
-          </label>
+          </span>
           <button
             type="button"
             data-testid="rendre-pro-btn"
@@ -2707,6 +2893,13 @@ function CreateBotForm({
         <BotMcpToolSelector value={mcpConfig} onChange={setMcpConfig} />
       </div>
 
+      <IntelligenceSelector
+        inferenceMode={inferenceMode}
+        usageTags={usageTags}
+        onChangeMode={setInferenceMode}
+        onToggleTag={handleToggleTag}
+      />
+
       <ComputerModePicker value={computerMode} onChange={setComputerMode} />
       <button
         type="button"
@@ -2720,9 +2913,13 @@ function CreateBotForm({
             computerMode,
             skillIds: selectedSkillIds,
             metadata: { mcp: mcpConfig },
+            inference: {
+              mode: inferenceMode,
+              tags: usageTags,
+            },
           })
         }
-        className="mt-5 rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40"
+        className="mt-5 rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40 min-h-[44px] font-medium"
       >
         Créer l'agent
       </button>
@@ -2759,6 +2956,7 @@ function BotSettings({
     voiceId?: string | null;
     skillIds?: string[];
     metadata?: Record<string, unknown>;
+    inference?: BotInferenceConfig;
   }) => Promise<void>;
   onExport: () => Promise<void>;
   onClear: () => void;
@@ -2782,6 +2980,10 @@ function BotSettings({
     }
     return { connectors: {}, tools: {} };
   });
+  const [inferenceMode, setInferenceMode] = useState<InferenceMode>(
+    bot.inference?.mode ?? "premium",
+  );
+  const [usageTags, setUsageTags] = useState<InferenceUsageTag[]>(bot.inference?.tags ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -2800,6 +3002,18 @@ function BotSettings({
       setSelectedSkillIds(activeSkills.map((s) => s.id));
     });
   }, [bot.id]);
+
+  const handleToggleTag = (tag: InferenceUsageTag) => {
+    setUsageTags((prev) => {
+      if (prev.includes(tag)) {
+        return prev.filter((t) => t !== tag);
+      }
+      if (prev.length >= 3) {
+        return prev;
+      }
+      return [...prev, tag];
+    });
+  };
 
   const activeSkillsList = useMemo(() => {
     return selectedSkillIds
@@ -2833,9 +3047,9 @@ function BotSettings({
     let iCount = 0;
     for (const s of activeSkillsList) {
       const len = s.content
-        ? (typeof TextEncoder !== "undefined"
-            ? new TextEncoder().encode(s.content).length
-            : s.content.length)
+        ? typeof TextEncoder !== "undefined"
+          ? new TextEncoder().encode(s.content).length
+          : s.content.length
         : typeof s.metadata?.sizeBytes === "number"
           ? s.metadata.sizeBytes
           : 1500;
@@ -2881,9 +3095,9 @@ function BotSettings({
       </label>
       <div className="mt-4">
         <div className="flex items-center justify-between">
-          <label className="text-[14px] text-[#85858A]">
+          <span className="text-[14px] text-[#85858A]">
             Instructions personnalisées / Prompt système
-          </label>
+          </span>
           <button
             type="button"
             data-testid="rendre-pro-btn"
@@ -2922,9 +3136,9 @@ function BotSettings({
           <div className="mt-3 flex flex-wrap gap-2">
             {activeSkillsList.map((skill) => {
               const byteLen = skill.content
-                ? (typeof TextEncoder !== "undefined"
-                    ? new TextEncoder().encode(skill.content).length
-                    : skill.content.length)
+                ? typeof TextEncoder !== "undefined"
+                  ? new TextEncoder().encode(skill.content).length
+                  : skill.content.length
                 : typeof skill.metadata?.sizeBytes === "number"
                   ? skill.metadata.sizeBytes
                   : 1500;
@@ -2990,6 +3204,14 @@ function BotSettings({
         <BotMcpToolSelector value={mcpConfig} onChange={setMcpConfig} />
       </div>
 
+      <IntelligenceSelector
+        inferenceMode={inferenceMode}
+        usageTags={usageTags}
+        onChangeMode={setInferenceMode}
+        onToggleTag={handleToggleTag}
+        disabled={saving}
+      />
+
       <label className="mt-5 flex cursor-pointer items-center gap-3 text-[14px] text-[#C9C9CE]">
         <input
           type="checkbox"
@@ -3036,13 +3258,17 @@ function BotSettings({
                 ...(bot.metadata || {}),
                 mcp: mcpConfig,
               },
+              inference: {
+                mode: inferenceMode,
+                tags: usageTags,
+              },
             })
               .catch((err) =>
                 setError(err instanceof Error ? err.message : "Impossible d'enregistrer"),
               )
               .finally(() => setSaving(false));
           }}
-          className="rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40"
+          className="rounded-[11px] bg-[#F1F1EF] px-4 py-2 text-[#17171A] disabled:opacity-40 min-h-[44px] font-medium"
         >
           {saving ? "Enregistrement…" : "Enregistrer"}
         </button>

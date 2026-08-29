@@ -1,41 +1,42 @@
-# E2E Test Infra: Rakazo Excellence Iteration
+# E2E Test Infra: Free Intelligence Gateway (OmniRoute) for Rakazo
 
 ## Test Philosophy
-- Requirement-driven, opaque-box and contract-driven testing.
-- Comprehensive verification across 5 Tiers:
-  - Tier 1: Feature Coverage (PromptCompilerService, Subagents, 4-Block Cache, Telemetry, MCP, Responsive WebUI, Upstream Sync).
-  - Tier 2: Boundary & Corner Cases (Timeout limits, token budget limits, depth nesting rejection, empty/max string lengths, malformed responses).
-  - Tier 3: Cross-Feature Combinations (PromptCompiler + Subagents + Telemetry, MCP immutability during compilation, Error sanitization across WebUI & API).
-  - Tier 4: Real-World Scenarios (Full bot creation journey with prompt compilation, execution with telemetry, mobile viewport interaction, upstream sync simulation).
-  - Tier 5: Adversarial Coverage Hardening (Prompt injection attempts, secret exfiltration attacks, loop guard stress tests).
+- Opaque-box, requirement-driven testing. Derived strictly from `ORIGINAL_REQUEST.md`.
+- Zero-cost verification: Hard assertion that free requests never leak into paid OpenRouter endpoints.
+- Fail-closed verification: Assert that upstream errors, rate limits, or non-zero pricing reject with `"Capacité gratuite temporairement indisponible"`.
+- Multi-tier progressive testability: Unit -> Adapter -> Subagents -> UI Ergonomics -> Adversarial Chaos.
 
 ## Feature Inventory & Test Mapping
-| # | Feature | Requirement | Tier 1 | Tier 2 | Tier 3 | Tier 4 | Tier 5 |
-|---|---------|-------------|:------:|:------:|:------:|:------:|:------:|
-| 1 | PromptCompilerService Robustness | R1 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 2 | Subagent Anti-Loop & Depth 1 Guards | R1 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 3 | 4-Block Cache Byte Stability | R1 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 4 | Upstream Sync Workflow Idempotence | R2 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 5 | SQL Telemetry Async & DB Resilience | R3 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 6 | Secret Sanitization Without False Positives | R3 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 7 | MCP Least Privilege & Immutability | R3 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 8 | Responsive WebUI Ergonomics (320px..1440px+) | R4 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 9 | PromptCompilerModal Comparative UX | R4 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 10 | Monorepo TypeScript Zero Error Gate | R5 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 11 | Complete Monorepo Test Pass (>= 1709 tests) | R5 | ✓ | ✓ | ✓ | ✓ | ✓ |
-| 12 | Master Authority Documentation Deliverables | R5 | ✓ | ✓ | ✓ | ✓ | ✓ |
+| # | Feature | Requirement | Tier 1 (Unit) | Tier 2 (Boundary) | Tier 3 (Cross) | Tier 4 (E2E Scenarios) | Tier 5 (Adversarial) |
+|---|---------|-------------|:-------------:|:-----------------:|:--------------:|:----------------------:|:--------------------:|
+| 1 | BotInferenceConfig Zod Schema | R1 | 5 | 5 | ✓ | ✓ | ✓ |
+| 2 | PromptExecutionLog Telemetry | R1 | 5 | 5 | ✓ | ✓ | ✓ |
+| 3 | FreeOmniRouteAdapter Core & SSE | R2 | 5 | 5 | ✓ | ✓ | ✓ |
+| 4 | Rakazo Free Policy Engine & Cost Assertion | R2 | 5 | 5 | ✓ | ✓ | ✓ |
+| 5 | Fail-Closed Policy Barrier | R2 | 5 | 5 | ✓ | ✓ | ✓ |
+| 6 | Subagent Inference Mode & Limit Inheritance | R3 | 5 | 5 | ✓ | ✓ | ✓ |
+| 7 | 4-Block Cache Prompt Preservation | R3 | 5 | 5 | ✓ | ✓ | ✓ |
+| 8 | WebUI Intelligence & Tags Selector | R4 | 5 | 5 | ✓ | ✓ | ✓ |
+| 9 | Mobile Touch & Multi-Screen Breakpoints | R4 | 5 | 5 | ✓ | ✓ | ✓ |
+| 10| Containerized Spec & Network Isolation | R5 | 5 | 5 | ✓ | ✓ | ✓ |
 
-## Test Runners & Commands
-- Monorepo Type Check: `pnpm exec turbo check --force` (19 packages)
-- Monorepo Test Suite: `pnpm test` (1,709 tests)
-- Specific Test Suites:
-  - `pnpm exec vitest run packages/adapters/src/prompt-compiler.test.ts`
-  - `pnpm exec vitest run packages/adapters/src/prompt-compiler.challenger.test.ts`
-  - `pnpm exec vitest run packages/adapters/src/__tests__/subagent-prompt-compilation.test.ts`
-  - `pnpm exec vitest run packages/adapters/src/prefix-caching.e2e.test.ts`
-  - `pnpm exec vitest run packages/db/src/telemetry.test.ts`
-  - `pnpm exec vitest run packages/testkit/src/tests/r1-subagent-compilation.e2e.test.ts`
-  - `pnpm exec vitest run packages/testkit/src/tests/r3-sql-telemetry.e2e.test.ts`
-  - `pnpm exec vitest run packages/adapters/src/security-mcp-adversarial.test.ts`
-  - `pnpm exec vitest run packages/adapters/src/loop-guards.test.ts`
-  - `pnpm exec vitest run packages/chat-ui/src/__tests__/responsive-composer.test.tsx`
+## Test Architecture
+- **Runner**: Vitest (`pnpm vitest run test/e2e/omniroute-*.test.ts`)
+- **Type Checker**: Turbo (`pnpm exec turbo check --force`)
+- **Mock Gateway**: Local HTTP server simulating OmniRoute OpenAI-compatible endpoints with SSE chunks, tool calling, latency injection, and pricing simulator.
+- **Directory Layout**:
+  - `packages/contracts/src/domain.test.ts` (Contracts tests)
+  - `packages/db/src/telemetry.test.ts` (Telemetry tests)
+  - `packages/adapters/src/omniroute-adapter.test.ts` (Adapter unit & SSE tests)
+  - `packages/adapters/src/free-policy-engine.test.ts` (Policy engine tests)
+  - `packages/adapters/src/subagent-inheritance.test.ts` (Subagent inheritance tests)
+  - `apps/web/src/pages/e2e-omniroute-ui.test.tsx` (UI multi-screen & token ergonomics)
+  - `test/e2e/omniroute-adversarial.test.ts` (Tier 5 adversarial & leakage tests)
+
+## Coverage Thresholds
+- **Tier 1 (Feature Coverage)**: >= 50 test cases (>= 5 per feature across 10 features).
+- **Tier 2 (Boundary & Corner)**: >= 50 test cases (empty tags, >3 tags rejection, 0 token payload, 30s timeout, provider 429/500, non-zero pricing).
+- **Tier 3 (Cross-Feature Combinations)**: >= 15 test cases (Free Bot + Subagent + 4-block cache + Telemetry).
+- **Tier 4 (Real-World Application Scenarios)**: >= 8 application scenarios (Coding bot, Analysis bot, Writing bot, Multi-step subagent search).
+- **Tier 5 (Adversarial Hardening)**: >= 10 adversarial tests (cost injection attacks, token spoofing, network partition, paid fallback attempt veto).
+- **Total Tests Target**: Monorepo baseline >= 1,764 passing tests + >= 130 new tests.

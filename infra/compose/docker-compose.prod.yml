@@ -22,6 +22,41 @@ services:
       timeout: 5s
       retries: 20
 
+  omniroute:
+    build:
+      context: ../..
+      dockerfile: deploy/omniroute/Dockerfile
+      args:
+        GIT_SHA: ${GIT_SHA:-}
+    image: rakazo/omniroute:${GIT_SHA:-latest}
+    restart: unless-stopped
+    init: true
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    pids_limit: 128
+    mem_limit: 512m
+    cpus: "0.5"
+    environment:
+      NODE_ENV: production
+      PORT: "8080"
+      HOST: "0.0.0.0"
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:?Set OMNIROUTE_API_KEY in .env}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      GIT_SHA: ${GIT_SHA:-}
+    expose:
+      - "8080"
+    networks:
+      - app
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+
   api:
     build:
       context: ../..
@@ -50,6 +85,8 @@ services:
       WAKEUP_DRIVER: graphile
       AGENT_RUNTIME: pi
       GIT_SHA: ${GIT_SHA:-}
+      OMNIROUTE_BASE_URL: http://omniroute:8080/v1
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:?Set OMNIROUTE_API_KEY in .env}
     expose:
       - "3100"
     volumes:
@@ -59,6 +96,8 @@ services:
       - data
     depends_on:
       postgres:
+        condition: service_healthy
+      omniroute:
         condition: service_healthy
     healthcheck:
       test:
@@ -92,6 +131,8 @@ services:
       SANDBOX_PROVIDER: e2b
       WAKEUP_DRIVER: graphile
       AGENT_RUNTIME: pi
+      OMNIROUTE_BASE_URL: http://omniroute:8080/v1
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:?Set OMNIROUTE_API_KEY in .env}
     volumes:
       - appdata:/data
     networks:
@@ -101,6 +142,8 @@ services:
       postgres:
         condition: service_healthy
       api:
+        condition: service_healthy
+      omniroute:
         condition: service_healthy
 
   web:

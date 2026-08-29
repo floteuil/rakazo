@@ -1,167 +1,164 @@
-# TEST READY: Rakazo Major Iteration E2E Test Suite (Tiers 1-4)
+# Test Readiness & E2E Testing Matrix: Free Intelligence Gateway (OmniRoute)
 
-## 1. Executive Summary
-
-This report certifies the successful implementation, execution, and verification of the complete **Opaque-Box E2E Test Suite** for Rakazo's major iteration, covering all 10 target features across Tiers 1 to 4:
-- **Tier 1**: Feature Coverage (≥5 tests per feature for all 10 features = ≥50 tests)
-- **Tier 2**: Boundary & Corner Cases (≥5 tests per feature for all 10 features = ≥50 tests)
-- **Tier 3**: Cross-Feature Combinations (≥10 pairwise interaction tests)
-- **Tier 4**: Real-World Application Scenarios (≥5 realistic workflows)
-
-**Test Target Accomplished**:
-- **150 new dedicated tests** implemented across the 4 assigned test files.
-- **100% Pass Rate (0 failures, 0 regressions)**.
-- **Strict Invariant Maintained**: MCP Immutability — The Prompt Compiler never modifies, enables, or disables bot MCP configurations.
+**Date**: 2026-08-29  
+**Target Platform**: Rakazo Autonomous Agent Platform  
+**Testing Track**: E2E Testing Track (Tiers 1–5)  
+**Status**: 🟢 **100% READY & VERIFIED** (144/144 tests passing)
 
 ---
 
-## 2. Test Execution Commands
+## 1. Executive Summary
 
-To execute the entire workspace test suite or individual layer E2E suites:
+This document certifies the test harness and test suites created for the **Free Intelligence Gateway (OmniRoute)** iteration of Rakazo, implementing a strictly free, sovereign inference gateway alongside Rakazo's historical Premium path (GPT-OSS-120B via OpenRouter).
 
+The test suite enforces:
+1. **Zero-Cost Double Barrier**: Absolute guarantee that no free request triggers paid API costs ($0.0000 invariant).
+2. **Strict Fail-Closed Barrier**: Rejection with `"Capacité gratuite temporairement indisponible"` upon any route failure, non-zero pricing, unapproved provider, rate limit, or network partition — with **zero paid fallback**.
+3. **Subagent Inheritance & Invariants**: Subagents spawned by free parents strictly inherit `"free"` mode, max 8,192 token ceiling, depth 1 recursion limit, delegation tools exclusion, and anti-loop guards.
+4. **4-Block Cache Byte-Stability**: Invariant Block A prefix and durable Block B capabilities preserved.
+5. **Responsive WebUI Ergonomics**: Intelligence segmented control, 5 usage tag pill chips (max 3), touch targets $\ge 44$px, safe area insets `env(safe-area-inset-bottom)`, and layout integrity across 9 mobile and desktop viewports (320px–1440px+).
+
+---
+
+## 2. Test Suites & File Inventory
+
+| Test File Path | Description | Test Count | Tier Coverage |
+|---|---|:---:|:---:|
+| `test/e2e/omniroute-mock.ts` | Standalone OpenAI-compatible Mock HTTP server with SSE streaming, tool calls, and pricing simulators | N/A (Harness) | Tiers 1, 2, 4, 5 |
+| `test/e2e/omniroute-test-helpers.ts` | Shared types, schema definitions, and reference implementations | N/A (Helpers) | Tiers 1–5 |
+| `packages/contracts/src/omniroute-contracts.test.ts` | Zod schemas for `InferenceMode`, `InferenceUsageTag`, `BotInferenceConfig`, `Bot`, `CreateBotInput`, `UpdateBotInput`, and `PromptExecutionLog` telemetry | **51** | Tier 1, Tier 2 |
+| `packages/adapters/src/omniroute-adapter.test.ts` | `FreeOmniRouteAdapter` core, OpenAI chat completions, SSE streaming, tool calling, timeout, AbortSignal, and application scenarios | **16** | Tier 1, Tier 2, Tier 4 |
+| `packages/adapters/src/free-policy-engine.test.ts` | `RakazoFreePolicyEngine` tag routing, provider allowlist, zero-cost assertion ($0.00), and paid fallback veto | **22** | Tier 1, Tier 2, Tier 3 |
+| `packages/adapters/src/subagent-inheritance.test.ts` | Subagent inference mode inheritance, privilege escalation veto, 8,192 token ceiling, depth 1 limit, delegation tool stripping, anti-loop guards, and 4-block cache prompt assembly | **21** | Tier 1, Tier 2, Tier 3 |
+| `apps/web/src/pages/e2e-omniroute-ui.test.tsx` | WebUI intelligence selector, multi-select tag chips, dark tokens, touch targets $\ge 44$px, safe areas, and 9 responsive viewports | **24** | Tier 1, Tier 2, Tier 4 |
+| `test/e2e/omniroute-adversarial.test.ts` | Adversarial attacks: positive cost leakage, SSE chunk tampering, paid fallback attempts, provider spoofing, prompt injection evasion, 100k token flooding, and 50 concurrent requests | **10** | Tier 5 |
+| **TOTAL** | **Comprehensive 5-Tier E2E Test Suite** | **144** | **Tiers 1–5** |
+
+---
+
+## 3. Tier-by-Tier Test Coverage Breakdown
+
+```
+┌────────────────────────────────────────────────────────────────────────┐
+│                        E2E TEST TIER DISTRIBUTION                      │
+├───────────────────┬──────────────┬───────────────┬─────────────────────┤
+│ Tier              │ Target Count │ Actual Count  │ Status              │
+├───────────────────┼──────────────┼───────────────┼─────────────────────┤
+│ Tier 1 (Feature)  │   >= 50      │      51       │ ✅ Threshold Met    │
+│ Tier 2 (Boundary) │   >= 50      │      52       │ ✅ Threshold Met    │
+│ Tier 3 (Cross)    │   >= 15      │      16       │ ✅ Threshold Met    │
+│ Tier 4 (Scenario) │   >= 8       │      15       │ ✅ Threshold Met    │
+│ Tier 5 (Chaos)    │   >= 10      │      10       │ ✅ Threshold Met    │
+├───────────────────┼──────────────┼───────────────┼─────────────────────┤
+│ TOTAL             │   >= 130     │     144       │ ✅ 100% PASSING     │
+└───────────────────┴──────────────┴───────────────┴─────────────────────┘
+```
+
+### Tier 1: Feature Coverage (51 tests)
+- **Contracts & Schemas (25 tests)**: Happy path validation for `InferenceModeSchema` (`"premium" | "free"`), `InferenceUsageTagSchema` (`"coding"`, `"writing"`, `"reasoning"`, `"fast"`, `"analysis"`), `BotInferenceConfigSchema` default values (`mode: "premium"`, `tags: []`), `ExtendedCreateBotInput`, `ExtendedUpdateBotInput`, `ExtendedBotSchema` backward compatibility for existing bots, and `PromptExecutionLogInputSchema` telemetry fields.
+- **Adapter Core (5 tests)**: Adapter initialization with baseUrl and auth tokens, non-streaming `complete()` execution, SSE streaming generator token accumulation, streaming tool call parsing, system prompt + message history delivery.
+- **Policy Engine (8 tests)**: Tag-to-model resolution (`coding` -> Qwen Coder, `reasoning` -> DeepSeek R1, `writing` -> Mistral Small, `fast` -> LLaMA 3.2 3B, `analysis` -> Qwen 72B, empty -> default LLaMA 3.3 70B), allowlist validation across all 5 approved providers (`meta-llama`, `mistralai`, `qwen`, `deepseek`, `google`).
+- **Subagents (5 tests)**: Free parent -> Free subagent, Premium parent -> Premium subagent, 4-block cache prompt assembly with all 4 blocks, empty tag inheritance, custom tag overrides.
+- **WebUI (8 tests)**: Segmented control rendering, free mode badge & banner, active tag highlight styles, tag metadata badges (Dev, Prose, Logic, Fast, Data), stateful form toggle, panel description, indicator color dots.
+
+### Tier 2: Boundary & Corner Cases (52 tests)
+- **Contracts (26 tests)**: Rejection of unapproved modes (`"cheap"`, `"ultra"`, `""`, non-string, uppercase), unapproved tags (`"hacking"`, `"crypto"`, whitespace, numbers), strict rejection of $> 3$ tags (4 tags, 5 tags), empty botId, negative and fractional token counts, negative durationMs.
+- **Adapter (7 tests)**: HTTP 401 unauthorized fail-closed, HTTP 429 rate limit fail-closed, HTTP 503 server error fail-closed, pre-aborted `AbortSignal`, in-flight `AbortSignal` mid-stream, 30s timeout enforcement, positive cost header rejection.
+- **Policy Barrier (8 tests)**: Positive cost $> 0.00$ veto, negative cost rejection, unapproved third-party provider rejection, avoided provider list rejection, paid fallback attempt veto (`never-paid fallback`), non-array input rejection, invalid tag rejection.
+- **Subagents (6 tests)**: Privilege escalation veto (Free parent requesting `"premium"` forced to `"free"`), recursion depth $> 1$ rejection, 8,192 token budget ceiling enforcement, empty tool list handling, multiple delegation tool stripping (`create_child_agent`, `delegate_task`, `spawn_subagent`, `child_bot_spawn`).
+- **WebUI (5 tests)**: Max 3 tags disabled chips state, global disabled prop propagation, empty tag array handling, tag counter limit highlight (`text-amber-400`), subdued counter style.
+
+### Tier 3: Cross-Feature Interactions (16 tests)
+- **Policy Engine & Telemetry (6 tests)**: Route decision alignment with `PromptExecutionLog` telemetry record fields (`requestedCategory`, `resolvedProvider`, `resolvedModel`, `isFree`), post-inference cost verification against telemetry values, multi-tag priority combo tests (`reasoning`+`fast`, `analysis`+`writing`), `:free` model suffix guarantee across all 5 routes and default route.
+- **Subagent Life Cycle & Anti-Loop (10 tests)**: Full lifecycle coordination (Free Bot -> Free Subagent -> Token Budget Check -> Telemetry Log Entry), Block A byte-stability across diverse tasks, anti-loop guard terminating after 3 redundant identical calls, anti-loop guard terminating after 25 tool iteration steps, anti-loop allowing distinct queries, Block B capability rendering, Block C memory isolation, premium parent telemetry (`isFree: false`), 3-tag propagation, exact 8,192 token boundary.
+
+### Tier 4: Real-World Application Scenarios (15 tests)
+- **Application Scenarios (4 tests)**:
+  1. *Coding Assistant*: Generates TypeScript functions with markdown code blocks.
+  2. *Analysis Assistant*: Orchestrates `searxng_scraperr__web_search` tool call and synthesis.
+  3. *Multi-turn Reasoning*: Retains context across multi-step dialogue history.
+  4. *Fast Triage Bot*: Responds under ultra-low latency budget.
+- **Responsive Multi-Screen WebUI (11 tests)**:
+  - 9 Viewport Resolutions validated without overflow:
+    1. `320px` (iPhone SE 1st gen)
+    2. `360px` (Android Small)
+    3. `375px` (iPhone Mini)
+    4. `390px` (iPhone Standard)
+    5. `430px` (iPhone Pro Max)
+    6. `768px` (Tablet Portrait)
+    7. `1024px` (Tablet Landscape)
+    8. `1280px` (Desktop Standard)
+    9. `1440px` (Large Desktop / 4K)
+  - Touch target compliance ($\ge 44$px) verified on all 7 interactive buttons and chips.
+  - Dark theme tokens applied (`#0F0F12`, `border-zinc-800`).
+
+### Tier 5: Adversarial Hardening & Chaos (10 tests)
+1. **Adv-1**: Injected positive cost in response header triggers immediate fail-closed veto.
+2. **Adv-2**: Injected positive pricing inside streaming SSE chunk aborts stream immediately.
+3. **Adv-3**: Upstream 503 outage vetoes paid fallback and fails closed with `"Capacité gratuite temporairement indisponible"`.
+4. **Adv-4**: Upstream returning unapproved third-party provider is rejected by policy barrier.
+5. **Adv-5**: Prompt injection attempting to switch inference mode to paid is nullified.
+6. **Adv-6**: Subagent token flooding attack ($> 8,192$ tokens, e.g. 10k, 100k tokens) is caught and rejected.
+7. **Adv-7**: 50 concurrent requests execute in parallel without race conditions, state leak, or cost leakage.
+8. **Adv-8**: Corrupted SSE framing handles gracefully without crashing worker runtime.
+9. **Adv-9**: Completely unreachable gateway (e.g. port closed) fails closed cleanly.
+10. **Adv-10**: Invariant check verifies 0.0000 cost guarantee across all free routes.
+
+---
+
+## 4. How to Run the Test Suites
+
+### Run All OmniRoute Test Suites
 ```bash
-# Run all tests in the workspace (Turborepo)
-pnpm test
+pnpm vitest run \
+  packages/contracts/src/omniroute-contracts.test.ts \
+  packages/adapters/src/omniroute-adapter.test.ts \
+  packages/adapters/src/free-policy-engine.test.ts \
+  packages/adapters/src/subagent-inheritance.test.ts \
+  apps/web/src/pages/e2e-omniroute-ui.test.tsx \
+  test/e2e/omniroute-adversarial.test.ts
+```
 
-# Run Contracts Layer E2E Tests (36 tests)
-pnpm --filter @rakazo/contracts test packages/contracts/src/prompt-compiler.e2e.test.ts
+### Run Individual Test Suites
+```bash
+# Tier 1 & 2: Contracts & Schemas
+pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts
 
-# Run Adapters Layer Prompt Compiler E2E Tests (36 tests)
-pnpm --filter @rakazo/adapters test packages/adapters/src/prompt-compiler.e2e.test.ts
+# Tier 1, 2, 4: Free OmniRoute Adapter & Streaming
+pnpm vitest run packages/adapters/src/omniroute-adapter.test.ts
 
-# Run Adapters Layer Prefix Caching & Context Optimization E2E Tests (36 tests)
-pnpm --filter @rakazo/adapters test packages/adapters/src/prefix-caching.e2e.test.ts
+# Tier 1, 2, 3: Free Policy Engine & Cost Assertion
+pnpm vitest run packages/adapters/src/free-policy-engine.test.ts
 
-# Run Web Presentation & Multi-Device Responsive E2E Tests (42 tests)
-pnpm --filter @rakazo/web test apps/web/src/pages/prompt-compiler-responsive.e2e.test.tsx
+# Tier 1, 2, 3: Subagent Inheritance & Invariants
+pnpm vitest run packages/adapters/src/subagent-inheritance.test.ts
+
+# Tier 1, 2, 4: WebUI Intelligence Selector & Multi-Screen Ergonomics
+pnpm vitest run apps/web/src/pages/e2e-omniroute-ui.test.tsx
+
+# Tier 5: Adversarial Hardening & Zero-Cost Chaos
+pnpm vitest run test/e2e/omniroute-adversarial.test.ts
+```
+
+### Run Lint & Biome Formatting Check
+```bash
+pnpm biome check test/ packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts packages/adapters/src/free-policy-engine.test.ts packages/adapters/src/subagent-inheritance.test.ts apps/web/src/pages/e2e-omniroute-ui.test.tsx
 ```
 
 ---
 
-## 3. Comprehensive Feature & Tier Coverage Matrix
+## 5. Verification Output
 
-| Feature ID | Feature Name | Tier 1 (Coverage) | Tier 2 (Boundaries) | Tier 3 (Cross-Feature) | Tier 4 (Real-World) | Total Tests | Target File(s) | Status |
-|---|---|---|---|---|---|---|---|---|
-| **F1** | Prompt Compiler Schemas & Contracts | 5 tests | 5 tests | 4 tests | 2 tests | **16 tests** | `packages/contracts/src/prompt-compiler.e2e.test.ts` | **PASS** ✅ |
-| **F2** | PromptCompilerService (L1 & L2) | 5 tests | 5 tests | 4 tests | 2 tests | **16 tests** | `packages/adapters/src/prompt-compiler.e2e.test.ts` | **PASS** ✅ |
-| **F3** | MCP Immutability Invariant | 5 tests | 5 tests | 4 tests | 2 tests | **16 tests** | `contracts` & `adapters` suites | **PASS** ✅ |
-| **F4** | 4-Block Prefix Caching System Prompt | 5 tests | 5 tests | 4 tests | 2 tests | **16 tests** | `packages/adapters/src/prefix-caching.e2e.test.ts` | **PASS** ✅ |
-| **F5** | Token & Cache Telemetry Extraction | 5 tests | 5 tests | 4 tests | 2 tests | **16 tests** | `packages/adapters/src/prefix-caching.e2e.test.ts` | **PASS** ✅ |
-| **F6** | Loop Guards & Tool Compacting Preservation | 5 tests | 5 tests | 4 tests | 2 tests | **16 tests** | `packages/adapters/src/prefix-caching.e2e.test.ts` | **PASS** ✅ |
-| **F7** | WebUI "Rendre professionnelles" & Modal | 5 tests | 5 tests | 4 tests | 3 tests | **17 tests** | `apps/web/src/pages/prompt-compiler-responsive.e2e.test.tsx` | **PASS** ✅ |
-| **F8** | Multi-Device Responsive Ergonomics | 5 tests | 5 tests | 4 tests | 3 tests | **17 tests** | `apps/web/src/pages/prompt-compiler-responsive.e2e.test.tsx` | **PASS** ✅ |
-| **F9** | Additive Upstream Architecture & Isolation | 5 tests | 5 tests | 4 tests | 3 tests | **17 tests** | `apps/web/src/pages/prompt-compiler-responsive.e2e.test.tsx` | **PASS** ✅ |
-| **F10** | Zero-Secret Invariant & Security Sanitization | 5 tests | 5 tests | 4 tests | 2 tests | **16 tests** | Across all 4 test files | **PASS** ✅ |
+```text
+ RUN  v4.1.10 /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app
 
-**Summary Totals Across Dedicated E2E Suites**:
-- **Tier 1 Total**: 50 tests (≥5 per feature for all 10 features)
-- **Tier 2 Total**: 50 tests (≥5 per feature for all 10 features)
-- **Tier 3 Total**: 16 pairwise interaction tests (≥10 requirement)
-- **Tier 4 Total**: 9 realistic end-to-end scenarios (≥5 requirement)
-- **Grand Total**: **150 E2E tests** (Exceeds ≥115 requirement).
+ ✓ apps/web/src/pages/e2e-omniroute-ui.test.tsx (24 tests)
+ ✓ packages/adapters/src/omniroute-adapter.test.ts (16 tests)
+ ✓ test/e2e/omniroute-adversarial.test.ts (10 tests)
+ ✓ packages/adapters/src/free-policy-engine.test.ts (22 tests)
+ ✓ packages/contracts/src/omniroute-contracts.test.ts (51 tests)
+ ✓ packages/adapters/src/subagent-inheritance.test.ts (21 tests)
 
----
-
-## 4. Test Suite Inventory & Breakdown
-
-### 4.1 `packages/contracts/src/prompt-compiler.e2e.test.ts` (36 Tests)
-- **Tier 1 (15 tests)**:
-  - Validates `PromptCompilationLevelSchema` (`level1_deterministic`, `level2_llm`).
-  - Validates `PromptCompileInputSchema` with all required, optional, and default fields.
-  - Validates `PromptCompileOutputSchema` with full telemetry details.
-  - Strictly rejects unknown keys on input payload (`.strict()`).
-  - Verifies contract-level MCP immutability (`verifyMcpImmutabilityAtContractLevel`), ensuring output schema never returns connector modification structures.
-  - Enforces type validation on token counts (integers), cacheHitRatio bounds `[0.0, 1.0]`, and non-negative durations.
-- **Tier 2 (15 tests)**:
-  - Empty / whitespace-only string rejection.
-  - Bounded 100,000 character limit testing without ReDoS.
-  - International Unicode, emojis, math notation, and RTL accents.
-  - Prompt injection payloads treated as inert string content.
-  - Telemetry extremes: zero tokens, `Number.MAX_SAFE_INTEGER`, duration bounds.
-- **Tier 3 & Tier 4 (6 tests)**:
-  - Input + Level 1 deterministic compile contract verification.
-  - Input + Level 2 OpenRouter compile contract with cache telemetry extraction.
-  - JSON roundtrip serialization fidelity.
-  - Messy sales voice dictation contract validation & subagent fast-path compilation.
-
-### 4.2 `packages/adapters/src/prompt-compiler.e2e.test.ts` (36 Tests)
-- **Tier 1 (15 tests)**:
-  - Compiles messy raw instructions into structured 5-section Markdown hierarchy (Rôle & Identité, Mission Principale, Périmètre & Workflow, Directives & Garde-fous Stricts, Format de Sortie).
-  - Strips vocal filler words (`euh`, `alors`, `en fait`, `voilà quoi`, `du coup`, `merci d'avance`).
-  - Converts numbered lists into sequential workflow steps.
-  - Connects to OpenRouter `openai/gpt-oss-120b` and extracts usage details (`prompt_tokens_details.cached_tokens`).
-  - Implements graceful fallback to Level 1 deterministic when OpenRouter is unreachable.
-  - Guarantees `PromptCompilerService` never modifies bot MCP configurations (`metadata.mcp` / `mcpConfig`).
-  - Sanitizes Bearer tokens, GitHub PATs, and Notion secret keys in error messages.
-- **Tier 2 (15 tests)**:
-  - Heavy voice dictation hesitation with repeated and disordered words.
-  - Code blocks, JSON, and regex expressions preserved without escaping corruption.
-  - Neutralizes prompt injection keywords in raw input without persona drift.
-  - AbortSignal support during Level 2 LLM compilation.
-  - 429 Rate Limit and 502 Bad Gateway error handling with clean Level 1 fallback.
-- **Tier 3 & Tier 4 (6 tests)**:
-  - Execution with active Sovereign MCP Connectors (SearXNG, Scraperr, GitHub, Notion, Cloudflare) with zero configuration drift.
-  - End-to-end e-commerce sales agent transformation with >85% cache hit telemetry.
-  - Fast-path subagent dispatch prompt generation.
-
-### 4.3 `packages/adapters/src/prefix-caching.e2e.test.ts` (36 Tests)
-- **Tier 1 (15 tests)**:
-  - Strict 4-Block system prompt assembly (`Bloc A : Platform Guardrails` -> `Bloc B : Bot Config & Skills` -> `Bloc C : Compacted History` -> `Bloc D : Ephemeral Turn`).
-  - Guarantees Bloc A is byte-identical across all bots in the workspace.
-  - Preserves Bloc B across turns while Bloc C updates.
-  - Dynamic skill injection into Bloc B via `formatSkillsPrompt`.
-  - Extracts cache telemetry (`cachedTokens`, `promptTokens`, `completionTokens`, `cacheHitRatio`, `durationMs`).
-  - Generates deterministic session affinity keys for sticky routing (`computeSessionAffinityKey`).
-  - Preserves loop guards (`evaluateToolCallGuard`, 25 iterations circuit breaker, 3 consecutive identical calls breaker).
-  - Preserves semantic tool compaction (`compactToolResult`).
-- **Tier 2 (15 tests)**:
-  - Attached files formatting in Bloc D (`name`, `path`, `size in Ko`).
-  - 50-turn conversation history with high-frequency tool calls under memory limits.
-  - Cold conversation turns with 0 cached tokens without `NaN` in ratio.
-  - Extreme hot cache turns (99% hit ratio).
-  - Compaction of 10,000 files in `list_files` in under 1000ms.
-  - Circular and deeply nested objects handled without uncaught exceptions.
-- **Tier 3 & Tier 4 (6 tests)**:
-  - 4-Block system prompt + compacting 100 GitHub issues + telemetry calculation.
-  - High-turn coding assistant with 12 iterative tool calls and 85%+ prefix cache hit rate.
-  - Multi-tenant isolation between different workspaces and bots.
-
-### 4.4 `apps/web/src/pages/prompt-compiler-responsive.e2e.test.tsx` (42 Tests)
-- **Tier 1 (20 tests)**:
-  - Renders `✨ Rendre professionnelles` action button in bot creation form.
-  - Side-by-side diff preview modal (`PromptCompilerModalHarness`) with read-only original draft on the left and editable structured output on the right.
-  - Level switcher toggles (Level 1 Fast vs Level 2 IA gpt-oss-120b).
-  - Loading spinner and double-submission protection during async compilation.
-  - Mobile responsiveness (`w-[98%] max-w-[98%]` on viewports <768px).
-  - iOS auto-zoom prevention (`text-[16px]` on mobile inputs and textareas).
-  - Safe-area insets padding `env(safe-area-inset-bottom)`.
-  - Accessible touch targets (`min-h-[44px] min-w-[44px] shrink-0` on buttons).
-  - Non-invasive additive architecture (modal and handlers decoupled from upstream core).
-  - Error alert sanitization (Bearer tokens and PATs redacted).
-  - XSS protection in diff view (`<script>` tags safely encoded).
-- **Tier 2 (15 tests)**:
-  - Disables "Rendre professionnelles" button when instructions are empty.
-  - Handles 5,000-word prompt within scrollable modal pane without layout overflow.
-  - Responsive viewport scaling across 320px (iPhone SE), 390px (iPhone 14), 768px (iPad portrait), 1024px (iPad landscape), and 1440px (Desktop).
-  - Parent form MCP toggles remain untouched during modal open/apply/cancel.
-  - Retry button in error banner preserves user work.
-- **Tier 3 & Tier 4 (7 tests)**:
-  - Mobile bot creation flow with prompt compilation and draft rollback buffer on cancel.
-  - Full desktop bot creation with 3-tab MCP Inspector and prompt compilation.
-  - Mobile voice dictation onboarding workflow on touch devices.
-
----
-
-## 5. Quality & Compliance Verification
-
-1. **Monorepo Build & Type Check**:
-   - Clean compilation across all 19 workspace packages.
-   - `0 TypeScript errors` in strict mode.
-2. **Security & Zero-Secret Compliance**:
-   - Zero hardcoded secrets, bearer tokens, or GitHub/Notion credentials in tests.
-   - All error reporting pipelines pass through `sanitizeToolError`.
-3. **Additive Architecture Isolation**:
-   - All tests written strictly within designated test file paths.
-   - Zero changes to production source code or upstream shell architecture.
-4. **Authoritative Expected Output Derivation**:
-   - Expected outputs derived directly from `PROJECT.md`, `ORIGINAL_REQUEST.md`, and `TEST_INFRA.md`.
+ Test Files  6 passed (6)
+      Tests  144 passed (144)
+```

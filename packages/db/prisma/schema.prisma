@@ -702,9 +702,17 @@ model PromptExecutionLog {
   costEstimatedUsd Float?
   createdAt        DateTime @default(now())
 
+  inferenceMode     String?
+  requestedCategory String?
+  resolvedProvider  String?
+  resolvedModel     String?
+  isFree            Boolean? @default(false)
+
   @@index([botId])
   @@index([createdAt])
   @@index([model])
+  @@index([inferenceMode])
+  @@index([isFree])
   @@map("prompt_execution_logs")
 }
 

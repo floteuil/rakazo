@@ -12,6 +12,11 @@ export interface PromptExecutionLogInput {
   cacheHitRatio?: number;
   durationMs?: number;
   costEstimatedUsd?: number | null;
+  inferenceMode?: string | null;
+  requestedCategory?: string | null;
+  resolvedProvider?: string | null;
+  resolvedModel?: string | null;
+  isFree?: boolean | null;
 }
 
 /**
@@ -36,6 +41,11 @@ export function recordPromptExecutionLogAsync(
         cacheHitRatio: Math.min(1, Math.max(0, data.cacheHitRatio ?? 0)),
         durationMs: Math.max(0, data.durationMs ?? 0),
         costEstimatedUsd: data.costEstimatedUsd ?? null,
+        inferenceMode: data.inferenceMode ?? (data.isFree ? "free" : null),
+        requestedCategory: data.requestedCategory ?? null,
+        resolvedProvider: data.resolvedProvider ?? null,
+        resolvedModel: data.resolvedModel ?? null,
+        isFree: data.isFree ?? (data.inferenceMode === "free" ? true : false),
       },
     })
     .catch((err) => {
@@ -47,16 +57,24 @@ export function recordPromptExecutionLogAsync(
 }
 
 /**
- * Retrieves prompt execution telemetry logs with optional filtering by botId or model.
+ * Retrieves prompt execution telemetry logs with optional filtering by botId, model, inferenceMode, or isFree.
  */
 export async function listPromptExecutionLogs(
   prisma: PrismaClient,
-  filter?: { botId?: string; model?: string; limit?: number },
+  filter?: {
+    botId?: string;
+    model?: string;
+    inferenceMode?: string;
+    isFree?: boolean;
+    limit?: number;
+  },
 ) {
   return prisma.promptExecutionLog.findMany({
     where: {
       ...(filter?.botId ? { botId: filter.botId } : {}),
       ...(filter?.model ? { model: filter.model } : {}),
+      ...(filter?.inferenceMode ? { inferenceMode: filter.inferenceMode } : {}),
+      ...(filter?.isFree !== undefined ? { isFree: filter.isFree } : {}),
     },
     orderBy: { createdAt: "desc" },
     take: filter?.limit ?? 50,

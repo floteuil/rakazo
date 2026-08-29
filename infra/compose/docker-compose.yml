@@ -9,11 +9,42 @@ services:
       - "127.0.0.1:5433:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
+    networks:
+      - data
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U rakazo"]
       interval: 3s
       timeout: 5s
       retries: 20
+
+  omniroute:
+    build:
+      context: ../..
+      dockerfile: deploy/omniroute/Dockerfile
+    image: rakazo/omniroute:local
+    restart: unless-stopped
+    user: "10001:10001"
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    environment:
+      PORT: "8080"
+      HOST: "0.0.0.0"
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-sk-omniroute-local-key}
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+      NODE_ENV: development
+    expose:
+      - "8080"
+    networks:
+      - app
+      - data
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
 
   supervisor:
     build:
@@ -31,6 +62,9 @@ services:
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - ../../data:/data
+    networks:
+      - app
+      - data
     depends_on:
       computer:
         condition: service_completed_successfully
@@ -41,6 +75,8 @@ services:
       context: ../sandboxes/computer
     command: ["true"]
     restart: "no"
+    networks:
+      - app
 
   data-init:
     image: busybox:1
@@ -48,6 +84,8 @@ services:
     restart: "no"
     volumes:
       - ../../data:/data
+    networks:
+      - app
 
   api:
     build:
@@ -63,15 +101,22 @@ services:
       WAKEUP_DRIVER: graphile
       SANDBOX_PROVIDER: docker
       AGENT_RUNTIME: pi
+      OMNIROUTE_BASE_URL: http://omniroute:8080/v1
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-sk-omniroute-local-key}
     ports:
       - "3100:3100"
     volumes:
       - ../../data:/data
+    networks:
+      - app
+      - data
     depends_on:
       postgres:
         condition: service_healthy
       data-init:
         condition: service_completed_successfully
+      omniroute:
+        condition: service_healthy
 
   worker:
     build:
@@ -87,13 +132,20 @@ services:
       WAKEUP_DRIVER: graphile
       SANDBOX_PROVIDER: docker
       AGENT_RUNTIME: pi
+      OMNIROUTE_BASE_URL: http://omniroute:8080/v1
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-sk-omniroute-local-key}
     volumes:
       - ../../data:/data
+    networks:
+      - app
+      - data
     depends_on:
       postgres:
         condition: service_healthy
       data-init:
         condition: service_completed_successfully
+      omniroute:
+        condition: service_healthy
 
   web:
     build:
@@ -106,8 +158,15 @@ services:
       RAKAZO_HOST: ${RAKAZO_HOST:-localhost}
     ports:
       - "5173:5173"
+    networks:
+      - app
     depends_on:
       - api
 
 volumes:
   pgdata:
+
+networks:
+  app:
+  data:
+    internal: true

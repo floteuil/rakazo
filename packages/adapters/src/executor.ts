@@ -17,8 +17,11 @@ import { historyCompactJob, routineWakeupJob, runContinueJob } from "@rakazo/ada
 import type { MessageBlock, RunStatus } from "@rakazo/contracts";
 import {
   ATTACHMENT_MAX_BYTES,
+  type BotInferenceConfig,
   type BotMcpConfig,
   getConnectorForTool,
+  type InferenceMode,
+  type InferenceUsageTag,
   isAttachmentImageMimeType,
   isSovereignTool,
 } from "@rakazo/contracts";
@@ -75,6 +78,7 @@ import {
 import { observationToolResult, parseComputerActions } from "./computer-tools.js";
 import { checkpointAndRecordComputerWorkspace } from "./computer-workspace.js";
 import { executeEnterpriseTool, isEnterpriseTool, sanitizeToolError } from "./enterprise-tools.js";
+import { RakazoFreePolicyEngine } from "./free-policy-engine.js";
 import {
   COMPACTION_BATCH_SIZE,
   formatRecalledMemory,
@@ -84,6 +88,7 @@ import {
   shouldEnqueueCompaction,
 } from "./history-compaction.js";
 import { loadAgentMemoryContext } from "./memory-context.js";
+import { FreeOmniRouteAdapter } from "./omniroute-adapter.js";
 import { toOAuthCredential } from "./pi-credentials.js";
 import {
   parseModelSecret,
@@ -174,6 +179,36 @@ export function extractBotMcpConfig(bot: unknown): BotMcpConfig | undefined {
 
   if (!hasConnectors && !hasTools) return undefined;
   return cfg;
+}
+
+export function extractBotInferenceConfig(bot: unknown): BotInferenceConfig | undefined {
+  if (!bot || typeof bot !== "object") return undefined;
+  const b = bot as Record<string, unknown>;
+  const meta =
+    b.metadata && typeof b.metadata === "object"
+      ? (b.metadata as Record<string, unknown>)
+      : undefined;
+
+  const candidate =
+    meta?.inference ??
+    meta?.inferenceConfig ??
+    b.inference ??
+    b.inferenceConfig;
+
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const cfg = candidate as Record<string, unknown>;
+  const rawMode = cfg.mode;
+  const mode: InferenceMode = rawMode === "free" ? "free" : "premium";
+  const tags: InferenceUsageTag[] = Array.isArray(cfg.tags)
+    ? cfg.tags.filter((t): t is InferenceUsageTag =>
+        typeof t === "string" && ["coding", "writing", "reasoning", "fast", "analysis"].includes(t as any),
+      )
+    : [];
+
+  return {
+    mode,
+    tags,
+  };
 }
 
 export function isToolPermitted(
@@ -406,7 +441,11 @@ export function createRunExecutor(deps: ExecutorDeps) {
       await deps.jobs.enqueue(runContinueJob(claimed.id));
     },
 
-    async continueRun(runId: string, workerId: string) {
+    async continueRun(
+      runId: string,
+      workerId: string,
+      options?: { inferenceMode?: InferenceMode; usageTags?: InferenceUsageTag[] },
+    ) {
       const run = await deps.prisma.run.findUnique({ where: { id: runId } });
       if (!run) return;
       if (isTerminal(run.status as RunStatus)) return;
@@ -1192,8 +1231,39 @@ export function createRunExecutor(deps: ExecutorDeps) {
             )}\n\n${taskPrompt}`
           : taskPrompt;
 
+        const botInference = extractBotInferenceConfig(bot);
+        const isFreeMode =
+          options?.inferenceMode === "free" ||
+          botInference?.mode === "free";
+
+        let activeRuntime: AgentRuntime = deps.runtime;
+        let runtimeModel = {
+          provider: credential?.provider ?? settings?.defaultModelProvider ?? "scripted",
+          id: credential?.defaultModel ?? settings?.defaultModelId ?? "scripted",
+          apiKey: resolved.oauth ? undefined : resolved.apiKey,
+          oauth: resolved.oauth
+            ? { credential: resolved.oauth, persist: resolved.persistOAuth }
+            : undefined,
+        };
+        let freeRouteDecision: ReturnType<RakazoFreePolicyEngine["resolveRoute"]> | undefined;
+
+        if (isFreeMode) {
+          const policyEngine = new RakazoFreePolicyEngine();
+          const tags = options?.usageTags ?? botInference?.tags ?? [];
+          freeRouteDecision = policyEngine.resolveRoute(tags);
+          activeRuntime = new FreeOmniRouteAdapter({
+            defaultModel: freeRouteDecision.model,
+          });
+          runtimeModel = {
+            provider: freeRouteDecision.provider,
+            id: freeRouteDecision.model,
+            apiKey: process.env.OMNIROUTE_API_KEY,
+            oauth: undefined,
+          };
+        }
+
         try {
-          for await (const event of deps.runtime.run(
+          for await (const event of activeRuntime.run(
             {
               botId: bot.id,
               threadId: thread.id,
@@ -1225,14 +1295,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               history,
               currentTurnImages,
               tools,
-              model: {
-                provider: credential?.provider ?? settings?.defaultModelProvider ?? "scripted",
-                id: credential?.defaultModel ?? settings?.defaultModelId ?? "scripted",
-                apiKey: resolved.oauth ? undefined : resolved.apiKey,
-                oauth: resolved.oauth
-                  ? { credential: resolved.oauth, persist: resolved.persistOAuth }
-                  : undefined,
-              },
+              model: runtimeModel,
               resumeFromCheckpoint: resumeFromTakeover ? "takeover" : undefined,
               script,
               executeTool: scripted ? undefined : applyTool,
@@ -1418,17 +1481,26 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   outputTokens: event.outputTokens,
                 },
               });
+              const runDurationMs = Math.max(
+                0,
+                Date.now() - (run.startedAt?.getTime() ?? Date.now()),
+              );
               recordPromptExecutionLogAsync(deps.prisma, {
                 botId: bot.id,
                 executionId: runId,
-                provider: event.provider,
-                model: event.model,
-                levelUsed: "pi_runtime",
+                provider: isFreeMode ? (freeRouteDecision?.provider ?? event.provider) : event.provider,
+                model: isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model,
+                levelUsed: isFreeMode ? "omniroute_gateway" : "pi_runtime",
                 promptTokens: event.inputTokens,
                 completionTokens: event.outputTokens,
                 cachedTokens: event.cachedTokens ?? 0,
                 cacheHitRatio: event.cacheHitRatio ?? 0,
-                durationMs: 0,
+                durationMs: runDurationMs,
+                inferenceMode: isFreeMode ? "free" : "premium",
+                requestedCategory: isFreeMode ? (freeRouteDecision?.category ?? "general") : null,
+                resolvedProvider: isFreeMode ? (freeRouteDecision?.provider ?? event.provider) : event.provider,
+                resolvedModel: isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model,
+                isFree: isFreeMode,
               });
             } else if (event.type === "done") {
               assembled = assembled || event.text || assembled;

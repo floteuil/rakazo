@@ -10,20 +10,22 @@
 
 1. [Prerequisites & System Requirements](#1-prerequisites--system-requirements)
 2. [Quickstart Onboarding Runbook](#2-quickstart-onboarding-runbook)
-3. [Comprehensive Environment Variables Taxonomy (52+ Variables)](#3-comprehensive-environment-variables-taxonomy)
+3. [Comprehensive Environment Variables Taxonomy (54+ Variables)](#3-comprehensive-environment-variables-taxonomy)
    - [3.1 Core Server & General Configuration](#31-core-server--general-configuration)
    - [3.2 Database & Persistence (PostgreSQL)](#32-database--persistence-postgresql)
    - [3.3 Authentication & Cryptographic Keys](#33-authentication--cryptographic-keys)
    - [3.4 Observability, Telemetry & Tracing (PostHog & OpenTelemetry)](#34-observability-telemetry--tracing-posthog--opentelemetry)
    - [3.5 Sandboxes & Container Supervisor (Docker, Daytona, Box, E2B)](#35-sandboxes--container-supervisor-docker-daytona-box-e2b)
-   - [3.6 AI Runtime, LLM Gateway & Composio (Pi Runtime & OpenRouter)](#36-ai-runtime-llm-gateway--composio-pi-runtime--openrouter)
+   - [3.6 AI Runtime, LLM Gateway & Free Intelligence (Pi Runtime, OpenRouter & OmniRoute)](#36-ai-runtime-llm-gateway--free-intelligence-pi-runtime-openrouter--omniroute)
    - [3.7 Memory & Semantic Vector Indexing (Supermemory)](#37-memory--semantic-vector-indexing-supermemory)
    - [3.8 Web Search & Web Scraping Services (SearXNG & Scraperr)](#38-web-search--web-scraping-services-searxng--scraperr)
    - [3.9 Enterprise Tool Connectors (GitHub, Notion, Postiz, WordPress, Novamira, n8n, Cloudflare)](#39-enterprise-tool-connectors)
    - [3.10 Notifications, Email & Web Push (SMTP & VAPID)](#310-notifications-email--web-push-smtp--vapid)
 4. [Database & Persistence Workflows](#4-database--persistence-workflows)
-5. [Development, Build & Verification Commands](#5-development-build--verification-commands)
-6. [Troubleshooting & Common Failure Modes](#6-troubleshooting--common-failure-modes)
+5. [OmniRoute Free Intelligence Gateway Deployment & Security Architecture](#5-omniroute-free-intelligence-gateway-deployment--security-architecture)
+6. [Development, Build & Verification Commands](#6-development-build--verification-commands)
+7. [Troubleshooting & Common Failure Modes](#7-troubleshooting--common-failure-modes)
+8. [Related Architecture & Governance Documents](#8-related-architecture--governance-documents)
 
 ---
 
@@ -171,17 +173,19 @@ These variables configure isolated execution environments where agent code, shel
 
 ---
 
-### 3.6 AI Runtime, LLM Gateway & Composio (Pi Runtime & OpenRouter)
+### 3.6 AI Runtime, LLM Gateway & Free Intelligence (Pi Runtime, OpenRouter & OmniRoute)
 
 | Variable Name | Type / Format | Default Value | Required? | Description & Context |
 |---|---|---|---|---|
 | `AGENT_RUNTIME` | `pi` \| `fake` | `pi` | Optional | Agent execution engine. Defaults to the sovereign Pi autonomous runtime. |
 | `WAKEUP_DRIVER` | `graphile` \| `memory` | `graphile` | Optional | Background job queue driver. `graphile` uses PostgreSQL jobs table; `memory` runs in-process. |
-| `OPENROUTER_API_KEY` | OpenRouter API Key (`sk-or-v1-*`) | `""` | Recommended | API key for OpenRouter LLM gateway, powering subagent inference, chat, and Level 2 prompt compilation. |
+| `OPENROUTER_API_KEY` | OpenRouter API Key (`sk-or-v1-*`) | `""` | Recommended | API key for OpenRouter LLM gateway, powering subagent inference, chat, and Level 2 prompt compilation for Premium bots. |
 | `OPENROUTER_BASE_URL` | Valid HTTP/S URL | `https://openrouter.ai/api/v1` | Optional | OpenRouter API endpoint. Can be redirected to an OpenAI-compatible proxy or LiteLLM gateway. |
 | `PI_DEFAULT_PROVIDER` | Provider identifier | `openrouter` | Optional | Default model provider for bot execution (`openrouter`, `openai`, `anthropic`, `local`). |
 | `PI_DEFAULT_MODEL` | Model identifier string | `openai/gpt-oss-120b` | Optional | Default foundation model ID assigned to newly created bots. |
 | `PI_MODEL_API_KEY` | API Key string | `""` | Optional | Direct API key override for runtime execution when bypassing OpenRouter. |
+| `OMNIROUTE_BASE_URL` | Valid HTTP/S URL | `http://omniroute:8080/v1` (Docker) / `http://127.0.0.1:8080/v1` (Local) | Optional | Base URL for sovereign OmniRoute free intelligence gateway. Accessible exclusively on internal networks by API and Worker. |
+| `OMNIROUTE_API_KEY` | Secret Token String | `""` (dev default: `sk-omniroute-local-key`) | **Required in Prod** | Shared bearer secret for authenticating API and Worker requests to the OmniRoute gateway container. |
 | `COMPOSIO_API_KEY` | Composio API Key | `""` | Optional | API key for Composio enterprise tooling and external OAuth action triggers. |
 
 ---
@@ -304,7 +308,136 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 ---
 
-## 5. Development, Build & Verification Commands
+## 5. OmniRoute Free Intelligence Gateway Deployment & Security Architecture
+
+Rakazo integrates **OmniRoute** as a sovereign, self-hosted, unprivileged free inference gateway microservice running alongside `@rakazo/api` and `@rakazo/worker`. This provides users with the option to deploy 100% free autonomous agents powered by open-weights models (such as `meta-llama/llama-3.3-70b-instruct:free`, `qwen/qwen-2.5-coder-32b-instruct:free`, `deepseek/deepseek-r1:free`, and `mistralai/mistral-small-24b-instruct:free`) without incurring API token costs.
+
+### 5.1 Architecture & Network Topology
+
+The OmniRoute service operates on a **defense-in-depth, zero-trust network isolation model**:
+
+```text
+                                  ┌───────────────────────────────┐
+                                  │      Internet / Ingress       │
+                                  └───────────────┬───────────────┘
+                                                  │ (HTTPS / 443)
+                                                  ▼
+                                      [ Caddy / Traefik Ingress ]
+                                      (Network: 'edge', 'app')
+                                                  │
+                        ┌─────────────────────────┴─────────────────────────┐
+                        ▼                                                   ▼
+                [ Web UI (Vite) ]                                   [ API Backend ]
+                (Port 5173 / edge)                                  (Port 3100 / app)
+                                                                            │
+                                    ┌───────────────────────────────────────┤
+                                    │ (Private Network: 'app', 'data')       │
+                                    ▼                                       ▼
+                         [ Background Worker ]                     [ PostgreSQL 16 ]
+                         (apps/worker / app, data)                 (Port 5432 / data)
+                                    │
+                                    │ (Internal HTTP / port 8080)
+                                    ▼
+                         [ OmniRoute Gateway ]
+                         (Port 8080 / app, data)
+                         • Non-Root (10001:10001)
+                         • NO edge network
+                         • NO public port binding
+                         • NO docker.sock
+```
+
+### 5.2 Multi-Stage Unprivileged Container Specification (`deploy/omniroute/Dockerfile`)
+
+The container build specification is designed according to least-privilege principles and zero-vulnerability container hardening:
+
+1. **Multi-Stage Build Pipeline**:
+   - **Stage 1 (`builder`)**: Uses `node:22-alpine` to parse manifests, build dependencies, and validate configuration integrity.
+   - **Stage 2 (`runtime`)**: Minimal Alpine runtime environment containing only Node.js, `curl` (for health probes), and `tini` (for signal propagation). Total image size is under 80 MB.
+2. **Non-Root Execution (`10001:10001`)**:
+   - Creates a dedicated unprivileged user and group `omniroute:omniroute` (UID 10001, GID 10001) with shell `/sbin/nologin`.
+   - All application files in `/app` are owned by `10001:10001` with strict read-only permissions (`0555` directory, `0444` files).
+3. **Linux Kernel Hardening**:
+   - `security_opt: ["no-new-privileges:true"]` prevents privilege escalation via `setuid`/`setgid` binaries.
+   - `cap_drop: ["ALL"]` strips all Linux capabilities from the container process table.
+   - Process limits (`pids_limit: 128`) and memory limits (`mem_limit: 512m`, `cpus: "0.5"`) prevent denial-of-service or memory exhaustion.
+
+### 5.3 Internal Network Isolation & Zero Public Exposure
+
+- **Private Networks Only**: OmniRoute is attached strictly to internal Docker networks `app` and `data`.
+- **Zero Edge Attachment**: OmniRoute is **NEVER** attached to the `edge` network or bound to host interfaces (`0.0.0.0:8080` is omitted from `ports:` mappings).
+- **Zero Traefik Ingress Labels**: No `traefik.http.routers.*` or `traefik.enable=true` labels are assigned to OmniRoute. It is completely invisible to public internet scanners and external DNS.
+- **Service Discovery**: Only `@rakazo/api` and `@rakazo/worker` can resolve `http://omniroute:8080/v1` over Docker's internal DNS resolver.
+
+### 5.4 Secret Management & Rotation Protocol (`OMNIROUTE_API_KEY`)
+
+The shared secret `OMNIROUTE_API_KEY` authenticates requests between Rakazo services and OmniRoute:
+
+1. **Storage Isolation**:
+   - Secrets are **never** committed to version control, embedded in Dockerfile instructions, or cached in image build layers.
+   - In production (`docker-compose.prod.yml`), `OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:?Set OMNIROUTE_API_KEY in .env}` enforces explicit secret declaration at container startup.
+2. **Zero-Downtime Secret Rotation Procedure**:
+   ```bash
+   # 1. Generate high-entropy replacement key (64 hex characters)
+   NEW_OMNIROUTE_KEY=$(openssl rand -hex 32)
+
+   # 2. Update .env file on the host
+   sed -i "s/^OMNIROUTE_API_KEY=.*/OMNIROUTE_API_KEY=${NEW_OMNIROUTE_KEY}/" .env
+
+   # 3. Reload OmniRoute and backend services gracefully
+   docker compose -f infra/compose/docker-compose.prod.yml up -d --no-deps omniroute api worker
+   ```
+
+### 5.5 Zero-Cost Invariants & Double Barrier Safety
+
+Rakazo enforces a strict **Double Barrier Safety Architecture** to prevent paid API token leakage:
+
+1. **Barrier 1 (Local Policy Engine - `@rakazo/adapters/src/free-policy-engine.ts`)**:
+   - Checks requested usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`) and maps them to approved free model tiers.
+   - Asserts cost == `$0.000000` prior to dispatch. Rejects commercial proxies, unapproved providers, and any model lacking the `:free` suffix.
+2. **Barrier 2 (Adapter Response Verification - `@rakazo/adapters/src/omniroute-adapter.ts`)**:
+   - Inspects response headers (`x-omniroute-cost`) and SSE stream chunks.
+   - If any positive cost (> `$0.000001`) or non-200 status code is detected, execution fails closed immediately with the sanitized message:
+     ```text
+     "Capacité gratuite temporairement indisponible"
+     ```
+   - **Never-Paid Fallback Guarantee**: Under no circumstances will a Free bot fall back to paid OpenRouter or GPT-4o models.
+
+### 5.6 VPS Coolify Non-Interference & Isolation Guarantees
+
+When deployed on a shared VPS alongside other Coolify applications:
+
+| Invariant | Implementation Mechanism | Guarantee |
+|---|---|---|
+| **No Container Name Collisions** | Project namespace `name: rakazo-prod` in Compose | All containers are prefixed `rakazo-prod_*`, avoiding name clashes with other Coolify stacks. |
+| **No Volume Overlaps** | Isolated named volumes (`pgdata`, `appdata`, `caddydata`) | Persistent storage is namespaced exclusively to Rakazo; zero volume pollution to existing services. |
+| **Zero Docker Socket Mount** | Omission of `/var/run/docker.sock` from OmniRoute spec | OmniRoute has no host filesystem or Docker daemon access, preventing container breakout or cross-app tampering. |
+| **No Ingress Port Conflicts** | Internal `expose: ["8080"]` without host port publishing | Does not occupy host ports `8080` or conflict with other applications bound to host interfaces. |
+
+### 5.7 Health Verification & Operational Runbook
+
+To verify that OmniRoute is operating normally in development or production:
+
+```bash
+# 1. Check container health status
+docker compose -f infra/compose/docker-compose.yml ps omniroute
+
+# 2. Query internal health check endpoint
+docker compose -f infra/compose/docker-compose.yml exec omniroute curl -f http://localhost:8080/health
+
+# 3. Verify models catalog with authorization header
+docker compose -f infra/compose/docker-compose.yml exec api curl -s -H "Authorization: Bearer sk-omniroute-local-key" http://omniroute:8080/v1/models
+
+# 4. Test a completion request through the gateway
+docker compose -f infra/compose/docker-compose.yml exec api curl -s \
+  -H "Authorization: Bearer sk-omniroute-local-key" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"meta-llama/llama-3.3-70b-instruct:free","messages":[{"role":"user","content":"Ping"}]}' \
+  http://omniroute:8080/v1/chat/completions
+```
+
+---
+
+## 6. Development, Build & Verification Commands
 
 ### Primary Monorepo Scripts
 
@@ -331,7 +464,7 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 ---
 
-## 6. Troubleshooting & Common Failure Modes
+## 7. Troubleshooting & Common Failure Modes
 
 ### 1. Database Connection Refused (`ECONNREFUSED 127.0.0.1:5433`)
 - **Symptom**: `PrismaClientInitializationError: Can't reach database server at 127.0.0.1:5433`.
@@ -353,17 +486,22 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
   export ENCRYPTION_KEY=$(openssl rand -hex 32)
   ```
 
-### 3. Out of Sync `pnpm-lock.yaml`
+### 3. OmniRoute Gateway Authentication Failure (`401 Unauthorized`)
+- **Symptom**: `Error: Capacité gratuite temporairement indisponible` when dispatching free agent tasks.
+- **Cause**: `OMNIROUTE_API_KEY` configured on the API/Worker does not match the key configured on the OmniRoute container.
+- **Remediation**: Reconcile `OMNIROUTE_API_KEY` across `.env` and restart containers (`docker compose up -d omniroute api worker`).
+
+### 4. Out of Sync `pnpm-lock.yaml`
 - **Symptom**: `ERR_PNPM_LOCKFILE_OUT_OF_DATE: Cannot install with "frozen-lockfile"`.
 - **Cause**: Dependencies in `package.json` were updated without updating the lockfile.
 - **Remediation**: Run `pnpm install --no-frozen-lockfile` to regenerate `pnpm-lock.yaml`.
 
-### 4. Sandbox Supervisor Docker Socket Permission Error
+### 5. Sandbox Supervisor Docker Socket Permission Error
 - **Symptom**: `permission denied while trying to connect to the Docker daemon socket at unix:///var/run/docker.sock`.
 - **Cause**: Current user lacks read/write permissions to Docker socket on Linux host.
 - **Remediation**: Add user to `docker` group (`sudo usermod -aG docker $USER`) or adjust permissions on `/var/run/docker.sock`.
 
-### 5. Memory Limit Exceeded During Vitest Run
+### 6. Memory Limit Exceeded During Vitest Run
 - **Symptom**: `FATAL ERROR: Ineffective mark-compacts near heap limit Allocation failed - JavaScript heap out of memory`.
 - **Cause**: Running 140+ test files simultaneously without memory constraints.
 - **Remediation**: Increase Node heap limit:
@@ -374,9 +512,10 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 ---
 
-## 7. Related Architecture & Governance Documents
+## 8. Related Architecture & Governance Documents
 
 - [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
 - [`docs/computer-runtime.md`](computer-runtime.md): Architecture of computer sandboxes, supervisor protocols, and screen leases.
 - [`docs/self-host.md`](self-host.md): Self-hosting guide for Coolify PaaS and multi-container Docker environments.
 - [`docs/performance.md`](performance.md): Latency, prefix caching, and token optimization benchmarks.
+

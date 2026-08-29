@@ -3,7 +3,7 @@
 > **Authoritative Specification & Operating Guide for Human Contributors and Autonomous AI Agents**  
 > **Repository**: `github.com/floteuil/rakazo` (branch `main`)  
 > **Monorepo Engine**: Turborepo 2 + pnpm 9 workspaces (19 packages)  
-> **Runtime**: Pi Autonomous Agent Runtime + Node.js 22  
+> **Runtime**: Pi Autonomous Agent Runtime + Free Intelligence Gateway (OmniRoute) + Node.js 22  
 
 ---
 
@@ -12,7 +12,7 @@
 Rakazo is a public, open-source sovereign autonomous AI agent platform. All contributors and autonomous agents operating in this repository must adhere to the **Zero-Secret Guarantee**:
 
 1. **Public Repository Assumption**: Every commit, branch, pull request, diff, and issue is considered public. Never commit real credentials, production connection strings, API tokens, customer identifiers, or private keys.
-2. **Deterministic Placeholders**: Always use designated development placeholders (e.g., `dev-secret-change-me-please-32chars`, `sk-or-v1-mock-key`) in tests and documentation.
+2. **Deterministic Placeholders**: Always use designated development placeholders (e.g., `dev-secret-change-me-please-32chars`, `sk-or-v1-mock-key`, `sk-omniroute-local-key`) in tests and documentation.
 3. **Pre-Commit Verification**: Always inspect `git status` and staged diffs before committing. Never force-add files ignored by `.gitignore` (such as `.env`, `data/`, `*.local`, `dist/`).
 4. **Immediate Alert Protocol**: If sensitive production data is accidentally committed or encountered, halt operations immediately and alert the repository maintainer.
 
@@ -25,10 +25,10 @@ Rakazo is a public, open-source sovereign autonomous AI agent platform. All cont
 │                           THE 6 CORE RAKAZO PILLARS                               │
 ├───────────────────────────────┬───────────────────────────────────────────────────┤
 │ 1. Additive & Non-Breaking    │ Monorepo integrity, isolated customization,       │
-│    Evolution                  │ zero destructive upstream modifications.          │
+│    Evolution                  │ dual-path inference, backward compatibility.      │
 ├───────────────────────────────┼───────────────────────────────────────────────────┤
-│ 2. Sovereign MCP Least        │ Read-only adapters, sandbox isolation, opt-in     │
-│    Privilege & Immutability   │ enterprise connectors, immutable compilation.     │
+│ 2. Sovereign MCP & Free       │ Read-only adapters, sandbox isolation, double     │
+│    Intelligence Double Barrier│ zero-cost barrier, fail-closed never-paid fallback│
 ├───────────────────────────────┼───────────────────────────────────────────────────┤
 │ 3. Strict Zero-Secret Masking │ Centralized regex redaction, sanitizeToolError,   │
 │    & Sanitization             │ runtime secret guards, dev vs prod separation.    │
@@ -51,33 +51,41 @@ Rakazo is a public, open-source sovereign autonomous AI agent platform. All cont
 To ensure seamless continuous synchronization with the upstream repository (`elie222/rakazo`), all Rakazo enhancements must strictly follow the **Additive Isolation Pattern**:
 
 - **Upstream Baseline Preservation**: Upstream files are treated as upstream baseline. Never modify core upstream logic destructively.
-- **Isolated Customization Directories**: All custom enterprise connectors, prompt compilers, prefix caching optimizers, and UI components reside in dedicated additive files and folders:
-  - Custom adapters and runtime services: `packages/adapters/src/` (e.g., `enterprise-tools.ts`, `prompt-compiler.ts`, `pi-runtime.ts`).
-  - Shared contracts and Zod schemas: `packages/contracts/src/` (e.g., `prompt-compiler.ts`, `mcp-catalog.ts`).
-  - Database schema & migrations: `packages/db/prisma/schema.prisma` and additive migrations in `packages/db/prisma/migrations/`.
+- **Isolated Customization Directories**: All custom enterprise connectors, prompt compilers, prefix caching optimizers, free intelligence gateways, and UI components reside in dedicated additive files and folders:
+  - Custom adapters and runtime services: `packages/adapters/src/` (e.g., `omniroute-adapter.ts`, `free-policy-engine.ts`, `enterprise-tools.ts`, `prompt-compiler.ts`, `pi-runtime.ts`).
+  - Shared contracts and Zod schemas: `packages/contracts/src/` (e.g., `domain.ts`, `prompt-compiler.ts`, `mcp-catalog.ts`).
+  - Database schema & migrations: `packages/db/prisma/schema.prisma` and additive migrations in `packages/db/prisma/migrations/` (e.g. `0015_free_intelligence_gateway/`).
   - Frontend extensions: `apps/web/src/pages/` and `packages/chat-ui/src/`.
+- **Dual-Path Inference Compatibility**:
+  - `BotInferenceConfig.mode` defaults to `"premium"`. Existing bots continue executing on `openai/gpt-oss-120b` via OpenRouter with zero configuration migration required.
+  - Adding `"free"` mode routes requests through `FreeOmniRouteAdapter` using open-weights models (`meta-llama`, `qwen`, `deepseek`, `mistralai`, `google`).
 - **Inter-Package Import Rules**: All cross-package imports must use standard workspace specifiers (`@rakazo/contracts`, `@rakazo/adapters`, `@rakazo/db`, `@rakazo/core`, etc.) governed by `pnpm-workspace.yaml`. Direct relative traversals across package boundaries (e.g., `../../packages/contracts/src/...`) are strictly forbidden.
 - **Forward-Compatible Schema Migrations**: All PostgreSQL database schema changes must be forward-compatible. Never drop or rename columns destructively in a single release.
 
 ---
 
-### Pillar 2: Sovereign MCP Least Privilege & Immutability
+### Pillar 2: Sovereign MCP Least Privilege & Free Intelligence Double Barrier
 
-Rakazo provides in-cluster, sovereign Model Context Protocol (MCP) tool adapters. Tool authorization and execution follow strict least-privilege principles:
+Rakazo provides in-cluster, sovereign Model Context Protocol (MCP) tool adapters and a **strictly free inference gateway** with absolute zero-cost enforcement:
 
 1. **Minimal Privilege by Default**:
    - Newly created bots are granted access **only** to essential search and extraction tools: `web_search` (SearXNG) and `web_scrape` (Scraperr).
    - Heavy enterprise integrations (GitHub, Notion, Postiz, WordPress, Novamira, n8n, Cloudflare, Composio) are strictly **opt-in** and must be explicitly configured per bot via `bot.metadata.mcp.tools[connectorId]`.
-2. **Prompt Compilation MCP Immutability Invariant**:
-   - The prompt compilation services (`compilePromptLevel1Deterministic` and Level 2 OpenRouter) are prompt formatters and optimizers.
-   - **Contract Invariant**: Prompt compilers must **NEVER** mutate, enable, inject, or alter MCP tool configurations, permissions, or bot metadata.
-   - Enforced programmatically via `verifyMcpImmutabilityAtContractLevel` in `@rakazo/contracts`.
-3. **Subagent Delegation Invariants**:
+2. **Double Barrier Zero-Cost Architecture ($0.0000)**:
+   - **Barrier 1 (Local Policy Engine - `RakazoFreePolicyEngine`)**: Pre-dispatch check enforcing approved provider allowlist (`meta-llama`, `mistralai`, `qwen`, `deepseek`, `google`), model `:free` suffix, and price verification ($0.000000). Commercial or positive-cost routes are rejected immediately.
+   - **Barrier 2 (Adapter Response Verification - `FreeOmniRouteAdapter`)**: Real-time inspection of HTTP response headers (`x-omniroute-cost`) and streaming SSE chunks. If cost > $0.00 is detected, the stream is aborted immediately.
+3. **Strict Fail-Closed (Never-Paid Fallback)**:
+   - If free capacity is exhausted, rate-limited, or unavailable, execution terminates with the sanitized message `"Capacité gratuite temporairement indisponible"`.
+   - Free bots **NEVER** fall back to paid OpenRouter or commercial routes under any circumstances.
+4. **Subagent Confinement & Inference Mode Inheritance**:
+   - Subagents inherit the parent bot's inference mode (`parent === "free"` → `subagent === "free"`). Privilege escalation attempts to `"premium"` are vetoed.
    - Subagent nesting is strictly capped at **Depth 1** (`host.depth <= 1`). Subagents cannot spawn further subagents.
-   - Delegation tools (`run_subagent`, `delegate_task`) are strictly filtered out (`!DELEGATION_TOOL_NAMES.has(tool.name)`) from child bot tool catalogs.
-   - Subagent prompt tokens are capped at 8,192 tokens.
-4. **Sandbox & Tool Isolation**:
-   - Tool execution runs in isolated containers supervised by `@rakazo/sandbox-supervisor` with execution timeouts (`SANDBOX_COMMAND_TIMEOUT_MS`) and idle reap intervals (`SANDBOX_IDLE_MS`).
+   - Delegation tools (`run_subagent`, `spawn_bot`, `archive_bot`, `delete_bot`) are stripped from child tool catalogs.
+   - Subagent prompt tokens are capped at **8,192 tokens**.
+   - Anti-loop circuit breaker terminates turns after 3 redundant consecutive tool calls or 25 tool iteration steps.
+5. **Prompt Compilation MCP Immutability Invariant**:
+   - Prompt compilers (`compilePromptLevel1Deterministic` and Level 2 OpenRouter) are formatters and optimizers. They are strictly prohibited from mutating, adding, or removing MCP tool configurations.
+   - Enforced programmatically via `verifyMcpImmutabilityAtContractLevel` in `@rakazo/contracts`.
 
 ---
 
@@ -94,6 +102,7 @@ To protect users against accidental token leaks in logs, telemetry, or user inte
    - n8n API Keys: `n8n_api_[a-zA-Z0-9_]+` → `n8n_api_[redacted]`.
    - Cloudflare Tokens: `cf_token_[a-zA-Z0-9_-]+` → `cf_token_[redacted]`, `cfat_[a-zA-Z0-9_-]+` → `cfat_[redacted]`.
    - OpenRouter / Anthropic / OpenAI Keys: `sk-or-*`, `sk-ant-*`, `sk-*` → `sk-[redacted]`.
+   - OmniRoute Gateway Keys: `sk-omniroute-*` → `sk-[redacted]`.
    - Database Connection Strings: `postgres(ql)?://user:password@host` → `postgres://user:[redacted]@host`.
    - Authorization Headers: `Bearer [token]`, `Basic [token]` → `Bearer [redacted]`, `Basic [redacted]`.
 2. **Runtime Secrets Guard (`@rakazo/core/secrets-guard.ts`)**:
@@ -107,28 +116,28 @@ To protect users against accidental token leaks in logs, telemetry, or user inte
 The Rakazo repository is structured into 19 discrete packages orchestrated by **Turborepo 2** and **pnpm workspaces**:
 
 ```
-                               ┌───────────────────────────┐
-                               │       rakazo (root)       │
-                               └─────────────┬─────────────┘
-                                             │
-             ┌───────────────────────────────┴──────────────────────────────┐
-             │                                                              │
-    ┌────────▼────────┐                                            ┌────────▼────────┐
-    │  APPLICATIONS   │                                            │ SHARED PACKAGES │
-    ├─────────────────┤                                            ├─────────────────┤
-    │ apps/api        │ (Fastify/Hono Backend REST & RPC)          │ @rakazo/adapter-kit
-    │ apps/desktop    │ (Electron Desktop App)                     │ @rakazo/adapters│
-    │ apps/mobile     │ (React Native / Expo Mobile App)           │ @rakazo/auth    │
-    │ apps/web        │ (React 18 + Tailwind v4 Web App)           │ @rakazo/chat-ui │
-    │ apps/worker     │ (BullMQ Background Worker & Scheduler)     │ @rakazo/contracts
-    │ apps/www        │ (Astro Marketing & Docs Portal)            │ @rakazo/core    │
-    └─────────────────┘                                            │ @rakazo/db      │
-             │                                                     │ @rakazo/memory  │
-             │                   ┌───────────────────────────┐     │ @rakazo/testkit │
-             └──────────────────►│       INFRASTRUCTURE      │◄────│ @rakazo/ui-tokens
-                                 ├───────────────────────────┤     │ @rakazo/ui-web  │
-                                 │ infra/sandboxes/supervisor│     └─────────────────┘
-                                 └───────────────────────────┘
+                                ┌───────────────────────────┐
+                                │       rakazo (root)       │
+                                └─────────────┬─────────────┘
+                                              │
+              ┌───────────────────────────────┴──────────────────────────────┐
+              │                                                              │
+     ┌────────▼────────┐                                            ┌────────▼────────┐
+     │  APPLICATIONS   │                                            │ SHARED PACKAGES │
+     ├─────────────────┤                                            ├─────────────────┤
+     │ apps/api        │ (Fastify/Hono Backend REST & RPC)          │ @rakazo/adapter-kit
+     │ apps/desktop    │ (Electron Desktop App)                     │ @rakazo/adapters│
+     │ apps/mobile     │ (React Native / Expo Mobile App)           │ @rakazo/auth    │
+     │ apps/web        │ (React 18 + Tailwind v4 Web App)           │ @rakazo/chat-ui │
+     │ apps/worker     │ (BullMQ Background Worker & Scheduler)     │ @rakazo/contracts
+     │ apps/www        │ (Astro Marketing & Docs Portal)            │ @rakazo/core    │
+     └─────────────────┘                                            │ @rakazo/db      │
+              │                                                     │ @rakazo/memory  │
+              │                   ┌───────────────────────────┐     │ @rakazo/testkit │
+              └──────────────────►│       INFRASTRUCTURE      │◄────│ @rakazo/ui-tokens
+                                  ├───────────────────────────┤     │ @rakazo/ui-web  │
+                                  │ infra/sandboxes/supervisor│     └─────────────────┘
+                                  └───────────────────────────┘
 ```
 
 #### Monorepo Directory & Role Registry
@@ -139,16 +148,16 @@ The Rakazo repository is structured into 19 discrete packages orchestrated by **
 | 2 | `@rakazo/api` | `apps/api` | Fastify & Hono HTTP backend, tRPC endpoints, auth routes, SSE message streaming. |
 | 3 | `@rakazo/desktop` | `apps/desktop` | Electron desktop wrapper hosting the web UI with native window controls. |
 | 4 | `@rakazo/mobile` | `apps/mobile` | React Native & Expo cross-platform iOS/Android mobile client. |
-| 5 | `@rakazo/web` | `apps/web` | Primary React 18 Web UI, chat threads, prompt compiler dialogs, responsive drawer. |
+| 5 | `@rakazo/web` | `apps/web` | Primary React 18 Web UI, chat threads, intelligence selectors, tag chips, responsive drawer. |
 | 6 | `@rakazo/worker` | `apps/worker` | Background task worker, Graphile / BullMQ job runner, routine scheduler. |
 | 7 | `@rakazo/www` | `apps/www` | Astro-powered public landing page, technical documentation, and release notes. |
 | 8 | `@rakazo/adapter-kit` | `packages/adapter-kit` | Abstract interfaces for agent adapters, sandbox providers, and storage stores. |
-| 9 | `@rakazo/adapters` | `packages/adapters` | Pi runtime, prompt compilers (L1 & L2), sovereign MCP connectors (GitHub, Notion, etc.). |
+| 9 | `@rakazo/adapters` | `packages/adapters` | `FreeOmniRouteAdapter`, `RakazoFreePolicyEngine`, Pi runtime, prompt compilers (L1 & L2), 4-block cache assembler, sovereign MCP connectors. |
 | 10 | `@rakazo/auth` | `packages/auth` | BetterAuth authentication integration, session tokens, user verification. |
 | 11 | `@rakazo/chat-ui` | `packages/chat-ui` | Markdown renderers, streaming message blocks, agent status badges, copy tools. |
-| 12 | `@rakazo/contracts` | `packages/contracts` | Canonical Zod schemas, TypeScript types, RPC interfaces, MCP tool catalogs. |
+| 12 | `@rakazo/contracts` | `packages/contracts` | Canonical Zod schemas (`InferenceModeSchema`, `BotInferenceConfigSchema`), TypeScript types, RPC interfaces, MCP tool catalogs. |
 | 13 | `@rakazo/core` | `packages/core` | Domain business logic, secrets guards, cron parsers, audio/speech processing. |
-| 14 | `@rakazo/db` | `packages/db` | Prisma 7 ORM client, database migrations, SQL telemetry models (`PromptExecutionLog`). |
+| 14 | `@rakazo/db` | `packages/db` | Prisma 7 ORM client, database migrations (`0015_free_intelligence_gateway`), SQL telemetry models (`PromptExecutionLog`). |
 | 15 | `@rakazo/memory` | `packages/memory` | Supermemory client, vector indexing, working memory retrieval, and document store. |
 | 16 | `@rakazo/testkit` | `packages/testkit` | E2E test harness, Testcontainers PostgreSQL, Playwright helpers, mock factories. |
 | 17 | `@rakazo/ui-tokens` | `packages/ui-tokens` | Design tokens, color palettes, spacing primitives, CSS variable bindings. |
@@ -171,7 +180,7 @@ When a bot is archived or deleted (implemented in `destroyBot` / `child-bots.ts`
    - Utilizing PostgreSQL relational integrity and Prisma `onDelete: Cascade` constraints in `schema.prisma`:
      - All related `threads`, `messages`, `events`, `tasks`, `runs`, `attempts`, and `external_effects` are deleted automatically.
      - Scheduled `routines`, `taught_skills`, `bot_skills`, `agent_homes`, `browser_profiles`, `artifacts`, and `computer_execution_leases` are purged.
-     - Telemetry records (`PromptExecutionLog`, `usage_records`) are disassociated via `onDelete: SetNull` or purged to preserve aggregate billing without orphaned references.
+     - Telemetry records (`PromptExecutionLog` containing `inference_mode`, `is_free`, `requested_category`) are disassociated via `onDelete: SetNull` or purged to preserve aggregate analytics without orphaned references.
      - An immutable audit row is recorded in `bot_deletions` storing `deletedByUserId`, `workspaceId`, and `memoriesPreserved` flag.
      - If memory preservation is requested (`!options.deleteMemories`), memory documents are retargeted to user scope under `Archived bots/<botName> (<botId>)`.
 2. **Phase 2: Physical Storage & Sandbox Container Teardown**:
@@ -195,7 +204,8 @@ Quality is enforced through automated static analysis, type checking, test execu
 | Action | Command | Gate Requirement |
 |---|---|---|
 | **Type Check All Packages** | `pnpm check`<br>`pnpm exec turbo check --force` | **0 errors, 0 warnings** across all 19 packages. |
-| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** across all unit and integration suites. |
+| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** ($\ge 1\,764$ tests; currently **2 107 passing**). |
+| **OmniRoute 5-Tier E2E Suite** | `pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts packages/adapters/src/free-policy-engine.test.ts packages/adapters/src/subagent-inheritance.test.ts apps/web/src/pages/e2e-omniroute-ui.test.tsx test/e2e/omniroute-adversarial.test.ts` | **100% pass rate (144/144 tests)**. |
 | **Prisma Client Generation** | `pnpm db:generate` | Prisma client generated in `packages/db/src/generated/prisma`. |
 | **Database Migrations** | `pnpm db:migrate` | Migrations applied cleanly to target PostgreSQL database. |
 | **Linting & Code Style** | `pnpm lint` | Biome static analysis with 0 errors. |
@@ -220,8 +230,11 @@ Quality is enforced through automated static analysis, type checking, test execu
 
 ## 3. Reference Documentation & Guides
 
-For deeper implementation details, consult the canonical documentation in `docs/`:
-- [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md): Comprehensive 52+ environment variable catalog and developer onboarding guide.
+For deeper implementation details, consult the canonical documentation in the root and `docs/`:
+- [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master architectural specification & platform blueprint.
+- [`RAKAZO_ARCHITECT_HANDOFF_FREE_INTELLIGENCE_GATEWAY.md`](RAKAZO_ARCHITECT_HANDOFF_FREE_INTELLIGENCE_GATEWAY.md): Architectural handoff for Free Intelligence Gateway (OmniRoute).
+- [`TEST_READY.md`](TEST_READY.md): 5-tier test matrix and E2E verification evidence.
+- [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md): Comprehensive 54+ environment variable catalog and developer onboarding guide.
 - [`docs/computer-runtime.md`](docs/computer-runtime.md): Architecture of computer sandboxes, supervisor protocols, and screen leases.
 - [`docs/self-host.md`](docs/self-host.md): Guide for production self-hosting with Docker Compose and Coolify PaaS.
 - [`docs/performance.md`](docs/performance.md): Latency, prefix caching, and token optimization benchmarks.

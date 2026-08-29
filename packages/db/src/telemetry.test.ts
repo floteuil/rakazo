@@ -46,8 +46,106 @@ describe("Prompt Execution Telemetry", () => {
           cacheHitRatio: 0.8,
           durationMs: 420,
           costEstimatedUsd: 0.0012,
+          inferenceMode: null,
+          requestedCategory: null,
+          resolvedProvider: null,
+          resolvedModel: null,
+          isFree: false,
         },
       });
+    });
+
+    it("persists Free Intelligence Gateway telemetry fields accurately", () => {
+      const create = vi.fn().mockResolvedValue({ id: "log-free-1" });
+      const prisma = {
+        promptExecutionLog: { create },
+      } as unknown as PrismaClient;
+
+      const input: PromptExecutionLogInput = {
+        botId: "bot-free-777",
+        executionId: "exec-omni-999",
+        provider: "omniroute",
+        model: "qwen/qwen-2.5-coder-32b-instruct:free",
+        levelUsed: "level2_llm",
+        promptTokens: 800,
+        completionTokens: 250,
+        cachedTokens: 600,
+        cacheHitRatio: 0.75,
+        durationMs: 310,
+        costEstimatedUsd: 0,
+        inferenceMode: "free",
+        requestedCategory: "coding",
+        resolvedProvider: "omniroute",
+        resolvedModel: "qwen/qwen-2.5-coder-32b-instruct:free",
+        isFree: true,
+      };
+
+      recordPromptExecutionLogAsync(prisma, input);
+
+      expect(create).toHaveBeenCalledWith({
+        data: {
+          botId: "bot-free-777",
+          executionId: "exec-omni-999",
+          provider: "omniroute",
+          model: "qwen/qwen-2.5-coder-32b-instruct:free",
+          levelUsed: "level2_llm",
+          promptTokens: 800,
+          completionTokens: 250,
+          cachedTokens: 600,
+          cacheHitRatio: 0.75,
+          durationMs: 310,
+          costEstimatedUsd: 0,
+          inferenceMode: "free",
+          requestedCategory: "coding",
+          resolvedProvider: "omniroute",
+          resolvedModel: "qwen/qwen-2.5-coder-32b-instruct:free",
+          isFree: true,
+        },
+      });
+    });
+
+    it("infers isFree=true when inferenceMode='free' is provided without explicit isFree", () => {
+      const create = vi.fn().mockResolvedValue({ id: "log-free-2" });
+      const prisma = {
+        promptExecutionLog: { create },
+      } as unknown as PrismaClient;
+
+      recordPromptExecutionLogAsync(prisma, {
+        levelUsed: "level2_llm",
+        inferenceMode: "free",
+        requestedCategory: "reasoning",
+      });
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            inferenceMode: "free",
+            requestedCategory: "reasoning",
+            isFree: true,
+          }),
+        }),
+      );
+    });
+
+    it("infers inferenceMode='free' when isFree=true is provided without explicit inferenceMode", () => {
+      const create = vi.fn().mockResolvedValue({ id: "log-free-3" });
+      const prisma = {
+        promptExecutionLog: { create },
+      } as unknown as PrismaClient;
+
+      recordPromptExecutionLogAsync(prisma, {
+        levelUsed: "level2_llm",
+        isFree: true,
+      });
+
+      expect(create).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            inferenceMode: "free",
+            isFree: true,
+          }),
+        }),
+      );
     });
 
     it("applies defaults, clamping, and null fallbacks for missing/negative values", () => {
@@ -80,6 +178,11 @@ describe("Prompt Execution Telemetry", () => {
           cacheHitRatio: 1,
           durationMs: 0,
           costEstimatedUsd: null,
+          inferenceMode: null,
+          requestedCategory: null,
+          resolvedProvider: null,
+          resolvedModel: null,
+          isFree: false,
         },
       });
     });
@@ -125,6 +228,8 @@ describe("Prompt Execution Telemetry", () => {
       const results = await listPromptExecutionLogs(prisma, {
         botId: "bot-1",
         model: "gpt-oss-120b",
+        inferenceMode: "free",
+        isFree: true,
         limit: 10,
       });
 
@@ -132,6 +237,8 @@ describe("Prompt Execution Telemetry", () => {
         where: {
           botId: "bot-1",
           model: "gpt-oss-120b",
+          inferenceMode: "free",
+          isFree: true,
         },
         orderBy: { createdAt: "desc" },
         take: 10,
