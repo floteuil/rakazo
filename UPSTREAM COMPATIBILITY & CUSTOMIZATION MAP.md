@@ -58,8 +58,14 @@ Pour assurer une coexistence harmonieuse et pérenne avec les développements co
 | **@rakazo/adapters** | `src/executor.ts` | **MODIFICATION MINEURE** | Réordonnancement du prompt système en 4 blocs (Bloc A invariant -> Bloc B persona/skills -> Bloc C historique -> Bloc D tour courant) | Non-destructif |
 | **@rakazo/adapters** | `src/pi-runtime.ts` | **MODIFICATION MINEURE** | Extraction de `cached_tokens`, calcul de `cacheHitRatio` dans les événements de télémétrie de consommation de tokens | Non-destructif |
 | **@rakazo/adapters** | `src/index.ts` | **MODIFICATION MINEURE** | Re-exports de `prompt-compiler.js` et `prefix-caching.js` | 100% Additif |
+| **@rakazo/contracts** | `src/domain.ts` | **MODIFICATION MINEURE** | Ajout de `inferenceMode` (`premium`/`free`) et `usageTags` à `BotInferenceConfigSchema` | 100% Additif |
+| **@rakazo/adapters** | `src/omniroute-adapter.ts` | **NOUVEAU FICHIER** | Client souverain `FreeOmniRouteAdapter` avec streaming SSE, normalisation des tool calls et timeout | 100% Additif |
+| **@rakazo/adapters** | `src/free-policy-engine.ts` | **NOUVEAU FICHIER** | Moteur de double barrière zéro-coût `RakazoFreePolicyEngine` (rejet des routes payantes et des providers à risque) | 100% Additif |
+| **@rakazo/adapters** | `src/subagent-inheritance.ts` | **NOUVEAU FICHIER** | Module d'héritage strict du mode d'inférence pour les sous-agents | 100% Additif |
+| **@rakazo/db** | `prisma/migrations/0015_free_intelligence_gateway/` | **NOUVEAU FICHIER** | Migration SQL additive pour l'historisation de l'inférence gratuite dans `PromptExecutionLog` | 100% Additif |
+| **deploy/omniroute** | `Dockerfile`, `server.js` | **NOUVEAU DOSSIER** | Déploiement conteneurisé autonome du service proxy OmniRoute sur réseau Docker privé | 100% Additif |
 | **apps/web** | `src/pages/PromptCompilerModal.tsx` | **NOUVEAU FICHIER** | Composant modal de prévisualisation de diff, édition manuelle, double-lock de soumission, badge de télémétrie et rollback de brouillon | 100% Additif |
-| **apps/web** | `src/pages/Shell.tsx` | **MODIFICATION MINEURE** | Injection du bouton « Rendre professionnelles » dans `CreateBotForm` et `BotSettings` | Point d'injection propre |
+| **apps/web** | `src/pages/Shell.tsx` | **MODIFICATION MINEURE** | Sélecteur d'intelligence (Premium / Gratuit) et tags d'usage dans `CreateBotForm` et `BotSettings` | Point d'injection propre |
 | **apps/web** | `src/styles.css` / Tailwind | **MODIFICATION MINEURE** | Classes ergonomiques responsives (`max-w-[98%]`, safe-area insets `env(safe-area-inset-bottom)`, cibles tactiles ≥ 44px) | Rétrocompatible |
 | **apps/api** | `src/routes/prompts.ts` | **NOUVEAU FICHIER** | Procédure oRPC `prompts.compile` reliant le frontend au `PromptCompilerService` | 100% Additif |
 | **packages/testkit** | `src/e2e-master-suite.ts` | **NOUVEAU FICHIER** | Suite de tests E2E opaque-box (150 tests couvrant Tiers 1-4) | 100% Additif |

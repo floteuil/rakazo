@@ -13,14 +13,16 @@ Rakazo is in beta. Learn more at [rakazo.com](https://rakazo.com).
 
 ## Features
 
-- Persistent bots with their own conversations, memory, routines, and history
-- Voice mode: speak replies, dictate, and call a bot. Bring your own ElevenLabs, OpenAI, or Cartesia key
-- Shared Team Computers and isolated Private computers
-- Browser, terminal, file, and graphical desktop access
-- Bots that can delegate to peer bots or short-lived subagents
-- Bring-your-own model credentials through Pi
-- Optional app integrations through Composio
-- Docker, E2B, Daytona, and trusted local-computer support
+- **Dual-Track Inference Gateway**:
+  - **Premium Track**: `gpt-oss-120b` via OpenRouter with 4-block KV prefix caching optimization.
+  - **Free Track (OmniRoute Gateway)**: Strict-free inference with dynamic model selection by usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`), fail-closed safety, and zero-cost guarantee.
+- **Prompt Compiler (« Rendre professionnelles »)**: Two-level prompt optimization (deterministic Level 1 + LLM Level 2) with instant rollback and strict MCP immutability.
+- **Persistent Sovereign Bots**: Bots with their own conversations, memory, routines, and history.
+- **Sovereign In-Cluster MCP Adapters**: First-party isolated connectors for GitHub, Notion, WordPress, Postiz, Novamira, SearXNG, and Cloudflare.
+- **Bounded Autonomous Subagents**: Isolated execution with Level 1 compilation, depth = 1 strict ceiling, 8,192 token budgets, and anti-loop circuit breakers.
+- **Voice Mode**: Speak replies, dictate, and call a bot (ElevenLabs, OpenAI, Cartesia).
+- **Shared Team Computers & Private Sandboxes**: Browser, terminal, file, and desktop access (Docker, E2B, Daytona).
+- **Full-Stack Multi-Device WebUI**: Responsive mobile-first design (320px to 1440px+), safe area support, and touch-first interactions.
 
 ## Demo
 
@@ -118,10 +120,15 @@ pnpm test:canary       # live OpenRouter / E2B / Box canaries
 COMPUTER_E2E_MODEL=<vision-capable-openrouter-model-id> pnpm test:computer
 ```
 
-- [Self-hosting](./docs/self-host.md)
-- [Computer runtime and isolation](./docs/computer-runtime.md)
-- [Mobile releases](./docs/mobile-release.md)
-- [Performance testing](./docs/performance.md)
+- [Architecture Master Blueprint](./RAKAZO_MASTER_BLUEPRINT_CURRENT.md)
+- [Architect Handoff Guide — Free Intelligence Gateway](./RAKAZO_ARCHITECT_HANDOFF_FREE_INTELLIGENCE_GATEWAY.md)
+- [Autonomous Agent Operating Constitution (AGENTS.md)](./AGENTS.md)
+- [Environment Setup & Variables Taxonomy (52+ Variables)](./docs/ENVIRONMENT_SETUP.md)
+- [Upstream Compatibility & Customization Map](./UPSTREAM%20COMPATIBILITY%20%26%20CUSTOMIZATION%20MAP.md)
+- [Self-hosting Guide](./docs/self-host.md)
+- [Computer Runtime and Isolation](./docs/computer-runtime.md)
+- [Mobile Releases](./docs/mobile-release.md)
+- [Performance Testing](./docs/performance.md)
 
 ## Contributing
 
