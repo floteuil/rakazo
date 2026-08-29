@@ -184,8 +184,8 @@ These variables configure isolated execution environments where agent code, shel
 | `PI_DEFAULT_PROVIDER` | Provider identifier | `openrouter` | Optional | Default model provider for bot execution (`openrouter`, `openai`, `anthropic`, `local`). |
 | `PI_DEFAULT_MODEL` | Model identifier string | `openai/gpt-oss-120b` | Optional | Default foundation model ID assigned to newly created bots. |
 | `PI_MODEL_API_KEY` | API Key string | `""` | Optional | Direct API key override for runtime execution when bypassing OpenRouter. |
-| `OMNIROUTE_BASE_URL` | Valid HTTP/S URL | `http://omniroute:8080/v1` (Docker) / `http://127.0.0.1:8080/v1` (Local) | Optional | Base URL for sovereign OmniRoute free intelligence gateway. Accessible exclusively on internal networks by API and Worker. |
-| `OMNIROUTE_API_KEY` | Secret Token String | `""` (dev default: `sk-omniroute-local-key`) | **Required in Prod** | Shared bearer secret for authenticating API and Worker requests to the OmniRoute gateway container. |
+| `OMNIROUTE_BASE_URL` | Valid HTTP/S URL | `https://omniroute.workspacegroupefloteuil.eu/v1` (Coolify Prod) / `http://127.0.0.1:8080/v1` (Local) | Optional | Base URL for sovereign OmniRoute free intelligence gateway. Accessible exclusively on internal networks or authenticated HTTPS endpoints by API and Worker. |
+| `OMNIROUTE_API_KEY` | Secret Token String | `""` (dev default: `sk-omniroute-local-key`) | **Required in Prod** | Shared bearer secret (`Authorization: Bearer <token>`) for authenticating API and Worker requests to the OmniRoute gateway container. |
 | `COMPOSIO_API_KEY` | Composio API Key | `""` | Optional | API key for Composio enterprise tooling and external OAuth action triggers. |
 
 ---
@@ -312,38 +312,45 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 Rakazo integrates **OmniRoute** as a sovereign, self-hosted, unprivileged free inference gateway microservice running alongside `@rakazo/api` and `@rakazo/worker`. This provides users with the option to deploy 100% free autonomous agents powered by open-weights models (such as `meta-llama/llama-3.3-70b-instruct:free`, `qwen/qwen-2.5-coder-32b-instruct:free`, `deepseek/deepseek-r1:free`, and `mistralai/mistral-small-24b-instruct:free`) without incurring API token costs.
 
-### 5.1 Architecture & Network Topology
+> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md).
 
-The OmniRoute service operates on a **defense-in-depth, zero-trust network isolation model**:
+### 5.1 Architecture & Network Topologies
 
+OmniRoute supports two deployment topologies:
+
+#### A. Production Coolify PaaS Topology
+- **Host**: VPS `62.164.214.145` (Contabo, Ubuntu 22.04 LTS)
+- **Coolify Application**: App 21 (`qmusbfbjcz0ohip348rv8fgc`)
+- **Public Domain**: `https://omniroute.workspacegroupefloteuil.eu` (Traefik v3.6 reverse proxy with Let's Encrypt TLS)
+- **Internal Port**: `20128`
+- **Persistent Volume**: `/app/data` (`qmusbfbjcz0ohip348rv8fgc_data`)
+- **Integration**: Rakazo connects via `OMNIROUTE_BASE_URL=https://omniroute.workspacegroupefloteuil.eu/v1` and Bearer token `OMNIROUTE_API_KEY`.
+
+#### B. Local Docker Compose Topology
 ```text
                                   ┌───────────────────────────────┐
-                                  │      Internet / Ingress       │
+                                  │      Local Development        │
                                   └───────────────┬───────────────┘
-                                                  │ (HTTPS / 443)
-                                                  ▼
-                                      [ Caddy / Traefik Ingress ]
-                                      (Network: 'edge', 'app')
                                                   │
-                        ┌─────────────────────────┴─────────────────────────┐
-                        ▼                                                   ▼
-                [ Web UI (Vite) ]                                   [ API Backend ]
-                (Port 5173 / edge)                                  (Port 3100 / app)
+                         ┌────────────────────────┴─────────────────────────┐
+                         ▼                                                  ▼
+                 [ Web UI (Vite) ]                                  [ API Backend ]
+                 (Port 5173)                                        (Port 3100)
                                                                             │
-                                    ┌───────────────────────────────────────┤
-                                    │ (Private Network: 'app', 'data')       │
-                                    ▼                                       ▼
-                         [ Background Worker ]                     [ PostgreSQL 16 ]
-                         (apps/worker / app, data)                 (Port 5432 / data)
-                                    │
-                                    │ (Internal HTTP / port 8080)
-                                    ▼
-                         [ OmniRoute Gateway ]
-                         (Port 8080 / app, data)
-                         • Non-Root (10001:10001)
-                         • NO edge network
-                         • NO public port binding
-                         • NO docker.sock
+                                     ┌──────────────────────────────────────┤
+                                     │ (Private Network: 'app', 'data')       │
+                                     ▼                                      ▼
+                          [ Background Worker ]                    [ PostgreSQL 16 ]
+                          (apps/worker)                            (Port 5432 / data)
+                                     │
+                                     │ (Internal HTTP / port 8080)
+                                     ▼
+                          [ OmniRoute Gateway ]
+                          (Port 8080 / app, data)
+                          • Non-Root (10001:10001)
+                          • NO edge network
+                          • NO public port binding
+                          • NO docker.sock
 ```
 
 ### 5.2 Multi-Stage Unprivileged Container Specification (`deploy/omniroute/Dockerfile`)
@@ -515,6 +522,9 @@ docker compose -f infra/compose/docker-compose.yml exec api curl -s \
 ## 8. Related Architecture & Governance Documents
 
 - [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
+- [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](../RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master platform architectural specification.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md): Architectural handoff for OmniRoute Coolify deployment (Milestones M1–M5).
+- [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md): Authoritative Coolify PaaS production runbook for OmniRoute.
 - [`docs/computer-runtime.md`](computer-runtime.md): Architecture of computer sandboxes, supervisor protocols, and screen leases.
 - [`docs/self-host.md`](self-host.md): Self-hosting guide for Coolify PaaS and multi-container Docker environments.
 - [`docs/performance.md`](performance.md): Latency, prefix caching, and token optimization benchmarks.

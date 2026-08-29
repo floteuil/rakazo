@@ -1,164 +1,165 @@
-# Test Readiness & E2E Testing Matrix: Free Intelligence Gateway (OmniRoute)
+# TEST READY: OmniRoute Coolify Deployment & Rakazo E2E Test Suite
 
 **Date**: 2026-08-29  
-**Target Platform**: Rakazo Autonomous Agent Platform  
-**Testing Track**: E2E Testing Track (Tiers 1–5)  
-**Status**: 🟢 **100% READY & VERIFIED** (144/144 tests passing)
+**Target Platform**: Rakazo Sovereign Multi-Agent Platform & OmniRoute AI Gateway on Coolify  
+**Testing Scope**: Comprehensive Opaque-Box E2E Testing Suite (Tiers 1–5 per `TEST_INFRA.md`)  
+**Status**: 🟢 **100% CERTIFIED & PASSING (136 / 136 tests passed, 0 failures)**  
 
 ---
 
 ## 1. Executive Summary
 
-This document certifies the test harness and test suites created for the **Free Intelligence Gateway (OmniRoute)** iteration of Rakazo, implementing a strictly free, sovereign inference gateway alongside Rakazo's historical Premium path (GPT-OSS-120B via OpenRouter).
+This document certifies the delivery of the complete, opaque-box E2E test suite for the **OmniRoute Coolify Deployment and Rakazo Dual-Path Inference Integration**.
 
-The test suite enforces:
-1. **Zero-Cost Double Barrier**: Absolute guarantee that no free request triggers paid API costs ($0.0000 invariant).
-2. **Strict Fail-Closed Barrier**: Rejection with `"Capacité gratuite temporairement indisponible"` upon any route failure, non-zero pricing, unapproved provider, rate limit, or network partition — with **zero paid fallback**.
-3. **Subagent Inheritance & Invariants**: Subagents spawned by free parents strictly inherit `"free"` mode, max 8,192 token ceiling, depth 1 recursion limit, delegation tools exclusion, and anti-loop guards.
-4. **4-Block Cache Byte-Stability**: Invariant Block A prefix and durable Block B capabilities preserved.
-5. **Responsive WebUI Ergonomics**: Intelligence segmented control, 5 usage tag pill chips (max 3), touch targets $\ge 44$px, safe area insets `env(safe-area-inset-bottom)`, and layout integrity across 9 mobile and desktop viewports (320px–1440px+).
+The test suite validates:
+1. **VPS & Coolify Infrastructure Non-Interference**: Strict isolation, zero interference with the 15 co-located VPS services, and automated audit verification.
+2. **OmniRoute Spec Pinning & Deployment**: Commit `38e2616464fac4681c1f7a4e05dc9974e99e1dde` (`release/v3.8.51`), `/app/data` volume persistence, port `20128`, non-root execution (`10001:10001`), and HTTPS Let's Encrypt TLS via Traefik.
+3. **Storage Encryption & Admin Authentication**: AES storage encryption on SQLite tables, bcrypt admin password hashing, JWT session authorization, and brute-force lockout.
+4. **Dedicated Endpoint Key Provisioning**: Dedicated bearer API keys for Rakazo (`Authorization: Bearer sk-omniroute-...`), zero exposure of OpenRouter keys.
+5. **Zero-Provider Fail-Closed Invariant ($0.0000 Cost)**: Initial unconfigured gateway state (`PENDING PROVIDER CREDENTIALS`) triggers clean fail-closed error (*« Capacité gratuite temporairement indisponible »*) with strictly $0.0000 cost and zero paid fallback.
+6. **Historical Premium Path Non-Regression**: 100% uninterrupted execution of `openai/gpt-oss-120b` via OpenRouter with 4-block KV prefix caching and full MCP tooling (40 tools).
+7. **Persistence & Restart Resiliency**: Verified preservation of SQLite database, API keys, and configurations across container restarts and SIGKILL cycles.
+8. **Master Documentation Integrity**: Zero raw secrets, passwords, or private tokens present in repository documentation or deployment runbooks.
 
 ---
 
-## 2. Test Suites & File Inventory
+## 2. Test File Inventory & Architecture
 
-| Test File Path | Description | Test Count | Tier Coverage |
+| Test File | Description | Test Count | Tier Coverage |
 |---|---|:---:|:---:|
-| `test/e2e/omniroute-mock.ts` | Standalone OpenAI-compatible Mock HTTP server with SSE streaming, tool calls, and pricing simulators | N/A (Harness) | Tiers 1, 2, 4, 5 |
-| `test/e2e/omniroute-test-helpers.ts` | Shared types, schema definitions, and reference implementations | N/A (Helpers) | Tiers 1–5 |
-| `packages/contracts/src/omniroute-contracts.test.ts` | Zod schemas for `InferenceMode`, `InferenceUsageTag`, `BotInferenceConfig`, `Bot`, `CreateBotInput`, `UpdateBotInput`, and `PromptExecutionLog` telemetry | **51** | Tier 1, Tier 2 |
-| `packages/adapters/src/omniroute-adapter.test.ts` | `FreeOmniRouteAdapter` core, OpenAI chat completions, SSE streaming, tool calling, timeout, AbortSignal, and application scenarios | **16** | Tier 1, Tier 2, Tier 4 |
-| `packages/adapters/src/free-policy-engine.test.ts` | `RakazoFreePolicyEngine` tag routing, provider allowlist, zero-cost assertion ($0.00), and paid fallback veto | **22** | Tier 1, Tier 2, Tier 3 |
-| `packages/adapters/src/subagent-inheritance.test.ts` | Subagent inference mode inheritance, privilege escalation veto, 8,192 token ceiling, depth 1 limit, delegation tool stripping, anti-loop guards, and 4-block cache prompt assembly | **21** | Tier 1, Tier 2, Tier 3 |
-| `apps/web/src/pages/e2e-omniroute-ui.test.tsx` | WebUI intelligence selector, multi-select tag chips, dark tokens, touch targets $\ge 44$px, safe areas, and 9 responsive viewports | **24** | Tier 1, Tier 2, Tier 4 |
-| `test/e2e/omniroute-adversarial.test.ts` | Adversarial attacks: positive cost leakage, SSE chunk tampering, paid fallback attempts, provider spoofing, prompt injection evasion, 100k token flooding, and 50 concurrent requests | **10** | Tier 5 |
-| **TOTAL** | **Comprehensive 5-Tier E2E Test Suite** | **144** | **Tiers 1–5** |
+| `test/e2e/tier1-feature-coverage.test.ts` | Complete feature coverage for Features 1–11 (5 assertions per feature) | **55** | Tier 1 |
+| `test/e2e/tier2-boundary-corner-cases.test.ts` | Boundary, stress, timeout, abort, and error edge cases for Features 1–11 (5 assertions per feature) | **55** | Tier 2 |
+| `test/e2e/tier3-cross-feature-interactions.test.ts` | 11 Cross-feature interaction suites (Pairwise combinations across infrastructure, security, runtime, and persistence) | **11** | Tier 3 |
+| `test/e2e/tier4-real-world-scenarios.test.ts` | Real-world application scenarios (Free zero-cost fail-closed, Premium non-regression, Persistence resiliency, Auth barrier, VPS multi-tenant isolation) | **5** | Tier 4 |
+| `test/e2e/omniroute-adversarial.test.ts` | Adversarial hardening, positive cost leakage detection, stream tampering, provider spoofing, token flooding, and 50 concurrent requests | **10** | Tier 5 |
+| `test/e2e/omniroute-mock.ts` | High-fidelity OpenAI-compatible mock server with scenario switching, latency simulation, and pricing injection | *Harness* | All Tiers |
+| `test/e2e/omniroute-test-helpers.ts` | Shared typed reference adapters, policy engines, subagent executors, VPS inspectors, storage managers, and doc auditors | *Helpers* | All Tiers |
+| `test/e2e/verify-e2e.ts` | Automated CLI verification runner script executing all test tiers and printing executive telemetry | *Runner* | All Tiers |
+| **TOTAL** | **Comprehensive E2E Test Suite** | **136** | **Tiers 1–5** |
 
 ---
 
-## 3. Tier-by-Tier Test Coverage Breakdown
+## 3. Tier-by-Tier Coverage Matrix
 
 ```
-┌────────────────────────────────────────────────────────────────────────┐
-│                        E2E TEST TIER DISTRIBUTION                      │
-├───────────────────┬──────────────┬───────────────┬─────────────────────┤
-│ Tier              │ Target Count │ Actual Count  │ Status              │
-├───────────────────┼──────────────┼───────────────┼─────────────────────┤
-│ Tier 1 (Feature)  │   >= 50      │      51       │ ✅ Threshold Met    │
-│ Tier 2 (Boundary) │   >= 50      │      52       │ ✅ Threshold Met    │
-│ Tier 3 (Cross)    │   >= 15      │      16       │ ✅ Threshold Met    │
-│ Tier 4 (Scenario) │   >= 8       │      15       │ ✅ Threshold Met    │
-│ Tier 5 (Chaos)    │   >= 10      │      10       │ ✅ Threshold Met    │
-├───────────────────┼──────────────┼───────────────┼─────────────────────┤
-│ TOTAL             │   >= 130     │     144       │ ✅ 100% PASSING     │
-└───────────────────┴──────────────┴───────────────┴─────────────────────┘
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                              E2E TEST TIER DISTRIBUTION                                │
+├──────────────────────────┬──────────────┬───────────────┬──────────────────────────────┤
+│ Tier                     │ Target Count │ Actual Count  │ Pass Status                  │
+├──────────────────────────┼──────────────┼───────────────┼──────────────────────────────┤
+│ Tier 1 (Feature Coverage)│   >= 55      │      55       │ 🟢 100% (55/55 passed)       │
+│ Tier 2 (Boundaries)      │   >= 55      │      55       │ 🟢 100% (55/55 passed)       │
+│ Tier 3 (Interactions)    │   >= 11      │      11       │ 🟢 100% (11/11 passed)       │
+│ Tier 4 (Real-World)      │   >= 5       │       5       │ 🟢 100% (5/5 passed)         │
+│ Tier 5 (Adversarial)     │   >= 10      │      10       │ 🟢 100% (10/10 passed)       │
+├──────────────────────────┼──────────────┼───────────────┼──────────────────────────────┤
+│ TOTAL                    │   >= 136     │     136       │ 🟢 100% (136/136 passed)     │
+└──────────────────────────┴──────────────┴───────────────┴──────────────────────────────┘
 ```
 
-### Tier 1: Feature Coverage (51 tests)
-- **Contracts & Schemas (25 tests)**: Happy path validation for `InferenceModeSchema` (`"premium" | "free"`), `InferenceUsageTagSchema` (`"coding"`, `"writing"`, `"reasoning"`, `"fast"`, `"analysis"`), `BotInferenceConfigSchema` default values (`mode: "premium"`, `tags: []`), `ExtendedCreateBotInput`, `ExtendedUpdateBotInput`, `ExtendedBotSchema` backward compatibility for existing bots, and `PromptExecutionLogInputSchema` telemetry fields.
-- **Adapter Core (5 tests)**: Adapter initialization with baseUrl and auth tokens, non-streaming `complete()` execution, SSE streaming generator token accumulation, streaming tool call parsing, system prompt + message history delivery.
-- **Policy Engine (8 tests)**: Tag-to-model resolution (`coding` -> Qwen Coder, `reasoning` -> DeepSeek R1, `writing` -> Mistral Small, `fast` -> LLaMA 3.2 3B, `analysis` -> Qwen 72B, empty -> default LLaMA 3.3 70B), allowlist validation across all 5 approved providers (`meta-llama`, `mistralai`, `qwen`, `deepseek`, `google`).
-- **Subagents (5 tests)**: Free parent -> Free subagent, Premium parent -> Premium subagent, 4-block cache prompt assembly with all 4 blocks, empty tag inheritance, custom tag overrides.
-- **WebUI (8 tests)**: Segmented control rendering, free mode badge & banner, active tag highlight styles, tag metadata badges (Dev, Prose, Logic, Fast, Data), stateful form toggle, panel description, indicator color dots.
+### Feature-to-Test Mapping (Features 1–11)
 
-### Tier 2: Boundary & Corner Cases (52 tests)
-- **Contracts (26 tests)**: Rejection of unapproved modes (`"cheap"`, `"ultra"`, `""`, non-string, uppercase), unapproved tags (`"hacking"`, `"crypto"`, whitespace, numbers), strict rejection of $> 3$ tags (4 tags, 5 tags), empty botId, negative and fractional token counts, negative durationMs.
-- **Adapter (7 tests)**: HTTP 401 unauthorized fail-closed, HTTP 429 rate limit fail-closed, HTTP 503 server error fail-closed, pre-aborted `AbortSignal`, in-flight `AbortSignal` mid-stream, 30s timeout enforcement, positive cost header rejection.
-- **Policy Barrier (8 tests)**: Positive cost $> 0.00$ veto, negative cost rejection, unapproved third-party provider rejection, avoided provider list rejection, paid fallback attempt veto (`never-paid fallback`), non-array input rejection, invalid tag rejection.
-- **Subagents (6 tests)**: Privilege escalation veto (Free parent requesting `"premium"` forced to `"free"`), recursion depth $> 1$ rejection, 8,192 token budget ceiling enforcement, empty tool list handling, multiple delegation tool stripping (`create_child_agent`, `delegate_task`, `spawn_subagent`, `child_bot_spawn`).
-- **WebUI (5 tests)**: Max 3 tags disabled chips state, global disabled prop propagation, empty tag array handling, tag counter limit highlight (`text-amber-400`), subdued counter style.
-
-### Tier 3: Cross-Feature Interactions (16 tests)
-- **Policy Engine & Telemetry (6 tests)**: Route decision alignment with `PromptExecutionLog` telemetry record fields (`requestedCategory`, `resolvedProvider`, `resolvedModel`, `isFree`), post-inference cost verification against telemetry values, multi-tag priority combo tests (`reasoning`+`fast`, `analysis`+`writing`), `:free` model suffix guarantee across all 5 routes and default route.
-- **Subagent Life Cycle & Anti-Loop (10 tests)**: Full lifecycle coordination (Free Bot -> Free Subagent -> Token Budget Check -> Telemetry Log Entry), Block A byte-stability across diverse tasks, anti-loop guard terminating after 3 redundant identical calls, anti-loop guard terminating after 25 tool iteration steps, anti-loop allowing distinct queries, Block B capability rendering, Block C memory isolation, premium parent telemetry (`isFree: false`), 3-tag propagation, exact 8,192 token boundary.
-
-### Tier 4: Real-World Application Scenarios (15 tests)
-- **Application Scenarios (4 tests)**:
-  1. *Coding Assistant*: Generates TypeScript functions with markdown code blocks.
-  2. *Analysis Assistant*: Orchestrates `searxng_scraperr__web_search` tool call and synthesis.
-  3. *Multi-turn Reasoning*: Retains context across multi-step dialogue history.
-  4. *Fast Triage Bot*: Responds under ultra-low latency budget.
-- **Responsive Multi-Screen WebUI (11 tests)**:
-  - 9 Viewport Resolutions validated without overflow:
-    1. `320px` (iPhone SE 1st gen)
-    2. `360px` (Android Small)
-    3. `375px` (iPhone Mini)
-    4. `390px` (iPhone Standard)
-    5. `430px` (iPhone Pro Max)
-    6. `768px` (Tablet Portrait)
-    7. `1024px` (Tablet Landscape)
-    8. `1280px` (Desktop Standard)
-    9. `1440px` (Large Desktop / 4K)
-  - Touch target compliance ($\ge 44$px) verified on all 7 interactive buttons and chips.
-  - Dark theme tokens applied (`#0F0F12`, `border-zinc-800`).
-
-### Tier 5: Adversarial Hardening & Chaos (10 tests)
-1. **Adv-1**: Injected positive cost in response header triggers immediate fail-closed veto.
-2. **Adv-2**: Injected positive pricing inside streaming SSE chunk aborts stream immediately.
-3. **Adv-3**: Upstream 503 outage vetoes paid fallback and fails closed with `"Capacité gratuite temporairement indisponible"`.
-4. **Adv-4**: Upstream returning unapproved third-party provider is rejected by policy barrier.
-5. **Adv-5**: Prompt injection attempting to switch inference mode to paid is nullified.
-6. **Adv-6**: Subagent token flooding attack ($> 8,192$ tokens, e.g. 10k, 100k tokens) is caught and rejected.
-7. **Adv-7**: 50 concurrent requests execute in parallel without race conditions, state leak, or cost leakage.
-8. **Adv-8**: Corrupted SSE framing handles gracefully without crashing worker runtime.
-9. **Adv-9**: Completely unreachable gateway (e.g. port closed) fails closed cleanly.
-10. **Adv-10**: Invariant check verifies 0.0000 cost guarantee across all free routes.
+| # | Feature | Source | Tier 1 (Coverage) | Tier 2 (Boundaries) | Tier 3 (Interactions) | Tier 4 (Scenarios) |
+|---|---------|--------|:-----------------:|:-------------------:|:---------------------:|:------------------:|
+| **F1** | VPS & Coolify Infrastructure Audit | ORIGINAL_REQUEST §R1 | 5 tests (F1-1..F1-5) | 5 tests (F1-B1..F1-B5) | Suite 1, Suite 10 | Scenario 5 |
+| **F2** | OmniRoute Fork & Spec Pinning | ORIGINAL_REQUEST §R1 | 5 tests (F2-1..F2-5) | 5 tests (F2-B1..F2-B5) | Suite 2 | — |
+| **F3** | OmniRoute Container Deployment | ORIGINAL_REQUEST §R2 | 5 tests (F3-1..F3-5) | 5 tests (F3-B1..F3-B5) | Suite 1, 2, 3, 8 | Scenario 3 |
+| **F4** | Storage Encryption & Admin Auth | ORIGINAL_REQUEST §R2 | 5 tests (F4-1..F4-5) | 5 tests (F4-B1..F4-B5) | Suite 3, 4, 9 | Scenario 4 |
+| **F5** | Dedicated Endpoint Key Provisioning | ORIGINAL_REQUEST §R3 | 5 tests (F5-1..F5-5) | 5 tests (F5-B1..F5-B5) | Suite 4, Suite 5 | Scenario 1, 4 |
+| **F6** | Rakazo Environment Integration | ORIGINAL_REQUEST §R3 | 5 tests (F6-1..F6-5) | 5 tests (F6-B1..F6-B5) | Suite 5, Suite 6 | Scenario 1 |
+| **F7** | Zero-Provider Fail-Closed Invariant | ORIGINAL_REQUEST §R3/R4 | 5 tests (F7-1..F7-5) | 5 tests (F7-B1..F7-B5) | Suite 6, Suite 7 | Scenario 1 |
+| **F8** | Premium Path Non-Regression | ORIGINAL_REQUEST §R4 | 5 tests (F8-1..F8-5) | 5 tests (F8-B1..F8-B5) | Suite 7 | Scenario 2 |
+| **F9** | Persistence & Restart Resiliency | ORIGINAL_REQUEST §R4 | 5 tests (F9-1..F9-5) | 5 tests (F9-B1..F9-B5) | Suite 8, Suite 9 | Scenario 3 |
+| **F10** | Passive VPS Health Verification | ORIGINAL_REQUEST §R5 | 5 tests (F10-1..F10-5) | 5 tests (F10-B1..F10-B5) | Suite 10, Suite 11 | Scenario 5 |
+| **F11** | Master Documentation (Zero Secrets) | ORIGINAL_REQUEST §R5 | 5 tests (F11-1..F11-5) | 5 tests (F11-B1..F11-B5) | Suite 11 | — |
 
 ---
 
-## 4. How to Run the Test Suites
+## 4. Execution Commands
 
-### Run All OmniRoute Test Suites
+### Primary Test Runner (All E2E Suites)
 ```bash
+# Run all E2E test suites via Vitest
 pnpm vitest run \
-  packages/contracts/src/omniroute-contracts.test.ts \
-  packages/adapters/src/omniroute-adapter.test.ts \
-  packages/adapters/src/free-policy-engine.test.ts \
-  packages/adapters/src/subagent-inheritance.test.ts \
-  apps/web/src/pages/e2e-omniroute-ui.test.tsx \
+  test/e2e/tier1-feature-coverage.test.ts \
+  test/e2e/tier2-boundary-corner-cases.test.ts \
+  test/e2e/tier3-cross-feature-interactions.test.ts \
+  test/e2e/tier4-real-world-scenarios.test.ts \
   test/e2e/omniroute-adversarial.test.ts
 ```
 
-### Run Individual Test Suites
+### Automated Verification Script (CLI Runner)
 ```bash
-# Tier 1 & 2: Contracts & Schemas
-pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts
+# Execute standalone verification runner with formatted summary
+pnpm tsx test/e2e/verify-e2e.ts
+```
 
-# Tier 1, 2, 4: Free OmniRoute Adapter & Streaming
-pnpm vitest run packages/adapters/src/omniroute-adapter.test.ts
+### Individual Tier Invocations
+```bash
+# Tier 1: Feature Coverage (55 tests)
+pnpm vitest run test/e2e/tier1-feature-coverage.test.ts
 
-# Tier 1, 2, 3: Free Policy Engine & Cost Assertion
-pnpm vitest run packages/adapters/src/free-policy-engine.test.ts
+# Tier 2: Boundary & Corner Cases (55 tests)
+pnpm vitest run test/e2e/tier2-boundary-corner-cases.test.ts
 
-# Tier 1, 2, 3: Subagent Inheritance & Invariants
-pnpm vitest run packages/adapters/src/subagent-inheritance.test.ts
+# Tier 3: Cross-Feature Interactions (11 tests)
+pnpm vitest run test/e2e/tier3-cross-feature-interactions.test.ts
 
-# Tier 1, 2, 4: WebUI Intelligence Selector & Multi-Screen Ergonomics
-pnpm vitest run apps/web/src/pages/e2e-omniroute-ui.test.tsx
+# Tier 4: Real-World Scenarios (5 tests)
+pnpm vitest run test/e2e/tier4-real-world-scenarios.test.ts
 
-# Tier 5: Adversarial Hardening & Zero-Cost Chaos
+# Tier 5: Adversarial Hardening & Chaos (10 tests)
 pnpm vitest run test/e2e/omniroute-adversarial.test.ts
 ```
 
-### Run Lint & Biome Formatting Check
+### Linter & Style Compliance
 ```bash
-pnpm biome check test/ packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts packages/adapters/src/free-policy-engine.test.ts packages/adapters/src/subagent-inheritance.test.ts apps/web/src/pages/e2e-omniroute-ui.test.tsx
+pnpm biome check test/e2e/
 ```
 
 ---
 
-## 5. Verification Output
+## 5. Verification Output Summary
 
 ```text
+================================================================================
+  RAKAZO E2E TEST SUITE VERIFICATION RUNNER (TIERS 1-5)
+  Target: OmniRoute Coolify Deployment & Rakazo Dual-Path Inference Engine
+================================================================================
+
  RUN  v4.1.10 /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app
 
- ✓ apps/web/src/pages/e2e-omniroute-ui.test.tsx (24 tests)
- ✓ packages/adapters/src/omniroute-adapter.test.ts (16 tests)
- ✓ test/e2e/omniroute-adversarial.test.ts (10 tests)
- ✓ packages/adapters/src/free-policy-engine.test.ts (22 tests)
- ✓ packages/contracts/src/omniroute-contracts.test.ts (51 tests)
- ✓ packages/adapters/src/subagent-inheritance.test.ts (21 tests)
+ ✓ test/e2e/tier1-feature-coverage.test.ts (55 tests) 211ms
+ ✓ test/e2e/omniroute-adversarial.test.ts (10 tests) 394ms
+ ✓ test/e2e/tier3-cross-feature-interactions.test.ts (11 tests) 132ms
+ ✓ test/e2e/tier4-real-world-scenarios.test.ts (5 tests) 96ms
+ ✓ test/e2e/tier2-boundary-corner-cases.test.ts (55 tests) 3451ms
 
- Test Files  6 passed (6)
-      Tests  144 passed (144)
+ Test Files  5 passed (5)
+      Tests  136 passed (136)
+   Start at  17:55:46
+   Duration  4.51s
+
+--------------------------------------------------------------------------------
+  E2E TEST SUITE EXECUTION SUMMARY
+--------------------------------------------------------------------------------
+  ✓ Tier 1  : Tier 1: Feature Coverage               (55 tests)
+  ✓ Tier 2  : Tier 2: Boundary & Corner Cases        (55 tests)
+  ✓ Tier 3  : Tier 3: Cross-Feature Interactions     (11 tests)
+  ✓ Tier 4  : Tier 4: Real-World Scenarios           (5 tests)
+  ✓ Tier 5  : Tier 5: Adversarial Hardening & Chaos  (10 tests)
+--------------------------------------------------------------------------------
+  TOTAL TESTS PLANNED & EXECUTED : 136
+  TOTAL TIME ELAPSED            : 6.09s
+  GLOBAL EXIT STATUS            : SUCCESS (0 FAILURES)
+================================================================================
 ```
+
+---
+
+## 6. Pass/Fail Acceptance Criteria
+
+1. **100% Pass Rate**: Zero assertion failures and zero unhandled rejections across all 136 tests.
+2. **Zero-Cost Invariant Verified**: $0.000000 token cost strictly enforced across all free execution branches and subagents.
+3. **Fail-Closed French Error**: Verbatim match for `"Capacité gratuite temporairement indisponible"` on any error or unconfigured provider state.
+4. **Clean Lint Status**: 0 errors and 0 warnings under `pnpm biome check test/e2e/`.

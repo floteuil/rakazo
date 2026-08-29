@@ -161,42 +161,67 @@ Prompts are structured into 4 sequential blocks to preserve prefix caching acros
 
 ## 5. Deployment & Container Isolation Architecture
 
+Rakazo supports two enterprise-grade containerized deployment topologies:
+
+### 5.1 Coolify PaaS Multi-Application Topology (Production VPS `62.164.214.145`)
+
 ```text
                                   ┌───────────────────────────────┐
-                                  │      Internet / Ingress       │
+                                  │   Internet Ingress (HTTPS)    │
                                   └───────────────┬───────────────┘
-                                                  │ (HTTPS / 443)
+                                                  │
                                                   ▼
-                                       [ Caddy / Traefik Ingress ]
-                                       (Network: 'edge', 'app')
+                                       [ Traefik v3.6 Proxy ]
+                                       (Let's Encrypt Automated TLS)
                                                   │
                         ┌─────────────────────────┴─────────────────────────┐
-                        ▼                                                   ▼
-                [ Web UI (Vite) ]                                   [ API Backend ]
-                (Port 5173 / edge)                                  (Port 3100 / app)
-                                                                            │
-                                    ┌───────────────────────────────────────┤
-                                    │ (Private Network: 'app', 'data')       │
-                                    ▼                                       ▼
-                         [ Background Worker ]                     [ PostgreSQL 16 ]
-                         (apps/worker / app, data)                 (Port 5432 / data)
-                                    │
-                                    │ (Internal HTTP / port 8080)
-                                    ▼
-                         [ OmniRoute Gateway ]
-                         (Port 8080 / app, data)
-                         • Non-Root UID 10001:10001
-                         • NO edge network
-                         • NO public port binding
-                         • NO docker.sock mount
-                         • cap_drop: [ALL], no-new-privileges
+                        │                                                   │
+                        ▼ (agents.workspacegroupefloteuil.eu)               ▼ (omniroute.workspacegroupefloteuil.eu)
+         ┌──────────────────────────────┐                    ┌──────────────────────────────┐
+         │ Coolify App 20: Rakazo Stack │                    │ Coolify App 21: OmniRoute    │
+         ├──────────────────────────────┤                    ├──────────────────────────────┤
+         │ • apps/web (React 18 / Vite) │                    │ • Image: floteuil/OmniRoute  │
+         │ • apps/api (Fastify / Hono)  │───(Bearer Auth)───►│ • Target: runner-base (Node26)│
+         │ • apps/worker (BullMQ)       │                    │ • Port: 20128                │
+         │ • PostgreSQL 16 (Dedicated)  │                    │ • Volume: /app/data (SQLite) │
+         └──────────────────────────────┘                    │ • Non-Root UID 1000:1000     │
+                                                             └──────────────────────────────┘
 ```
 
-### VPS Coolify Non-Interference Invariants
-1. **Isolated Namespace**: All containers prefixed with `rakazo-prod_*`.
-2. **Dedicated Volumes**: Storage scoped exclusively to `pgdata`, `appdata`, `caddydata`. Zero volume pollution to other VPS applications.
+### 5.2 Local / Standalone Compose Topology (Development)
+
+```text
+                                  ┌───────────────────────────────┐
+                                  │      Local Reverse Proxy      │
+                                  └───────────────┬───────────────┘
+                                                  │
+                         ┌────────────────────────┴─────────────────────────┐
+                         ▼                                                  ▼
+                 [ Web UI (Vite) ]                                  [ API Backend ]
+                 (Port 5173)                                        (Port 3100)
+                                                                            │
+                                     ┌──────────────────────────────────────┤
+                                     │ (Private Bridge Network: 'app', 'data')
+                                     ▼                                      ▼
+                          [ Background Worker ]                    [ PostgreSQL 16 ]
+                          (apps/worker)                            (Port 5432 / data)
+                                     │
+                                     │ (Internal HTTP / port 8080)
+                                     ▼
+                          [ OmniRoute Gateway ]
+                          (Port 8080 / app, data)
+                          • Non-Root UID 10001:10001
+                          • NO edge network
+                          • NO public port binding
+                          • NO docker.sock mount
+                          • cap_drop: [ALL], no-new-privileges
+```
+
+### 5.3 VPS Coolify Non-Interference Invariants
+1. **Isolated Namespace**: All containers and resources are strictly scoped to their respective Coolify application UUIDs (`qmusbfbjcz0ohip348rv8fgc` for OmniRoute, `s1253nc0yc4uu89lp6692r1s` for Rakazo).
+2. **Dedicated Volumes**: Storage scoped exclusively to named volumes (`qmusbfbjcz0ohip348rv8fgc_data`, `pgdata`, `appdata`). Zero volume pollution to other VPS applications.
 3. **Zero Docker Socket Exposure**: No container has access to `/var/run/docker.sock`.
-4. **Internal Network Only**: OmniRoute exposes port 8080 strictly to internal `app` and `data` Docker networks.
+4. **Tenant Non-Interference**: Absolute isolation against all 15 co-located applications on the VPS (HubtoWrite, Veinart, Open-Design, Postiz, DocuSeal, n8n, Flowise, Odoo, SearXNG, Minio, Beszel, Scraperr).
 
 ---
 
@@ -204,9 +229,10 @@ Prompts are structured into 4 sequential blocks to preserve prefix caching acros
 
 | Verification Target | Requirement | Verified Monorepo Result | Status |
 |---|---|---|---|
-| **TypeScript Typecheck** | 0 diagnostic errors across 19 packages | **0 errors** (`pnpm exec turbo check --force`, 19/19 packages) | 🟢 PASS |
-| **Monorepo Test Suite** | 100% test pass rate ($\ge 1\,764$ tests) | **2 107 passed, 0 failed** (165 test files passed, 12 skipped) | 🟢 PASS |
-| **OmniRoute E2E Suite** | 144/144 tests across Tiers 1–5 | **144 / 144 passed** (6 test files in 3.17s) | 🟢 PASS |
+| **TypeScript Typecheck** | 0 diagnostic errors across 19 packages | **0 errors** (`pnpm check`, 19/19 packages) | 🟢 PASS |
+| **Monorepo Test Suite** | 100% test pass rate ($\ge 1\,764$ tests) | **2,266 passed, 0 failed** (171 test files) | 🟢 PASS |
+| **OmniRoute E2E Suite** | 136/136 tests across Tiers 1–5 | **136 / 136 passed** (5.49s) | 🟢 PASS |
+| **Contracts & Unit Tests** | 67/67 tests in contracts & adapters | **67 / 67 passed** (1.44s) | 🟢 PASS |
 | **Zero-Cost Invariant** | Cost = $0.000000 on all Free routes | **Verified across 10 adversarial chaos tests** | 🟢 PASS |
 | **Fail-Closed Barrier** | Zero fallback to paid models on failure | **100% rejected with standard sanitized error** | 🟢 PASS |
 | **Subagent Inheritance** | Free parent strictly spawns Free subagent | **100% inherited, privilege escalation vetoed** | 🟢 PASS |
@@ -221,12 +247,15 @@ Prompts are structured into 4 sequential blocks to preserve prefix caching acros
 
 ```bash
 # 1. Full Monorepo Type Check (19 packages)
-pnpm exec turbo check --force
+pnpm check
 
-# 2. Full Monorepo Test Suite (2 107+ tests)
+# 2. Full Monorepo Test Suite (2,266+ tests)
 pnpm test
 
-# 3. Dedicated OmniRoute E2E Test Suite (144 tests)
+# 3. Dedicated OmniRoute E2E Test Suite (136 tests across 5 Tiers)
+npx tsx test/e2e/verify-e2e.ts
+
+# 4. OmniRoute Contracts & Adapter Unit Tests (67 tests)
 pnpm vitest run \
   packages/contracts/src/omniroute-contracts.test.ts \
   packages/adapters/src/omniroute-adapter.test.ts \

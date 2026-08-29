@@ -146,6 +146,13 @@ export class MockOmniRouteServer {
       await new Promise((r) => setTimeout(r, this.delayMs));
     }
 
+    // Health check endpoint (unauthenticated for Docker / Traefik)
+    if (req.url === "/health" || req.url === "/v1/health") {
+      res.writeHead(200, { "Content-Type": "application/json" });
+      res.end(JSON.stringify({ status: "healthy", mode: "free_intelligence_gateway" }));
+      return;
+    }
+
     // Authentication check
     const authHeader = req.headers.authorization;
     if (
@@ -162,13 +169,6 @@ export class MockOmniRouteServer {
           },
         }),
       );
-      return;
-    }
-
-    // Health check endpoint
-    if (req.url === "/health" || req.url === "/v1/health") {
-      res.writeHead(200, { "Content-Type": "application/json" });
-      res.end(JSON.stringify({ status: "healthy", mode: "free_intelligence_gateway" }));
       return;
     }
 

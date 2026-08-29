@@ -1,8 +1,5 @@
 import { afterAll, beforeAll, beforeEach, describe, expect, it } from "vitest";
-import {
-  FreeOmniRouteAdapter,
-  type OmniRouteChatMessage,
-} from "./omniroute-adapter.js";
+import { FreeOmniRouteAdapter, type OmniRouteChatMessage } from "./omniroute-adapter.js";
 import { MockOmniRouteServer } from "./omniroute-mock.js";
 
 async function getAdapter(baseUrl: string, apiKey: string) {

@@ -204,8 +204,9 @@ Quality is enforced through automated static analysis, type checking, test execu
 | Action | Command | Gate Requirement |
 |---|---|---|
 | **Type Check All Packages** | `pnpm check`<br>`pnpm exec turbo check --force` | **0 errors, 0 warnings** across all 19 packages. |
-| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** ($\ge 1\,764$ tests; currently **2 107 passing**). |
-| **OmniRoute 5-Tier E2E Suite** | `pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts packages/adapters/src/free-policy-engine.test.ts packages/adapters/src/subagent-inheritance.test.ts apps/web/src/pages/e2e-omniroute-ui.test.tsx test/e2e/omniroute-adversarial.test.ts` | **100% pass rate (144/144 tests)**. |
+| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** (currently **2,266+ tests passing**, 0 failures). |
+| **OmniRoute 5-Tier E2E Suite** | `npx tsx test/e2e/verify-e2e.ts` | **100% pass rate (136/136 tests across Tiers 1–5)**. |
+| **Contracts & Unit Tests** | `pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts` | **100% pass rate (67/67 tests)**. |
 | **Prisma Client Generation** | `pnpm db:generate` | Prisma client generated in `packages/db/src/generated/prisma`. |
 | **Database Migrations** | `pnpm db:migrate` | Migrations applied cleanly to target PostgreSQL database. |
 | **Linting & Code Style** | `pnpm lint` | Biome static analysis with 0 errors. |
@@ -232,9 +233,11 @@ Quality is enforced through automated static analysis, type checking, test execu
 
 For deeper implementation details, consult the canonical documentation in the root and `docs/`:
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master architectural specification & platform blueprint.
-- [`RAKAZO_ARCHITECT_HANDOFF_FREE_INTELLIGENCE_GATEWAY.md`](RAKAZO_ARCHITECT_HANDOFF_FREE_INTELLIGENCE_GATEWAY.md): Architectural handoff for Free Intelligence Gateway (OmniRoute).
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md): Architectural handoff for OmniRoute Coolify deployment & Rakazo connection (Milestones M1–M5).
+- [`docs/OMNIROUTE_DEPLOYMENT.md`](docs/OMNIROUTE_DEPLOYMENT.md): Authoritative production runbook for OmniRoute on Coolify PaaS (App 21).
 - [`TEST_READY.md`](TEST_READY.md): 5-tier test matrix and E2E verification evidence.
 - [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md): Comprehensive 54+ environment variable catalog and developer onboarding guide.
 - [`docs/computer-runtime.md`](docs/computer-runtime.md): Architecture of computer sandboxes, supervisor protocols, and screen leases.
 - [`docs/self-host.md`](docs/self-host.md): Guide for production self-hosting with Docker Compose and Coolify PaaS.
 - [`docs/performance.md`](docs/performance.md): Latency, prefix caching, and token optimization benchmarks.
+

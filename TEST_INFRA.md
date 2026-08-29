@@ -1,42 +1,40 @@
-# E2E Test Infra: Free Intelligence Gateway (OmniRoute) for Rakazo
+# E2E Test Infra: OmniRoute Coolify Deployment & Rakazo Integration
 
 ## Test Philosophy
-- Opaque-box, requirement-driven testing. Derived strictly from `ORIGINAL_REQUEST.md`.
-- Zero-cost verification: Hard assertion that free requests never leak into paid OpenRouter endpoints.
-- Fail-closed verification: Assert that upstream errors, rate limits, or non-zero pricing reject with `"Capacité gratuite temporairement indisponible"`.
-- Multi-tier progressive testability: Unit -> Adapter -> Subagents -> UI Ergonomics -> Adversarial Chaos.
+- Opaque-box, requirement-driven, independently verifiable.
+- Dual-track architecture testing: OmniRoute deployment & persistence, Rakazo endpoint integration, Free fail-closed invariant, Premium non-regression, and zero VPS interference.
 
-## Feature Inventory & Test Mapping
-| # | Feature | Requirement | Tier 1 (Unit) | Tier 2 (Boundary) | Tier 3 (Cross) | Tier 4 (E2E Scenarios) | Tier 5 (Adversarial) |
-|---|---------|-------------|:-------------:|:-----------------:|:--------------:|:----------------------:|:--------------------:|
-| 1 | BotInferenceConfig Zod Schema | R1 | 5 | 5 | ✓ | ✓ | ✓ |
-| 2 | PromptExecutionLog Telemetry | R1 | 5 | 5 | ✓ | ✓ | ✓ |
-| 3 | FreeOmniRouteAdapter Core & SSE | R2 | 5 | 5 | ✓ | ✓ | ✓ |
-| 4 | Rakazo Free Policy Engine & Cost Assertion | R2 | 5 | 5 | ✓ | ✓ | ✓ |
-| 5 | Fail-Closed Policy Barrier | R2 | 5 | 5 | ✓ | ✓ | ✓ |
-| 6 | Subagent Inference Mode & Limit Inheritance | R3 | 5 | 5 | ✓ | ✓ | ✓ |
-| 7 | 4-Block Cache Prompt Preservation | R3 | 5 | 5 | ✓ | ✓ | ✓ |
-| 8 | WebUI Intelligence & Tags Selector | R4 | 5 | 5 | ✓ | ✓ | ✓ |
-| 9 | Mobile Touch & Multi-Screen Breakpoints | R4 | 5 | 5 | ✓ | ✓ | ✓ |
-| 10| Containerized Spec & Network Isolation | R5 | 5 | 5 | ✓ | ✓ | ✓ |
+## Feature Inventory
+| # | Feature | Source (requirement) | Tier 1 | Tier 2 | Tier 3 |
+|---|---------|---------------------|:------:|:------:|:------:|
+| 1 | VPS & Coolify Infrastructure Audit | ORIGINAL_REQUEST §R1 | 5 | 5 | ✓ |
+| 2 | OmniRoute Spec & Commit Pinning | ORIGINAL_REQUEST §R1 | 5 | 5 | ✓ |
+| 3 | OmniRoute Container Deployment | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ |
+| 4 | Storage Encryption & Admin Auth | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ |
+| 5 | Dedicated Endpoint Key Provisioning | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ |
+| 6 | Rakazo Env Integration | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ |
+| 7 | Zero-Provider Fail-Closed Invariant | ORIGINAL_REQUEST §R3/R4 | 5 | 5 | ✓ |
+| 8 | Premium Path Non-Regression | ORIGINAL_REQUEST §R4 | 5 | 5 | ✓ |
+| 9 | Persistence & Restart Resiliency | ORIGINAL_REQUEST §R4 | 5 | 5 | ✓ |
+| 10 | Passive VPS Health Verification | ORIGINAL_REQUEST §R5 | 5 | 5 | ✓ |
+| 11 | Master Documentation (Zero Secrets) | ORIGINAL_REQUEST §R5 | 5 | 5 | ✓ |
 
 ## Test Architecture
-- **Runner**: Vitest (`pnpm vitest run test/e2e/omniroute-*.test.ts`)
-- **Type Checker**: Turbo (`pnpm exec turbo check --force`)
-- **Mock Gateway**: Local HTTP server simulating OmniRoute OpenAI-compatible endpoints with SSE chunks, tool calling, latency injection, and pricing simulator.
-- **Directory Layout**:
-  - `packages/contracts/src/domain.test.ts` (Contracts tests)
-  - `packages/db/src/telemetry.test.ts` (Telemetry tests)
-  - `packages/adapters/src/omniroute-adapter.test.ts` (Adapter unit & SSE tests)
-  - `packages/adapters/src/free-policy-engine.test.ts` (Policy engine tests)
-  - `packages/adapters/src/subagent-inheritance.test.ts` (Subagent inheritance tests)
-  - `apps/web/src/pages/e2e-omniroute-ui.test.tsx` (UI multi-screen & token ergonomics)
-  - `test/e2e/omniroute-adversarial.test.ts` (Tier 5 adversarial & leakage tests)
+- Test runner: Vitest / Bash remote integration test scripts
+- Invocation: `pnpm vitest run test/e2e/omniroute-adversarial.test.ts` & remote verification scripts
+- Pass/Fail semantics: 100% exit code 0, 0 unhandled errors, strict string assertion matching.
+
+## Real-World Application Scenarios (Tier 4)
+| # | Scenario | Features Exercised | Complexity |
+|---|----------|--------------------|------------|
+| 1 | Free bot receives prompt with zero-provider configured -> clean fail-closed error with $0.0000 cost | F5, F6, F7 | High |
+| 2 | Premium bot receives prompt -> executes via OpenRouter without contacting OmniRoute | F8 | Medium |
+| 3 | OmniRoute container restarted -> volume `/app/data` retains keys and sqlite config | F3, F4, F9 | High |
+| 4 | Unauthorized request to `/v1/chat/completions` -> 401 Unauthorized | F4, F5 | Medium |
+| 5 | Full VPS tenant passive status check -> all 15 services healthy and undisturbed | F1, F10 | Medium |
 
 ## Coverage Thresholds
-- **Tier 1 (Feature Coverage)**: >= 50 test cases (>= 5 per feature across 10 features).
-- **Tier 2 (Boundary & Corner)**: >= 50 test cases (empty tags, >3 tags rejection, 0 token payload, 30s timeout, provider 429/500, non-zero pricing).
-- **Tier 3 (Cross-Feature Combinations)**: >= 15 test cases (Free Bot + Subagent + 4-block cache + Telemetry).
-- **Tier 4 (Real-World Application Scenarios)**: >= 8 application scenarios (Coding bot, Analysis bot, Writing bot, Multi-step subagent search).
-- **Tier 5 (Adversarial Hardening)**: >= 10 adversarial tests (cost injection attacks, token spoofing, network partition, paid fallback attempt veto).
-- **Total Tests Target**: Monorepo baseline >= 1,764 passing tests + >= 130 new tests.
+- Tier 1: ≥5 per feature (55 test assertions)
+- Tier 2: ≥5 boundary/error cases per feature (55 test assertions)
+- Tier 3: Pairwise combinations of major features (11 interaction test suites)
+- Tier 4: 5 realistic E2E end-user workflow scenarios

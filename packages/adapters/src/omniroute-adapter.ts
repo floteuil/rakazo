@@ -148,7 +148,10 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
 
       const providerHeader = response.headers.get("x-omniroute-provider");
       if (providerHeader) {
-        if (this.avoidedProviders.has(providerHeader) || !this.approvedProviders.has(providerHeader)) {
+        if (
+          this.avoidedProviders.has(providerHeader) ||
+          !this.approvedProviders.has(providerHeader)
+        ) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
@@ -241,7 +244,10 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
 
       const providerHeader = response.headers.get("x-omniroute-provider");
       if (providerHeader) {
-        if (this.avoidedProviders.has(providerHeader) || !this.approvedProviders.has(providerHeader)) {
+        if (
+          this.avoidedProviders.has(providerHeader) ||
+          !this.approvedProviders.has(providerHeader)
+        ) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
@@ -343,7 +349,8 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
       if (request.history && request.history.length > 0) {
         for (const msg of request.history) {
           messages.push({
-            role: msg.role === "system" ? "system" : msg.role === "assistant" ? "assistant" : "user",
+            role:
+              msg.role === "system" ? "system" : msg.role === "assistant" ? "assistant" : "user",
             content: msg.content,
           });
         }
@@ -392,14 +399,15 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
             } else {
               if (tc.id) pendingToolCalls[index].id = tc.id;
               if (tc.function?.name) pendingToolCalls[index].name += tc.function.name;
-              if (tc.function?.arguments) pendingToolCalls[index].arguments += tc.function.arguments;
+              if (tc.function?.arguments)
+                pendingToolCalls[index].arguments += tc.function.arguments;
             }
           }
         }
       }
 
       for (const tc of pendingToolCalls) {
-        if (!tc || !tc.name) continue;
+        if (!tc?.name) continue;
         let parsedArgs: Record<string, unknown> = {};
         try {
           parsedArgs = JSON.parse(tc.arguments || "{}");
