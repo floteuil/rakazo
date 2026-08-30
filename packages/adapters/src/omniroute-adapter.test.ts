@@ -31,7 +31,7 @@ describe("FreeOmniRouteAdapter E2E & Unit Test Suite (Tiers 1, 2, 4)", () => {
     it("initializes with baseUrl and apiKey properly", async () => {
       const adapter = await getAdapter(serverUrl, apiKey);
       expect(adapter.getBaseUrl()).toBe(serverUrl);
-      expect(adapter.getDefaultModel()).toContain("meta-llama");
+      expect(adapter.getDefaultModel()).toBe("combo/rakazo-fast");
     });
 
     it("performs non-streaming complete() call and receives message content", async () => {
@@ -99,6 +99,80 @@ describe("FreeOmniRouteAdapter E2E & Unit Test Suite (Tiers 1, 2, 4)", () => {
       expect(lastReq?.body.messages).toHaveLength(2);
       expect(lastReq?.body.messages[0].content).toBe("You are a coding assistant.");
       expect(lastReq?.body.messages[1].content).toBe("Write a hello world function.");
+    });
+
+    it("injects x-session-id header when explicit sessionId is provided to complete()", async () => {
+      const adapter = await getAdapter(serverUrl, apiKey);
+      mockServer.setCustomResponse("Affinity confirmed");
+
+      await adapter.complete({
+        messages: [{ role: "user", content: "Test affinity" }],
+        sessionId: "sess_custom_affinity_123",
+      });
+
+      const lastReq = mockServer.getLastRequest();
+      expect(lastReq?.headers["x-session-id"]).toBe("sess_custom_affinity_123");
+    });
+
+    it("computes and injects x-session-id when workspaceId, botId, threadId are provided to complete()", async () => {
+      const adapter = await getAdapter(serverUrl, apiKey);
+      mockServer.setCustomResponse("Affinity computed");
+
+      await adapter.complete({
+        messages: [{ role: "user", content: "Test affinity" }],
+        workspaceId: "ws-paris-test",
+        botId: "bot-dev-01",
+        threadId: "thread-789",
+      });
+
+      const lastReq = mockServer.getLastRequest();
+      expect(lastReq?.headers["x-session-id"]).toMatch(/^sess_[a-f0-9]+$/);
+    });
+
+    it("injects x-session-id header into streaming requests", async () => {
+      const adapter = await getAdapter(serverUrl, apiKey);
+      mockServer.setCustomResponse("Streaming with affinity");
+
+      for await (const _chunk of adapter.stream({
+        messages: [{ role: "user", content: "Stream affinity" }],
+        sessionId: "sess_stream_affinity_456",
+      })) {
+        // iterate
+      }
+
+      const lastReq = mockServer.getLastRequest();
+      expect(lastReq?.headers["x-session-id"]).toBe("sess_stream_affinity_456");
+    });
+
+    it("transmits x-session-id header when invoked via AgentRuntime.run()", async () => {
+      const adapter = await getAdapter(serverUrl, apiKey);
+      mockServer.setCustomResponse("AgentRuntime unified run");
+
+      const events: any[] = [];
+      for await (const event of adapter.run(
+        {
+          botId: "bot-run-affinity",
+          threadId: "thread-run-affinity",
+          runId: "run-affinity-1",
+          prompt: "Hello run",
+          instructions: "Instructions",
+          history: [],
+          tools: [],
+          model: { provider: "omniroute", id: "combo/rakazo-fast" },
+        },
+        {
+          operationId: "op-aff",
+          traceId: "tr-aff",
+          workspaceId: "ws-run-affinity",
+          userId: "user-aff",
+          signal: new AbortController().signal,
+        },
+      )) {
+        events.push(event);
+      }
+
+      const lastReq = mockServer.getLastRequest();
+      expect(lastReq?.headers["x-session-id"]).toMatch(/^sess_[a-f0-9]+$/);
     });
   });
 

@@ -523,6 +523,7 @@ docker compose -f infra/compose/docker-compose.yml exec api curl -s \
 
 - [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](../RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master platform architectural specification.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md): Architectural handoff for OmniRoute Coolify deployment (Milestones M1–M5).
 - [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md): Authoritative Coolify PaaS production runbook for OmniRoute.
 - [`docs/computer-runtime.md`](computer-runtime.md): Architecture of computer sandboxes, supervisor protocols, and screen leases.

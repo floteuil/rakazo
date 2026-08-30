@@ -397,5 +397,56 @@ describe("Subagent Inference Mode Inheritance & Invariants (Tiers 1, 2, 3)", () 
       expect(() => executor.validateTokenBudget(8192)).not.toThrow();
       expect(() => executor.validateTokenBudget(8192 + 1)).toThrow(/budget exceeded/i);
     });
+
+    it("Coord-11: Verifies SUBAGENT_DELEGATION_TOOL_NAMES and DELEGATION_NAMES_SET contain all 8 delegation tools", async () => {
+      const mod = await import("./subagent-inheritance.js");
+      expect(mod.SUBAGENT_MAX_DEPTH).toBe(1);
+      expect(mod.SUBAGENT_TOKEN_BUDGET_CEILING).toBe(8192);
+
+      const expectedTools = [
+        "spawn_subagent",
+        "delegate_task",
+        "child_bot_spawn",
+        "create_child_agent",
+        "run_subagent",
+        "spawn_bot",
+        "archive_bot",
+        "delete_bot",
+      ];
+
+      for (const tool of expectedTools) {
+        expect(mod.DELEGATION_NAMES_SET.has(tool)).toBe(true);
+        expect(mod.SUBAGENT_DELEGATION_TOOL_NAMES).toContain(tool);
+      }
+    });
+
+    it("Coord-12: Verifies SubagentExecutor strips run_subagent, spawn_bot, archive_bot, and delete_bot", async () => {
+      const executor = await getSubagentExecutor();
+      const parentWithEnterpriseTools: BotContext = {
+        id: "parent-ent",
+        name: "Enterprise Parent",
+        inferenceMode: "free",
+        tools: [
+          "github_search_repos",
+          "notion_search",
+          "run_subagent",
+          "spawn_bot",
+          "archive_bot",
+          "delete_bot",
+          "web_search",
+        ],
+      };
+
+      const ctx = executor.spawnSubagent({
+        parentBot: parentWithEnterpriseTools,
+        taskPrompt: "Search repos",
+      });
+
+      expect(ctx.availableTools).toEqual(["github_search_repos", "notion_search", "web_search"]);
+      expect(ctx.availableTools).not.toContain("run_subagent");
+      expect(ctx.availableTools).not.toContain("spawn_bot");
+      expect(ctx.availableTools).not.toContain("archive_bot");
+      expect(ctx.availableTools).not.toContain("delete_bot");
+    });
   });
 });

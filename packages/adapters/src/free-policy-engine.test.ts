@@ -3,6 +3,8 @@ import {
   APPROVED_FREE_PROVIDERS,
   AVOIDED_PROVIDERS,
   RakazoFreePolicyEngine,
+  resolveDeterministicTag,
+  TAG_PRIORITY_WEIGHTS,
 } from "./free-policy-engine.js";
 
 async function getPolicyEngine() {
@@ -13,75 +15,85 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
   // ============================================================================
   // TIER 1: FEATURE COVERAGE (Tag Routing, Zero-Cost Verification, Allowlist)
   // ============================================================================
-  describe("Tier 1 - Route Resolution & Model Mapping", () => {
-    it("resolves default route when no tags are provided", async () => {
+  describe("Tier 1 - Route Resolution & Model Mapping (Live Combos)", () => {
+    it("resolves default route when no tags are provided to live combo", async () => {
       const engine = await getPolicyEngine();
       const route = engine.resolveRoute([]);
 
       expect(route.isFree).toBe(true);
       expect(route.costPerToken).toBe(0.0);
-      expect(route.provider).toBe("meta-llama");
-      expect(route.model).toContain("llama-3.3-70b");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-fast");
       expect(route.category).toBe("general");
     });
 
-    it("resolves 'coding' tag to approved coder model", async () => {
+    it("resolves 'coding' tag to live coding combo", async () => {
       const engine = await getPolicyEngine();
       const route = engine.resolveRoute(["coding"]);
 
       expect(route.isFree).toBe(true);
       expect(route.costPerToken).toBe(0.0);
       expect(route.category).toBe("coding");
-      expect(route.provider).toBe("qwen");
-      expect(route.model).toContain("coder");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-coding");
     });
 
-    it("resolves 'reasoning' tag to DeepSeek R1 model", async () => {
+    it("resolves 'reasoning' tag to live reasoning combo", async () => {
       const engine = await getPolicyEngine();
       const route = engine.resolveRoute(["reasoning"]);
 
       expect(route.isFree).toBe(true);
       expect(route.category).toBe("reasoning");
-      expect(route.provider).toBe("deepseek");
-      expect(route.model).toContain("r1");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-reasoning");
     });
 
-    it("resolves 'writing' tag to Mistral Small model", async () => {
+    it("resolves 'writing' tag to live writing combo", async () => {
       const engine = await getPolicyEngine();
       const route = engine.resolveRoute(["writing"]);
 
       expect(route.isFree).toBe(true);
       expect(route.category).toBe("writing");
-      expect(route.provider).toBe("mistralai");
-      expect(route.model).toContain("mistral-small");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-writing");
     });
 
-    it("resolves 'fast' tag to lightweight LLaMA model", async () => {
+    it("resolves 'fast' tag to live fast combo", async () => {
       const engine = await getPolicyEngine();
       const route = engine.resolveRoute(["fast"]);
 
       expect(route.isFree).toBe(true);
       expect(route.category).toBe("fast");
-      expect(route.provider).toBe("meta-llama");
-      expect(route.model).toContain("llama-3.2-3b");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-fast");
     });
 
-    it("resolves 'analysis' tag to heavy Qwen model", async () => {
+    it("resolves 'analysis' tag to live analysis combo", async () => {
       const engine = await getPolicyEngine();
       const route = engine.resolveRoute(["analysis"]);
 
       expect(route.isFree).toBe(true);
       expect(route.category).toBe("analysis");
-      expect(route.provider).toBe("qwen");
-      expect(route.model).toContain("72b");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-analysis");
     });
 
-    it("resolves primary tag when multiple tags are passed", async () => {
+    it("resolves deterministic priority when multiple tags are passed regardless of order", async () => {
       const engine = await getPolicyEngine();
-      const route = engine.resolveRoute(["coding", "fast"]);
+      
+      // coding (80) > fast (20)
+      const route1 = engine.resolveRoute(["coding", "fast"]);
+      expect(route1.category).toBe("coding");
+      expect(route1.model).toBe("combo/rakazo-coding");
 
-      expect(route.category).toBe("coding");
-      expect(route.model).toContain("coder");
+      const route2 = engine.resolveRoute(["fast", "coding"]);
+      expect(route2.category).toBe("coding");
+      expect(route2.model).toBe("combo/rakazo-coding");
+
+      // reasoning (100) > all
+      const route3 = engine.resolveRoute(["fast", "writing", "reasoning"]);
+      expect(route3.category).toBe("reasoning");
+      expect(route3.model).toBe("combo/rakazo-reasoning");
     });
 
     it("validates that all approved providers pass assertZeroCostAndAllowed", async () => {
@@ -89,6 +101,20 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
       for (const provider of APPROVED_FREE_PROVIDERS) {
         expect(() => engine.assertZeroCostAndAllowed(provider, 0.0)).not.toThrow();
       }
+    });
+
+    it("verifies Cognitive Priority Matrix weights ordering", () => {
+      expect(TAG_PRIORITY_WEIGHTS.reasoning).toBeGreaterThan(TAG_PRIORITY_WEIGHTS.coding);
+      expect(TAG_PRIORITY_WEIGHTS.coding).toBeGreaterThan(TAG_PRIORITY_WEIGHTS.analysis);
+      expect(TAG_PRIORITY_WEIGHTS.analysis).toBeGreaterThan(TAG_PRIORITY_WEIGHTS.writing);
+      expect(TAG_PRIORITY_WEIGHTS.writing).toBeGreaterThan(TAG_PRIORITY_WEIGHTS.fast);
+    });
+
+    it("resolveDeterministicTag handles empty and multi-tag inputs properly", () => {
+      expect(resolveDeterministicTag([])).toBe("general");
+      expect(resolveDeterministicTag(["fast"])).toBe("fast");
+      expect(resolveDeterministicTag(["fast", "coding"])).toBe("coding");
+      expect(resolveDeterministicTag(["analysis", "reasoning", "writing"])).toBe("reasoning");
     });
   });
 
@@ -99,6 +125,12 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
     it("strictly rejects positive cost > 0.00 with fail-closed error", async () => {
       const engine = await getPolicyEngine();
 
+      expect(() => engine.assertZeroCostAndAllowed("omniroute", 0.0001)).toThrow(
+        "Capacité gratuite temporairement indisponible",
+      );
+      expect(() => engine.assertZeroCostAndAllowed("combo", 0.000001)).toThrow(
+        "Capacité gratuite temporairement indisponible",
+      );
       expect(() => engine.assertZeroCostAndAllowed("meta-llama", 0.0001)).toThrow(
         "Capacité gratuite temporairement indisponible",
       );
@@ -112,7 +144,7 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
 
     it("strictly rejects negative cost values", async () => {
       const engine = await getPolicyEngine();
-      expect(() => engine.assertZeroCostAndAllowed("meta-llama", -0.01)).toThrow(
+      expect(() => engine.assertZeroCostAndAllowed("omniroute", -0.01)).toThrow(
         "Capacité gratuite temporairement indisponible",
       );
     });
@@ -151,10 +183,18 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
       expect(() => engine.vetoPaidFallback("anthropic/claude-3.5-sonnet")).toThrow(
         "Capacité gratuite temporairement indisponible",
       );
+      expect(() => engine.vetoPaidFallback("meta-llama/llama-3.3-70b-instruct")).toThrow(
+        "Capacité gratuite temporairement indisponible",
+      );
     });
 
-    it("allows free models through fallback veto check", async () => {
+    it("allows live combos and free models through fallback veto check", async () => {
       const engine = await getPolicyEngine();
+      expect(() => engine.vetoPaidFallback("combo/rakazo-coding")).not.toThrow();
+      expect(() => engine.vetoPaidFallback("combo/rakazo-reasoning")).not.toThrow();
+      expect(() => engine.vetoPaidFallback("combo/rakazo-fast")).not.toThrow();
+      expect(() => engine.vetoPaidFallback("combo/rakazo-writing")).not.toThrow();
+      expect(() => engine.vetoPaidFallback("combo/rakazo-analysis")).not.toThrow();
       expect(() => engine.vetoPaidFallback("meta-llama/llama-3.3-70b-instruct:free")).not.toThrow();
       expect(() => engine.vetoPaidFallback("qwen/qwen-2.5-coder-32b-instruct:free")).not.toThrow();
     });
@@ -196,14 +236,14 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
       expect(telemetryRecord.inferenceMode).toBe("free");
       expect(telemetryRecord.isFree).toBe(true);
       expect(telemetryRecord.requestedCategory).toBe("coding");
-      expect(telemetryRecord.resolvedProvider).toBe("qwen");
-      expect(telemetryRecord.resolvedModel).toContain("coder");
+      expect(telemetryRecord.resolvedProvider).toBe("omniroute");
+      expect(telemetryRecord.resolvedModel).toBe("combo/rakazo-coding");
     });
 
     it("post-inference cost verification validates reported telemetry cost", async () => {
       const engine = await getPolicyEngine();
-      expect(() => engine.validatePostInferenceCost(0.0, "deepseek")).not.toThrow();
-      expect(() => engine.validatePostInferenceCost(0.005, "deepseek")).toThrow(
+      expect(() => engine.validatePostInferenceCost(0.0, "omniroute")).not.toThrow();
+      expect(() => engine.validatePostInferenceCost(0.005, "omniroute")).toThrow(
         "Capacité gratuite temporairement indisponible",
       );
     });
@@ -213,8 +253,8 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
       const route = engine.resolveRoute(["reasoning", "fast"]);
 
       expect(route.category).toBe("reasoning");
-      expect(route.provider).toBe("deepseek");
-      expect(route.model).toBe("deepseek/deepseek-r1:free");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-reasoning");
       expect(route.isFree).toBe(true);
       expect(route.costPerToken).toBe(0.0);
     });
@@ -224,27 +264,27 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
       const route = engine.resolveRoute(["analysis", "writing"]);
 
       expect(route.category).toBe("analysis");
-      expect(route.provider).toBe("qwen");
-      expect(route.model).toBe("qwen/qwen-2.5-72b-instruct:free");
+      expect(route.provider).toBe("omniroute");
+      expect(route.model).toBe("combo/rakazo-analysis");
       expect(route.isFree).toBe(true);
       expect(route.costPerToken).toBe(0.0);
     });
 
-    it("ensures all 5 tag route targets have models ending with :free suffix for fail-safe parsing", async () => {
+    it("ensures all 5 tag route targets have approved combo models", async () => {
       const engine = await getPolicyEngine();
       const tags = ["coding", "writing", "reasoning", "fast", "analysis"] as const;
 
       for (const tag of tags) {
         const route = engine.resolveRoute([tag]);
-        expect(route.model.endsWith(":free")).toBe(true);
+        expect(route.model.startsWith("combo/rakazo-")).toBe(true);
         expect(() => engine.vetoPaidFallback(route.model)).not.toThrow();
       }
     });
 
-    it("ensures default general route has model ending with :free suffix", async () => {
+    it("ensures default general route has model combo/rakazo-fast", async () => {
       const engine = await getPolicyEngine();
       const defaultRoute = engine.resolveRoute([]);
-      expect(defaultRoute.model.endsWith(":free")).toBe(true);
+      expect(defaultRoute.model).toBe("combo/rakazo-fast");
       expect(defaultRoute.category).toBe("general");
     });
   });

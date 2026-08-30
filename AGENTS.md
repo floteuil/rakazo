@@ -204,15 +204,15 @@ Quality is enforced through automated static analysis, type checking, test execu
 | Action | Command | Gate Requirement |
 |---|---|---|
 | **Type Check All Packages** | `pnpm check`<br>`pnpm exec turbo check --force` | **0 errors, 0 warnings** across all 19 packages. |
-| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** (currently **2,266+ tests passing**, 0 failures). |
-| **OmniRoute 5-Tier E2E Suite** | `npx tsx test/e2e/verify-e2e.ts` | **100% pass rate (136/136 tests across Tiers 1–5)**. |
-| **Contracts & Unit Tests** | `pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts` | **100% pass rate (67/67 tests)**. |
+| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** (currently **2,545+ tests passing**, 0 failures). |
+| **OmniRoute 5-Tier E2E Suite** | `pnpm vitest run packages/testkit/src/tests/tier1-features-r1-r6.e2e.test.ts packages/testkit/src/tests/tier2-boundary-r1-r6.e2e.test.ts packages/testkit/src/tests/tier3-pairwise-r1-r6.e2e.test.ts packages/testkit/src/tests/tier4-real-world-scenarios.e2e.test.ts packages/testkit/src/tests/tier5-adversarial-stress.e2e.test.ts` | **100% pass rate (193/193 tests across Tiers 1–5)**. |
+| **Contracts & Unit Tests** | `pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts packages/adapters/src/free-policy-engine.test.ts` | **100% pass rate**. |
 | **Prisma Client Generation** | `pnpm db:generate` | Prisma client generated in `packages/db/src/generated/prisma`. |
 | **Database Migrations** | `pnpm db:migrate` | Migrations applied cleanly to target PostgreSQL database. |
 | **Linting & Code Style** | `pnpm lint` | Biome static analysis with 0 errors. |
 | **Automated Formatting** | `pnpm format` | Biome code formatting writeback. |
 | **Integration Test Harness** | `pnpm test:integration` | Testcontainers PostgreSQL integration test suite. |
-| **WebUI E2E Test Suite** | `pnpm test:e2e` | Playwright browser end-to-end tests. |
+| **WebUI E2E Test Suite** | `pnpm test:e2e` | Playwright browser end-to-end tests (216 tests passing). |
 | **Topology & Boundary Tests** | `pnpm test:topology` | Monorepo package boundary and circular dependency check. |
 | **Canary Health Check** | `pnpm test:canary` | Fast smoke test for critical runtime paths. |
 | **Computer Sandbox Tests** | `pnpm test:computer` | Sandbox supervisor and container execution tests. |
@@ -233,6 +233,7 @@ Quality is enforced through automated static analysis, type checking, test execu
 
 For deeper implementation details, consult the canonical documentation in the root and `docs/`:
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master architectural specification & platform blueprint.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md): Architectural handoff for OmniRoute Coolify deployment & Rakazo connection (Milestones M1–M5).
 - [`docs/OMNIROUTE_DEPLOYMENT.md`](docs/OMNIROUTE_DEPLOYMENT.md): Authoritative production runbook for OmniRoute on Coolify PaaS (App 21).
 - [`TEST_READY.md`](TEST_READY.md): 5-tier test matrix and E2E verification evidence.

@@ -37,9 +37,13 @@ export const SUBAGENT_DELEGATION_TOOL_NAMES = [
   "delegate_task",
   "child_bot_spawn",
   "create_child_agent",
+  "run_subagent",
+  "spawn_bot",
+  "archive_bot",
+  "delete_bot",
 ] as const;
 
-const DELEGATION_NAMES_SET = new Set([
+export const DELEGATION_NAMES_SET = new Set([
   "spawn_subagent",
   "delegate_task",
   "child_bot_spawn",

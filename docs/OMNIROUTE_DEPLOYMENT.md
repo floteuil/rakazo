@@ -229,3 +229,22 @@ curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer <OMNIROUTE_API_
 | **Database Disk I/O Error** | Corrupted permissions on `/app/data` volume | Run `chown -R 1000:1000 /app/data` inside container or via volume utility container. |
 | **SSL Certificate Error / Expired** | Traefik Let's Encrypt HTTP-01 challenge failure | Verify DNS `omniroute.workspacegroupefloteuil.eu` resolves to `62.164.214.145` and ports 80/443 are open. |
 
+---
+
+## 11. Live Combos & Related Architectural References
+
+OmniRoute supports specialized high-availability combo routes for Rakazo autonomous agents:
+- `combo/rakazo-coding` (Qwen 2.5 Coder 32B Free)
+- `combo/rakazo-reasoning` (DeepSeek R1 Free)
+- `combo/rakazo-fast` (LLaMA 3.2 3B Free)
+- `combo/rakazo-writing` (Mistral Small 24B Free)
+- `combo/rakazo-analysis` (Qwen 2.5 72B Free)
+
+Requests carry the `x-session-id` header (32-bit FNV-1a session hash) to maximize upstream KV prefix cache hits across multi-turn agent turns.
+
+### Related Documentation
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
+- [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](../RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master platform architectural specification.
+- [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
+
+

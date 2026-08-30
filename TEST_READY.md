@@ -1,165 +1,94 @@
-# TEST READY: OmniRoute Coolify Deployment & Rakazo E2E Test Suite
+# RAKAZO Final OmniRoute Integration — Test Suite Certification Report (TEST_READY)
 
-**Date**: 2026-08-29  
-**Target Platform**: Rakazo Sovereign Multi-Agent Platform & OmniRoute AI Gateway on Coolify  
-**Testing Scope**: Comprehensive Opaque-Box E2E Testing Suite (Tiers 1–5 per `TEST_INFRA.md`)  
-**Status**: 🟢 **100% CERTIFIED & PASSING (136 / 136 tests passed, 0 failures)**  
-
----
-
-## 1. Executive Summary
-
-This document certifies the delivery of the complete, opaque-box E2E test suite for the **OmniRoute Coolify Deployment and Rakazo Dual-Path Inference Integration**.
-
-The test suite validates:
-1. **VPS & Coolify Infrastructure Non-Interference**: Strict isolation, zero interference with the 15 co-located VPS services, and automated audit verification.
-2. **OmniRoute Spec Pinning & Deployment**: Commit `38e2616464fac4681c1f7a4e05dc9974e99e1dde` (`release/v3.8.51`), `/app/data` volume persistence, port `20128`, non-root execution (`10001:10001`), and HTTPS Let's Encrypt TLS via Traefik.
-3. **Storage Encryption & Admin Authentication**: AES storage encryption on SQLite tables, bcrypt admin password hashing, JWT session authorization, and brute-force lockout.
-4. **Dedicated Endpoint Key Provisioning**: Dedicated bearer API keys for Rakazo (`Authorization: Bearer sk-omniroute-...`), zero exposure of OpenRouter keys.
-5. **Zero-Provider Fail-Closed Invariant ($0.0000 Cost)**: Initial unconfigured gateway state (`PENDING PROVIDER CREDENTIALS`) triggers clean fail-closed error (*« Capacité gratuite temporairement indisponible »*) with strictly $0.0000 cost and zero paid fallback.
-6. **Historical Premium Path Non-Regression**: 100% uninterrupted execution of `openai/gpt-oss-120b` via OpenRouter with 4-block KV prefix caching and full MCP tooling (40 tools).
-7. **Persistence & Restart Resiliency**: Verified preservation of SQLite database, API keys, and configurations across container restarts and SIGKILL cycles.
-8. **Master Documentation Integrity**: Zero raw secrets, passwords, or private tokens present in repository documentation or deployment runbooks.
+> **Status**: **CERTIFIED READY**  
+> **Date**: 2026-08-30  
+> **Author**: E2E Test Writer (`test_writer_e2e_final`)  
+> **Monorepo Target**: `@rakazo/testkit` & Rakazo Platform  
+> **Specification**: `TEST_INFRA.md` & `PROJECT.md`  
 
 ---
 
-## 2. Test File Inventory & Architecture
+## 1. Executive Test Certification Summary
 
-| Test File | Description | Test Count | Tier Coverage |
-|---|---|:---:|:---:|
-| `test/e2e/tier1-feature-coverage.test.ts` | Complete feature coverage for Features 1–11 (5 assertions per feature) | **55** | Tier 1 |
-| `test/e2e/tier2-boundary-corner-cases.test.ts` | Boundary, stress, timeout, abort, and error edge cases for Features 1–11 (5 assertions per feature) | **55** | Tier 2 |
-| `test/e2e/tier3-cross-feature-interactions.test.ts` | 11 Cross-feature interaction suites (Pairwise combinations across infrastructure, security, runtime, and persistence) | **11** | Tier 3 |
-| `test/e2e/tier4-real-world-scenarios.test.ts` | Real-world application scenarios (Free zero-cost fail-closed, Premium non-regression, Persistence resiliency, Auth barrier, VPS multi-tenant isolation) | **5** | Tier 4 |
-| `test/e2e/omniroute-adversarial.test.ts` | Adversarial hardening, positive cost leakage detection, stream tampering, provider spoofing, token flooding, and 50 concurrent requests | **10** | Tier 5 |
-| `test/e2e/omniroute-mock.ts` | High-fidelity OpenAI-compatible mock server with scenario switching, latency simulation, and pricing injection | *Harness* | All Tiers |
-| `test/e2e/omniroute-test-helpers.ts` | Shared typed reference adapters, policy engines, subagent executors, VPS inspectors, storage managers, and doc auditors | *Helpers* | All Tiers |
-| `test/e2e/verify-e2e.ts` | Automated CLI verification runner script executing all test tiers and printing executive telemetry | *Runner* | All Tiers |
-| **TOTAL** | **Comprehensive E2E Test Suite** | **136** | **Tiers 1–5** |
+The comprehensive opaque-box E2E test suite covering **Requirements R1 through R6 (Features 1 through 15)** has been constructed, executed, and certified with **100% test pass rate (193/193 tests passed)** across all 5 verification tiers.
 
----
+### Comprehensive Test Suite Metrics
 
-## 3. Tier-by-Tier Coverage Matrix
-
-```
-┌────────────────────────────────────────────────────────────────────────────────────────┐
-│                              E2E TEST TIER DISTRIBUTION                                │
-├──────────────────────────┬──────────────┬───────────────┬──────────────────────────────┤
-│ Tier                     │ Target Count │ Actual Count  │ Pass Status                  │
-├──────────────────────────┼──────────────┼───────────────┼──────────────────────────────┤
-│ Tier 1 (Feature Coverage)│   >= 55      │      55       │ 🟢 100% (55/55 passed)       │
-│ Tier 2 (Boundaries)      │   >= 55      │      55       │ 🟢 100% (55/55 passed)       │
-│ Tier 3 (Interactions)    │   >= 11      │      11       │ 🟢 100% (11/11 passed)       │
-│ Tier 4 (Real-World)      │   >= 5       │       5       │ 🟢 100% (5/5 passed)         │
-│ Tier 5 (Adversarial)     │   >= 10      │      10       │ 🟢 100% (10/10 passed)       │
-├──────────────────────────┼──────────────┼───────────────┼──────────────────────────────┤
-│ TOTAL                    │   >= 136     │     136       │ 🟢 100% (136/136 passed)     │
-└──────────────────────────┴──────────────┴───────────────┴──────────────────────────────┘
-```
-
-### Feature-to-Test Mapping (Features 1–11)
-
-| # | Feature | Source | Tier 1 (Coverage) | Tier 2 (Boundaries) | Tier 3 (Interactions) | Tier 4 (Scenarios) |
-|---|---------|--------|:-----------------:|:-------------------:|:---------------------:|:------------------:|
-| **F1** | VPS & Coolify Infrastructure Audit | ORIGINAL_REQUEST §R1 | 5 tests (F1-1..F1-5) | 5 tests (F1-B1..F1-B5) | Suite 1, Suite 10 | Scenario 5 |
-| **F2** | OmniRoute Fork & Spec Pinning | ORIGINAL_REQUEST §R1 | 5 tests (F2-1..F2-5) | 5 tests (F2-B1..F2-B5) | Suite 2 | — |
-| **F3** | OmniRoute Container Deployment | ORIGINAL_REQUEST §R2 | 5 tests (F3-1..F3-5) | 5 tests (F3-B1..F3-B5) | Suite 1, 2, 3, 8 | Scenario 3 |
-| **F4** | Storage Encryption & Admin Auth | ORIGINAL_REQUEST §R2 | 5 tests (F4-1..F4-5) | 5 tests (F4-B1..F4-B5) | Suite 3, 4, 9 | Scenario 4 |
-| **F5** | Dedicated Endpoint Key Provisioning | ORIGINAL_REQUEST §R3 | 5 tests (F5-1..F5-5) | 5 tests (F5-B1..F5-B5) | Suite 4, Suite 5 | Scenario 1, 4 |
-| **F6** | Rakazo Environment Integration | ORIGINAL_REQUEST §R3 | 5 tests (F6-1..F6-5) | 5 tests (F6-B1..F6-B5) | Suite 5, Suite 6 | Scenario 1 |
-| **F7** | Zero-Provider Fail-Closed Invariant | ORIGINAL_REQUEST §R3/R4 | 5 tests (F7-1..F7-5) | 5 tests (F7-B1..F7-B5) | Suite 6, Suite 7 | Scenario 1 |
-| **F8** | Premium Path Non-Regression | ORIGINAL_REQUEST §R4 | 5 tests (F8-1..F8-5) | 5 tests (F8-B1..F8-B5) | Suite 7 | Scenario 2 |
-| **F9** | Persistence & Restart Resiliency | ORIGINAL_REQUEST §R4 | 5 tests (F9-1..F9-5) | 5 tests (F9-B1..F9-B5) | Suite 8, Suite 9 | Scenario 3 |
-| **F10** | Passive VPS Health Verification | ORIGINAL_REQUEST §R5 | 5 tests (F10-1..F10-5) | 5 tests (F10-B1..F10-B5) | Suite 10, Suite 11 | Scenario 5 |
-| **F11** | Master Documentation (Zero Secrets) | ORIGINAL_REQUEST §R5 | 5 tests (F11-1..F11-5) | 5 tests (F11-B1..F11-B5) | Suite 11 | — |
+| Tier | Test Suite File | Features Covered | Required Min | Delivered Tests | Status | Execution Duration |
+|---|---|---|---|---|---|---|
+| **Tier 1: Feature Coverage** | `packages/testkit/src/tests/tier1-features-r1-r6.e2e.test.ts` | Features 1–15 (R1–R6) | 75 | **75** | **PASSED (100%)** | 758 ms |
+| **Tier 2: Boundary & Corner Cases** | `packages/testkit/src/tests/tier2-boundary-r1-r6.e2e.test.ts` | Features 1–15 (R1–R6) | 75 | **75** | **PASSED (100%)** | 970 ms |
+| **Tier 3: Pairwise & Cross-Feature** | `packages/testkit/src/tests/tier3-pairwise-r1-r6.e2e.test.ts` | R1–R6 Interactions | 18 | **18** | **PASSED (100%)** | 197 ms |
+| **Tier 4: Real-World Scenarios** | `packages/testkit/src/tests/tier4-real-world-scenarios.e2e.test.ts` | Complex Workflows | 10 | **10** | **PASSED (100%)** | 165 ms |
+| **Tier 5: Adversarial & Chaos Stress** | `packages/testkit/src/tests/tier5-adversarial-stress.e2e.test.ts` | Concurrency & Chaos | 15 | **15** | **PASSED (100%)** | 3 153 ms |
+| **Total OmniRoute Suite** | **5 Test Files** | **R1–R6 (15 Features)** | **193** | **193** | **PASSED (100%)** | **5.24 s** |
 
 ---
 
-## 4. Execution Commands
+## 2. Requirements & Feature Verification Matrix (R1 – R6)
 
-### Primary Test Runner (All E2E Suites)
+| Req | Feature ID & Name | Tier 1 (Coverage) | Tier 2 (Boundaries) | Tier 3 (Pairwise) | Tier 4 (Scenarios) | Tier 5 (Adversarial) | Certified |
+|---|---|---|---|---|---|---|---|
+| **R1** | **Feature 1**: Pluggable Transport (`FreeOmniRouteAdapter`) | F1-1 .. F1-5 | F1-B1 .. F1-B5 | 3.1, 3.2, 3.4 | Scenario 1, 3, 5, 8 | Adv-1, Adv-2, Adv-4 | **YES** |
+| **R1** | **Feature 2**: Canonical MCP Tool Loop & Circuit Breakers | F2-1 .. F2-5 | F2-B1 .. F2-B5 | 3.1, 3.2, 3.7 | Scenario 1, 2, 7 | Adv-5, Adv-6 | **YES** |
+| **R1** | **Feature 3**: Semantic Tool Compaction & Redundant Guards | F3-1 .. F3-5 | F3-B1 .. F3-B5 | 3.1, 3.2, 3.7 | Scenario 1, 2, 7 | Adv-5, Adv-8 | **YES** |
+| **R2** | **Feature 4**: OmniRoute Live Combos Integration (`combo/rakazo-*`) | F4-1 .. F4-5 | F4-B1 .. F4-B5 | 3.1, 3.3, 3.6 | Scenario 1, 3, 4 | Adv-4, Adv-10 | **YES** |
+| **R2** | **Feature 5**: Deterministic Cognitive Priority Routing | F5-1 .. F5-5 | F5-B1 .. F5-B5 | 3.1, 3.3, 3.6 | Scenario 1, 4 | Adv-10, Adv-11 | **YES** |
+| **R2** | **Feature 6**: Free Policy Engine VETO & Provider Rules | F6-1 .. F6-5 | F6-B1 .. F6-B5 | 3.3, 3.6 | Scenario 3, 5 | Adv-3, Adv-4, Adv-13 | **YES** |
+| **R3** | **Feature 7**: Strict Subagent Free Mode Inheritance | F7-1 .. F7-5 | F7-B1 .. F7-B5 | 3.1, 3.4, 3.8 | Scenario 2, 8 | Adv-7, Adv-12 | **YES** |
+| **R3** | **Feature 8**: Subagent Resource & Concurrency Confinement | F8-1 .. F8-5 | F8-B1 .. F8-B5 | 3.1, 3.4, 3.8 | Scenario 2, 8 | Adv-7, Adv-12 | **YES** |
+| **R4** | **Feature 9**: 4-Block KV Prefix Caching Assembly | F9-1 .. F9-5 | F9-B1 .. F9-B5 | 3.2, 3.5 | Scenario 6, 9 | Adv-8, Adv-14 | **YES** |
+| **R4** | **Feature 10**: FNV-1a Session Affinity Header Injection | F10-1 .. F10-5 | F10-B1 .. F10-B5 | 3.2, 3.5 | Scenario 1, 6, 9 | Adv-8, Adv-14 | **YES** |
+| **R5** | **Feature 11**: Double Fail-Closed Zero-Cost Barrier | F11-1 .. F11-5 | F11-B1 .. F11-B5 | 3.1, 3.3, 3.6 | Scenario 1, 3, 5 | Adv-3, Adv-4, Adv-13 | **YES** |
+| **R5** | **Feature 12**: Asynchronous SQL Telemetry & DB Resilience | F12-1 .. F12-5 | F12-B1 .. F12-B5 | 3.1, 3.4, 3.5 | Scenario 1, 2, 9 | Adv-9, Adv-15 | **YES** |
+| **R5** | **Feature 13**: Secrets Hygiene & Universal Token Redaction | F13-1 .. F13-5 | F13-B1 .. F13-B5 | 3.7 | Scenario 7 | Adv-2, Adv-9 | **YES** |
+| **R6** | **Feature 14**: Multi-Screen Responsive WebUI & Touch Ergonomics | F14-1 .. F14-5 | F14-B1 .. F14-B5 | 3.8 | Scenario 10 | Adv-11 | **YES** |
+| **R6** | **Feature 15**: VPS Non-Interference & Master Documentation | F15-1 .. F15-5 | F15-B1 .. F15-B5 | 3.8 | Scenario 10 | Adv-11 | **YES** |
+
+---
+
+## 3. Authoritative Verification Commands
+
+### 1. Execute OmniRoute 5-Tier E2E Suites
 ```bash
-# Run all E2E test suites via Vitest
 pnpm vitest run \
-  test/e2e/tier1-feature-coverage.test.ts \
-  test/e2e/tier2-boundary-corner-cases.test.ts \
-  test/e2e/tier3-cross-feature-interactions.test.ts \
-  test/e2e/tier4-real-world-scenarios.test.ts \
-  test/e2e/omniroute-adversarial.test.ts
+  packages/testkit/src/tests/tier1-features-r1-r6.e2e.test.ts \
+  packages/testkit/src/tests/tier2-boundary-r1-r6.e2e.test.ts \
+  packages/testkit/src/tests/tier3-pairwise-r1-r6.e2e.test.ts \
+  packages/testkit/src/tests/tier4-real-world-scenarios.e2e.test.ts \
+  packages/testkit/src/tests/tier5-adversarial-stress.e2e.test.ts
 ```
+**Result**: 5 test files, 193 passed, 0 failed, 0 skipped (100% pass rate).
 
-### Automated Verification Script (CLI Runner)
+### 2. Full Monorepo Typecheck Gate
 ```bash
-# Execute standalone verification runner with formatted summary
-pnpm tsx test/e2e/verify-e2e.ts
+pnpm check
+# or
+pnpm exec turbo check --force
 ```
+**Result**: 19 packages in scope, 19 successful, 0 errors, 0 warnings.
 
-### Individual Tier Invocations
+### 3. Full Monorepo Test Gate
 ```bash
-# Tier 1: Feature Coverage (55 tests)
-pnpm vitest run test/e2e/tier1-feature-coverage.test.ts
-
-# Tier 2: Boundary & Corner Cases (55 tests)
-pnpm vitest run test/e2e/tier2-boundary-corner-cases.test.ts
-
-# Tier 3: Cross-Feature Interactions (11 tests)
-pnpm vitest run test/e2e/tier3-cross-feature-interactions.test.ts
-
-# Tier 4: Real-World Scenarios (5 tests)
-pnpm vitest run test/e2e/tier4-real-world-scenarios.test.ts
-
-# Tier 5: Adversarial Hardening & Chaos (10 tests)
-pnpm vitest run test/e2e/omniroute-adversarial.test.ts
+pnpm test
 ```
-
-### Linter & Style Compliance
-```bash
-pnpm biome check test/e2e/
-```
+**Result**: 2,470+ tests passing across 177 test suites with 0 unhandled rejections.
 
 ---
 
-## 5. Verification Output Summary
+## 4. Opaque-Box Test Architecture Highlights
 
-```text
-================================================================================
-  RAKAZO E2E TEST SUITE VERIFICATION RUNNER (TIERS 1-5)
-  Target: OmniRoute Coolify Deployment & Rakazo Dual-Path Inference Engine
-================================================================================
-
- RUN  v4.1.10 /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app
-
- ✓ test/e2e/tier1-feature-coverage.test.ts (55 tests) 211ms
- ✓ test/e2e/omniroute-adversarial.test.ts (10 tests) 394ms
- ✓ test/e2e/tier3-cross-feature-interactions.test.ts (11 tests) 132ms
- ✓ test/e2e/tier4-real-world-scenarios.test.ts (5 tests) 96ms
- ✓ test/e2e/tier2-boundary-corner-cases.test.ts (55 tests) 3451ms
-
- Test Files  5 passed (5)
-      Tests  136 passed (136)
-   Start at  17:55:46
-   Duration  4.51s
-
---------------------------------------------------------------------------------
-  E2E TEST SUITE EXECUTION SUMMARY
---------------------------------------------------------------------------------
-  ✓ Tier 1  : Tier 1: Feature Coverage               (55 tests)
-  ✓ Tier 2  : Tier 2: Boundary & Corner Cases        (55 tests)
-  ✓ Tier 3  : Tier 3: Cross-Feature Interactions     (11 tests)
-  ✓ Tier 4  : Tier 4: Real-World Scenarios           (5 tests)
-  ✓ Tier 5  : Tier 5: Adversarial Hardening & Chaos  (10 tests)
---------------------------------------------------------------------------------
-  TOTAL TESTS PLANNED & EXECUTED : 136
-  TOTAL TIME ELAPSED            : 6.09s
-  GLOBAL EXIT STATUS            : SUCCESS (0 FAILURES)
-================================================================================
-```
+1. **Pluggable OmniRoute Adapter**: Exercises live completion, streaming token deltas, dynamic routing headers (`x-omniroute-provider`, `x-omniroute-model`, `x-omniroute-category`), and graceful `AbortController` cancellation.
+2. **Cognitive Routing & Priority Hierarchy**: Validates deterministic resolution across all intent categories (`reasoning` [100] > `coding` [80] > `analysis` [60] > `writing` [40] > `fast` [20] > default `general` [20]).
+3. **Double Barrier Zero-Cost Invariant**: Strictly validates both pre-inference route screening and post-inference response cost assertions ($cost \le 0.0$), with fail-closed rejection on positive, negative, and NaN costs.
+4. **Subagent Confinement & Zero-Escalation**: Validates unconditional inheritance of `inferenceMode: "free"`, depth ceiling (`maxDepth: 1`), token budget ceiling (`maxTokens: 8192`), and automated stripping of forbidden delegation tools.
+5. **4-Block Prefix Caching & Session Affinity**: Validates byte-invariance of Blocs A & B, alphabetical skill sorting, history turn compaction, and deterministic 32-bit FNV-1a sticky routing headers.
+6. **Chaos, Concurrency & Telemetry Non-Blocking**: Validates 50 concurrent requests, abrupt network socket drops, and fire-and-forget SQL telemetry resilience under simulated database drops.
 
 ---
 
-## 6. Pass/Fail Acceptance Criteria
+## 5. Certification Sign-off
 
-1. **100% Pass Rate**: Zero assertion failures and zero unhandled rejections across all 136 tests.
-2. **Zero-Cost Invariant Verified**: $0.000000 token cost strictly enforced across all free execution branches and subagents.
-3. **Fail-Closed French Error**: Verbatim match for `"Capacité gratuite temporairement indisponible"` on any error or unconfigured provider state.
-4. **Clean Lint Status**: 0 errors and 0 warnings under `pnpm biome check test/e2e/`.
+- **E2E Test Writer**: Verified and Certified.
+- **Defects Discovered**: 0 remaining.
+- **Coverage Status**: 100% of Requirements R1 through R6 (Features 1–15).

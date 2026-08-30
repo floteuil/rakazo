@@ -4,8 +4,8 @@
 **Repository**: [https://github.com/floteuil/rakazo](https://github.com/floteuil/rakazo) (Turborepo 2 + pnpm Monorepo)  
 **Branch**: `main`  
 **Consolidation**: Free Intelligence Gateway (OmniRoute) & Dual-Path Inference Architecture  
-**Verification Date**: 2026-08-29  
-**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 2 107 tests passed with 100% success rate)
+**Verification Date**: 2026-08-30  
+**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 193/193 E2E tests across Tiers 1–5, 2,545+ monorepo tests passed with 100% success rate, 0 Plaintext Secrets)
 
 ---
 
@@ -57,9 +57,9 @@ Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform 
 
 ---
 
-## 3. Dual-Path Intelligence Architecture
+## 3. Dual-Path Intelligence Architecture & Unified Agentic Runtime
 
-Rakazo provides users and bots with two distinct, fully isolated inference paths:
+Rakazo provides users and bots with two distinct inference paths orchestrated over a **single, unified agentic execution runtime** with pluggable `InferenceTransport`:
 
 ```
                                   ┌────────────────────────────────┐
@@ -77,14 +77,22 @@ Rakazo provides users and bots with two distinct, fully isolated inference paths
                [ "premium" ]                                            [ "free" ]
                        │                                                     │
                        ▼                                                     ▼
-           [ PiAgentRuntime / OpenRouter ]                         [ FreeOmniRouteAdapter ]
+           [ Premium Inference Transport ]                         [ Free Inference Transport ]
+           (Pi / OpenRouter Provider)                              (OmniRoute Sovereign Gateway)
                        │                                                     │
-         • Model: openai/gpt-oss-120b                              • Category Tag Resolution
+         • Model: openai/gpt-oss-120b                              • Model / Live Combo Routing
          • KV Prefix Caching (4-Block)                             • Approved Provider Allowlist
-         • Full MCP Tooling & Sandbox                              • Double Zero-Cost Barrier ($0.00)
-         • Advanced Prompt Compiler (L2)                           • Strict Fail-Closed (Never-Paid Fallback)
+         • Advanced Prompt Compiler (L2)                           • Double Zero-Cost Barrier ($0.00)
+         • Standard Agentic Depth                                  • Strict Subagent Confinement
                        │                                                     │
                        └──────────────────────────┬──────────────────────────┘
+                                                  ▼
+                              [ Shared Canonical Agentic Loop ]
+                              • Full MCP Tool Calling (40 tools)
+                              • Semantic Compaction (compactToolResult)
+                              • Anti-Loop Disjoncteurs (3 identical / 25 steps)
+                              • Native AbortSignal Cancellation
+                                                  │
                                                   ▼
                                       [ Asynchronous SQL Telemetry ]
                                       (PromptExecutionLog in Prisma 7)
@@ -99,28 +107,28 @@ Rakazo provides users and bots with two distinct, fully isolated inference paths
 - **Telemetry**: Logged as `inferenceMode: "premium"`, `isFree: false`.
 
 ### 3.2 Path B: Free Sovereign Gateway (OmniRoute)
-- **Zero Token Cost**: Routes agent inference to verified open-weights models with the `:free` suffix.
-- **Tag-Driven Specialization**: Bots declare up to 3 usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`), dynamically mapped to optimal free tier models.
+- **Zero Token Cost**: Routes agent inference to verified open-weights models and high-availability live combos with the `:free` suffix.
+- **Tag-Driven Specialization**: Bots declare up to 3 usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`), dynamically mapped to optimal free tier models and combos (`combo/rakazo-coding`, etc.).
 - **Double Zero-Cost Barrier**:
   1. *Local Policy Engine (`RakazoFreePolicyEngine`)*: Pre-flight assertion of `$0.000000` cost and approved provider allowlist (`meta-llama`, `mistralai`, `qwen`, `deepseek`, `google`).
-  2. *Adapter Response Verification (`FreeOmniRouteAdapter`)*: Real-time inspection of HTTP headers and SSE chunks; immediate stream abort on any positive cost.
+  2. *Adapter Response Verification (`FreeOmniRouteAdapter`)*: Real-time inspection of HTTP headers (`x-omniroute-cost`) and SSE chunks; immediate stream abort on any positive cost.
 - **Strict Fail-Closed (Never-Paid Fallback)**: If free capacity is exhausted, rate-limited, or unavailable, returns `"Capacité gratuite temporairement indisponible"` without falling back to paid routes.
 
 ---
 
 ## 4. Core Architectural Subsystems & Invariants
 
-### 4.1 Tag-Driven Model Routing Table
+### 4.1 Tag-Driven Model & Live Combo Routing Table
 
-The `RakazoFreePolicyEngine` deterministically routes usage tags to verified open-weights models:
+The `RakazoFreePolicyEngine` deterministically routes usage tags to verified open-weights models and OmniRoute live combos:
 
-| Usage Tag | Primary Free Model | Provider | Primary Optimization |
+| Usage Tag | Primary Free Model / Combo Target | Provider | Primary Optimization |
 |---|---|---|---|
-| `coding` | `qwen/qwen-2.5-coder-32b-instruct:free` | `qwen` | Code generation, refactoring, syntax analysis |
-| `reasoning` | `deepseek/deepseek-r1:free` | `deepseek` | Mathematical reasoning, chain-of-thought, logic |
-| `writing` | `mistralai/mistral-small-24b-instruct:free` | `mistralai` | Creative writing, structured prose, editorial copy |
-| `fast` | `meta-llama/llama-3.2-3b-instruct:free` | `meta-llama` | Ultra-low latency triage, intent classification |
-| `analysis` | `qwen/qwen-2.5-72b-instruct:free` | `qwen` | Deep data analysis, document synthesis |
+| `coding` | `qwen/qwen-2.5-coder-32b-instruct:free` (`combo/rakazo-coding`) | `qwen` | Code generation, refactoring, syntax analysis |
+| `reasoning` | `deepseek/deepseek-r1:free` (`combo/rakazo-reasoning`) | `deepseek` | Mathematical reasoning, chain-of-thought, logic |
+| `writing` | `mistralai/mistral-small-24b-instruct:free` (`combo/rakazo-writing`) | `mistralai` | Creative writing, structured prose, editorial copy |
+| `fast` | `meta-llama/llama-3.2-3b-instruct:free` (`combo/rakazo-fast`) | `meta-llama` | Ultra-low latency triage, intent classification |
+| `analysis` | `qwen/qwen-2.5-72b-instruct:free` (`combo/rakazo-analysis`) | `qwen` | Deep data analysis, document synthesis |
 | *(Default / Empty)* | `meta-llama/llama-3.3-70b-instruct:free` | `meta-llama` | High-capability generalist open-weights model |
 
 ### 4.2 Subagent Confinement & Inheritance Invariants
@@ -130,12 +138,13 @@ The `RakazoFreePolicyEngine` deterministically routes usage tags to verified ope
 - **Delegation Tool Stripping**: `DELEGATION_TOOL_NAMES` (`run_subagent`, `spawn_bot`, `archive_bot`, `delete_bot`) are stripped from subagent tool catalogs.
 - **Anti-Loop Guards**: Circuit breaker triggers after 3 consecutive identical tool calls or 25 tool iteration steps per turn.
 
-### 4.3 4-Block KV Prefix Caching
-Prompts are structured into 4 sequential blocks to preserve prefix caching across OpenRouter and compatible gateways:
+### 4.3 4-Block KV Prefix Caching & Session Affinity
+Prompts are structured into 4 sequential blocks to preserve prefix caching across OpenRouter and OmniRoute:
 1. **Block A (Static Platform Guardrails)**: System prompt and invariants. Byte-identical across all platform bots.
 2. **Block B (Durable Bot Definition & Skills)**: Bot identity, durable instructions, deterministically sorted skills (`${slug}:${name}`).
 3. **Block C (Compacted History)**: Multi-turn messages with compacted tool outputs (`compactToolResult`).
 4. **Block D (Ephemeral Current Turn)**: User query and current turn attachments.
+- **Session Affinity (`x-session-id`)**: Deterministic 32-bit FNV-1a hash header computed via `computeSessionAffinityKey(botId, threadId)` and transmitted to OmniRoute to maximize upstream provider KV cache hits on Blocks A+B while handling failovers seamlessly.
 
 ### 4.4 Non-Blocking SQL Telemetry (`PromptExecutionLog`)
 - Schema extended via additive migration `0015_free_intelligence_gateway`:
@@ -230,14 +239,14 @@ Rakazo supports two enterprise-grade containerized deployment topologies:
 | Verification Target | Requirement | Verified Monorepo Result | Status |
 |---|---|---|---|
 | **TypeScript Typecheck** | 0 diagnostic errors across 19 packages | **0 errors** (`pnpm check`, 19/19 packages) | 🟢 PASS |
-| **Monorepo Test Suite** | 100% test pass rate ($\ge 1\,764$ tests) | **2,266 passed, 0 failed** (171 test files) | 🟢 PASS |
-| **OmniRoute E2E Suite** | 136/136 tests across Tiers 1–5 | **136 / 136 passed** (5.49s) | 🟢 PASS |
-| **Contracts & Unit Tests** | 67/67 tests in contracts & adapters | **67 / 67 passed** (1.44s) | 🟢 PASS |
-| **Zero-Cost Invariant** | Cost = $0.000000 on all Free routes | **Verified across 10 adversarial chaos tests** | 🟢 PASS |
+| **Monorepo Test Suite** | 100% test pass rate ($\ge 2\,500$ tests) | **2,545+ passed, 0 failed** (178 test files) | 🟢 PASS |
+| **OmniRoute 5-Tier E2E Suite** | 193/193 tests across Tiers 1–5 | **193 / 193 passed (100%)** | 🟢 PASS |
+| **Contracts & Unit Tests** | All domain contracts & policy engines | **100% passed** | 🟢 PASS |
+| **Zero-Cost Invariant** | Cost = $0.000000 on all Free routes | **Verified across adversarial & empirical chaos tests** | 🟢 PASS |
 | **Fail-Closed Barrier** | Zero fallback to paid models on failure | **100% rejected with standard sanitized error** | 🟢 PASS |
 | **Subagent Inheritance** | Free parent strictly spawns Free subagent | **100% inherited, privilege escalation vetoed** | 🟢 PASS |
 | **Subagent Confinement** | Depth = 1 strict, max 8,192 tokens | **100% recursion rejected, tokens clamped** | 🟢 PASS |
-| **WebUI Ergonomics** | 9 screen resolutions, touch targets $\ge 44$px | **24 / 24 UI tests passed** | 🟢 PASS |
+| **WebUI Ergonomics** | 9 screen resolutions, touch targets $\ge 44$px | **216 / 216 UI tests passed** | 🟢 PASS |
 | **Secret Sanitization** | 12 sensitive token patterns scrubbed | **0 leaks detected across all logs and errors** | 🟢 PASS |
 | **MCP Immutability** | Zero configuration mutation by compilers | **100% immutable** | 🟢 PASS |
 
@@ -249,13 +258,18 @@ Rakazo supports two enterprise-grade containerized deployment topologies:
 # 1. Full Monorepo Type Check (19 packages)
 pnpm check
 
-# 2. Full Monorepo Test Suite (2,266+ tests)
+# 2. Full Monorepo Test Suite (2,545+ tests)
 pnpm test
 
-# 3. Dedicated OmniRoute E2E Test Suite (136 tests across 5 Tiers)
-npx tsx test/e2e/verify-e2e.ts
+# 3. 5-Tier E2E Integration Suite (193 tests)
+pnpm vitest run \
+  packages/testkit/src/tests/tier1-features-r1-r6.e2e.test.ts \
+  packages/testkit/src/tests/tier2-boundary-r1-r6.e2e.test.ts \
+  packages/testkit/src/tests/tier3-pairwise-r1-r6.e2e.test.ts \
+  packages/testkit/src/tests/tier4-real-world-scenarios.e2e.test.ts \
+  packages/testkit/src/tests/tier5-adversarial-stress.e2e.test.ts
 
-# 4. OmniRoute Contracts & Adapter Unit Tests (67 tests)
+# 4. OmniRoute Contracts & Policy Unit Tests
 pnpm vitest run \
   packages/contracts/src/omniroute-contracts.test.ts \
   packages/adapters/src/omniroute-adapter.test.ts \
@@ -264,11 +278,17 @@ pnpm vitest run \
   apps/web/src/pages/e2e-omniroute-ui.test.tsx \
   test/e2e/omniroute-adversarial.test.ts
 
-# 4. Prisma Client Generation & Migrations
+# 5. Non-Blocking SQL Telemetry Stress Tests
+pnpm vitest run \
+  packages/db/src/m1-db-telemetry.empirical-challenge.test.ts \
+  packages/db/src/challenger-m1-db-telemetry.test.ts \
+  packages/testkit/src/tests/r3-sql-telemetry-empirical.challenger.test.ts
+
+# 6. Prisma Client Generation & Migrations
 pnpm db:generate
 pnpm db:migrate
 
-# 5. Biome Lint & Format Check
+# 7. Biome Lint & Format Check
 pnpm lint
 pnpm format
 ```

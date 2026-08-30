@@ -3,8 +3,10 @@ import { type Api, type Model, type Models, Type } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
 import type {
   AdapterContext,
+  AdapterDescriptor,
   AgentRunRequest,
   AgentRuntime,
+  AgentRuntimeCapabilities,
   AgentRuntimeEvent,
   AgentToolExecutionResult,
   ConnectorTool,
@@ -12,12 +14,26 @@ import type {
 import { builtinAgentTools, DELEGATION_TOOL_NAMES } from "./builtin-tools.js";
 import { sanitizeToolError } from "./enterprise-tools.js";
 import {
+  type InferenceTransport,
+  type InferenceTransportChunk,
+  type InferenceTransportMessage,
+  type InferenceTransportRequest,
+} from "./inference-transport.js";
+import {
   createToolCallTracker,
   evaluateToolCallGuard,
   type ToolCallTracker,
 } from "./loop-guards.js";
+import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
+import { PiAiInferenceTransport } from "./pi-ai-transport.js";
 import { PiRuntimeCredentialStore, toOAuthCredential } from "./pi-credentials.js";
 import { compilePromptLevel1Deterministic } from "./prompt-compiler.js";
+import { computeSessionAffinityKey } from "./prefix-caching.js";
+import {
+  DELEGATION_NAMES_SET,
+  SUBAGENT_MAX_DEPTH,
+  SUBAGENT_TOKEN_BUDGET_CEILING,
+} from "./subagent-inheritance.js";
 import { compactToolResult } from "./tool-compacting.js";
 
 const running = new Map<string, AbortController>();
@@ -29,7 +45,387 @@ const AGENT_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const MAX_AGENT_TOOL_NAME_LENGTH = 64;
 const FALLBACK_AGENT_TOOL_NAME = "connector_tool";
 
+export interface CanonicalAgentRuntimeOptions {
+  transport?: InferenceTransport;
+}
+
+export class CanonicalAgentRuntime implements AgentRuntime {
+  private transport?: InferenceTransport;
+
+  constructor(options: CanonicalAgentRuntimeOptions = {}) {
+    this.transport = options.transport;
+  }
+
+  describe(): AdapterDescriptor<AgentRuntimeCapabilities> {
+    return {
+      id: "canonical",
+      contractVersion: "1",
+      adapterVersion: "0.1.0",
+      capabilities: { streaming: true, compaction: true, tools: true, scripted: false },
+    };
+  }
+
+  async abort(runId: string): Promise<void> {
+    running.get(runId)?.abort();
+  }
+
+  async *run(
+    request: AgentRunRequest,
+    context: AdapterContext,
+  ): AsyncIterable<AgentRuntimeEvent> {
+    const controller = new AbortController();
+    running.set(request.runId, controller);
+    const signal = context.signal ?? controller.signal;
+
+    let transport = this.transport;
+    if (!transport) {
+      if (
+        request.model.provider === "omniroute" ||
+        request.model.provider === "combo" ||
+        request.model.id.startsWith("combo/")
+      ) {
+        transport = new OmniRouteInferenceTransport({
+          defaultModel: request.model.id,
+          apiKey: request.model.apiKey,
+        });
+      } else {
+        transport = new PiAiInferenceTransport({
+          defaultModel: request.model.id,
+          apiKey: request.model.apiKey,
+        });
+      }
+    }
+
+    const queue = createQueue();
+    const nestedAgents = new Set<Agent>();
+    const tracker = createToolCallTracker();
+    const host: ToolHost = {
+      queue,
+      request,
+      models: catalogModels,
+      model: { provider: request.model.provider, id: request.model.id } as any,
+      apiKey: request.model.apiKey,
+      nestedAgents,
+      subagentGate: createGate(MAX_PARALLEL_SUBAGENTS),
+      signal,
+      depth: 0,
+      tracker,
+    };
+
+    const toolDefs = Array.isArray(request.tools)
+      ? request.tools
+      : builtinAgentTools;
+    const normalizedNames = normalizeAgentToolNames(toolDefs);
+    const toolByName = new Map<string, ConnectorTool>();
+    toolDefs.forEach((tool, index) => {
+      const norm = normalizedNames[index]!;
+      toolByName.set(norm, tool);
+      toolByName.set(tool.name, tool);
+    });
+
+    const messages: InferenceTransportMessage[] = [];
+    const instructions =
+      request.instructions ||
+      (toolDefs.some((tool) => tool.name === "computer_observe")
+        ? "You are a Rakazo bot with a real computer. Use computer_observe and computer_act to operate its visible desktop, including browsers and installed applications. Use shell and the file tools for precise terminal and filesystem work. The user may interact with the same desktop while you run, so re-observe when the screen may have changed. Be concise."
+        : "You are a Rakazo bot with a persistent sandbox filesystem and shell. Be concise.");
+
+    if (instructions && instructions.trim().length > 0) {
+      messages.push({ role: "system", content: instructions });
+    }
+
+    if (request.history && request.history.length > 0) {
+      for (const msg of request.history) {
+        messages.push({
+          role:
+            msg.role === "system"
+              ? "system"
+              : msg.role === "assistant"
+                ? "assistant"
+                : "user",
+          content: msg.content,
+        });
+      }
+    }
+
+    if (request.prompt && request.prompt.trim().length > 0) {
+      messages.push({ role: "user", content: request.prompt });
+    }
+
+    const work = (async () => {
+      try {
+        if (signal.aborted) {
+          queue.push({ type: "done", text: "stopped" });
+          return;
+        }
+
+        queue.push({
+          type: "progress",
+          text: transport.isFree ? "En cours d'inférence gratuite…" : "working…",
+        });
+
+        const MAX_TOOL_ITERATIONS_PER_TURN = 25;
+        let iteration = 0;
+        let streamed = "";
+
+        while (iteration < MAX_TOOL_ITERATIONS_PER_TURN) {
+          if (signal.aborted) {
+            queue.push({ type: "done", text: "stopped" });
+            return;
+          }
+
+          let turnStreamed = "";
+          const pendingToolCalls: Array<{
+            id: string;
+            name: string;
+            arguments: string;
+          }> = [];
+
+          const sessionKey = computeSessionAffinityKey({
+            workspaceId: context.workspaceId || "default-ws",
+            botId: request.botId || "default-bot",
+            threadId: request.threadId || "default-thread",
+          });
+
+          for await (const chunk of transport.stream({
+            model: request.model.id,
+            provider: request.model.provider,
+            messages,
+            tools: toolDefs,
+            signal,
+            sessionId: sessionKey,
+          })) {
+            if (signal.aborted) {
+              queue.push({ type: "done", text: "stopped" });
+              return;
+            }
+
+            if (chunk.type === "text" && chunk.text) {
+              turnStreamed += chunk.text;
+              streamed += chunk.text;
+              queue.push({ type: "text", text: chunk.text });
+            } else if (chunk.type === "tool_call" && chunk.toolCall) {
+              const tc = chunk.toolCall;
+              const index = tc.index ?? pendingToolCalls.length;
+              if (!pendingToolCalls[index]) {
+                pendingToolCalls[index] = {
+                  id: tc.id || `${request.runId}:tool_${index}`,
+                  name: tc.name || "",
+                  arguments: tc.arguments || "",
+                };
+              } else {
+                if (tc.id) pendingToolCalls[index].id = tc.id;
+                if (tc.name) pendingToolCalls[index].name += tc.name;
+                if (tc.arguments)
+                  pendingToolCalls[index].arguments += tc.arguments;
+              }
+            } else if (chunk.type === "usage" && chunk.usage) {
+              const totalPromptTokens =
+                (chunk.usage.cachedTokens ?? 0) + chunk.usage.inputTokens;
+              const cacheHitRatio =
+                totalPromptTokens > 0
+                  ? (chunk.usage.cachedTokens ?? 0) / totalPromptTokens
+                  : 0;
+
+              queue.push({
+                type: "usage",
+                inputTokens: chunk.usage.inputTokens,
+                outputTokens: chunk.usage.outputTokens,
+                cachedTokens: chunk.usage.cachedTokens,
+                cacheHitRatio: Math.min(1.0, Math.max(0.0, cacheHitRatio)),
+                provider: request.model.provider,
+                model: request.model.id,
+              });
+            }
+          }
+
+          if (signal.aborted) {
+            queue.push({ type: "done", text: "stopped" });
+            return;
+          }
+
+          const validToolCalls = pendingToolCalls.filter(
+            (tc) => Boolean(tc && tc.name),
+          );
+
+          if (validToolCalls.length === 0) {
+            if (!streamed) {
+              const fallback = "I finished the work.";
+              queue.push({ type: "text", text: fallback });
+              streamed = fallback;
+            }
+            queue.push({ type: "done", text: streamed });
+            return;
+          }
+
+          messages.push({
+            role: "assistant",
+            content: turnStreamed || null,
+            tool_calls: validToolCalls.map((tc) => ({
+              id: tc.id,
+              type: "function",
+              function: {
+                name: tc.name,
+                arguments: tc.arguments,
+              },
+            })),
+          });
+
+          iteration++;
+
+          if (iteration >= MAX_TOOL_ITERATIONS_PER_TURN) {
+            const limitMsg =
+              "Tool iteration limit reached (25 steps). Stopping turn.";
+            queue.push({ type: "text", text: limitMsg });
+            queue.push({ type: "done", text: limitMsg });
+            return;
+          }
+
+          for (const tc of validToolCalls) {
+            if (signal.aborted) {
+              queue.push({ type: "done", text: "stopped" });
+              return;
+            }
+
+            let parsedArgs: Record<string, unknown> = {};
+            try {
+              parsedArgs = JSON.parse(tc.arguments || "{}");
+            } catch {
+              parsedArgs = {};
+            }
+
+            const originalTool = toolByName.get(tc.name);
+            const toolName = originalTool ? originalTool.name : tc.name;
+
+            const guard = evaluateToolCallGuard(
+              host.tracker,
+              toolName,
+              parsedArgs,
+            );
+            if (!guard.allow) {
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: guard.reason,
+              });
+              if (guard.terminate) {
+                queue.push({ type: "text", text: guard.reason });
+                queue.push({ type: "done", text: guard.reason });
+                return;
+              }
+              continue;
+            }
+
+            queue.push({
+              type: "tool",
+              name: toolName,
+              args: parsedArgs,
+              executionId: tc.id,
+            });
+
+            if (toolName === "request_takeover") {
+              const reason = String(
+                parsedArgs.reason ?? "I need you on the screen.",
+              );
+              queue.push({ type: "takeover", reason });
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: "Takeover requested.",
+              });
+              queue.push({ type: "done", text: "Takeover requested." });
+              return;
+            }
+
+            if (toolName === "run_subagent") {
+              const subResult = await executeSubagent(
+                host,
+                tc.id,
+                parsedArgs,
+              );
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: subResult,
+              });
+              continue;
+            }
+
+            if (request.executeTool) {
+              try {
+                const rawResult = await request.executeTool(
+                  toolName,
+                  parsedArgs,
+                  tc.id,
+                );
+                const resultString = isAgentToolExecutionResult(rawResult)
+                  ? rawResult.content
+                      .map((c) => (c.type === "text" ? c.text : ""))
+                      .join("")
+                  : compactToolResult(toolName, rawResult);
+
+                messages.push({
+                  role: "tool",
+                  tool_call_id: tc.id,
+                  name: tc.name,
+                  content: resultString,
+                });
+              } catch (toolErr: any) {
+                const sanitizedErr = sanitizeToolError(
+                  toolErr instanceof Error
+                    ? toolErr.message
+                    : String(toolErr),
+                );
+                messages.push({
+                  role: "tool",
+                  tool_call_id: tc.id,
+                  name: tc.name,
+                  content: `Tool error: ${sanitizedErr}`,
+                });
+              }
+            } else {
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: `${toolName} is unavailable without an executor.`,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        const message = sanitizeToolError(
+          error instanceof Error ? error.message : String(error),
+        );
+        queue.push({ type: "text", text: `I hit a problem: ${message}` });
+        queue.push({ type: "done", text: message });
+      } finally {
+        queue.close();
+      }
+    })();
+
+    try {
+      yield* queue.iterate();
+      await work;
+    } finally {
+      running.delete(request.runId);
+    }
+  }
+}
+
+export interface PiAgentRuntimeOptions {
+  transport?: InferenceTransport;
+}
+
 export class PiAgentRuntime implements AgentRuntime {
+  private transport?: InferenceTransport;
+
+  constructor(options: PiAgentRuntimeOptions = {}) {
+    this.transport = options.transport;
+  }
   describe() {
     return {
       id: "pi",
@@ -44,6 +440,17 @@ export class PiAgentRuntime implements AgentRuntime {
   }
 
   async *run(request: AgentRunRequest, context: AdapterContext): AsyncIterable<AgentRuntimeEvent> {
+    if (
+      this.transport ||
+      request.model.provider === "omniroute" ||
+      request.model.provider === "combo" ||
+      request.model.id.startsWith("combo/")
+    ) {
+      const canonicalRuntime = new CanonicalAgentRuntime({ transport: this.transport });
+      yield* canonicalRuntime.run(request, context);
+      return;
+    }
+
     const controller = new AbortController();
     running.set(request.runId, controller);
     const signal = context.signal ?? controller.signal;
@@ -745,7 +1152,7 @@ export function buildSubagentPrompt(name: string, task?: string, extra?: string)
 }
 
 export async function executeSubagent(host: ToolHost, executionId: string, args: Record<string, unknown>) {
-  if (host.depth > 0) return "Subagents cannot nest further.";
+  if (host.depth >= SUBAGENT_MAX_DEPTH) return "Subagents cannot nest further.";
   await host.subagentGate.acquire();
   const agentId = executionId;
   const name =
@@ -767,11 +1174,11 @@ export async function executeSubagent(host: ToolHost, executionId: string, args:
     ? host.request.tools
     : builtinAgentTools;
   const childDefs = availableTools.filter(
-    (tool) => !DELEGATION_TOOL_NAMES.has(tool.name),
+    (tool) => !DELEGATION_TOOL_NAMES.has(tool.name) && !DELEGATION_NAMES_SET.has(tool.name),
   );
   const nestedHost: ToolHost = {
     ...host,
-    depth: 1,
+    depth: (host.depth ?? 0) + 1,
     tracker: createToolCallTracker(),
     request: {
       ...host.request,
@@ -780,11 +1187,134 @@ export async function executeSubagent(host: ToolHost, executionId: string, args:
   };
   const compiledPrompt = buildSubagentPrompt(name, task, extra);
 
+  const isParentFree = Boolean(
+    host.transport?.isFree ||
+    host.request.model.provider === "omniroute" ||
+    host.request.model.provider === "combo" ||
+    host.request.model.id.startsWith("combo/") ||
+    (host.request as any).inferenceMode === "free"
+  );
+
+  if (isParentFree || host.transport) {
+    const subTransport = isParentFree
+      ? (host.transport?.isFree
+          ? host.transport
+          : new OmniRouteInferenceTransport({
+              defaultModel: host.request.model.id?.startsWith("combo/")
+                ? host.request.model.id
+                : "combo/rakazo-fast",
+              apiKey: host.apiKey,
+            }))
+      : host.transport!;
+
+    const subRuntime = new CanonicalAgentRuntime({ transport: subTransport });
+    const subRequest: AgentRunRequest = {
+      botId: host.request.botId,
+      threadId: host.request.threadId,
+      runId: executionId,
+      prompt: task || "Complete the delegated task.",
+      instructions: compiledPrompt.compiledInstruction,
+      history: [],
+      tools: childDefs,
+      model: isParentFree
+        ? {
+            provider: "omniroute",
+            id: host.request.model.id?.startsWith("combo/")
+              ? host.request.model.id
+              : "combo/rakazo-fast",
+            apiKey: host.apiKey,
+          }
+        : host.request.model,
+      executeTool: host.request.executeTool,
+    };
+
+    let streamed = "";
+    let lastPush = 0;
+    try {
+      if (host.signal.aborted) {
+        host.queue.push({
+          type: "subagent",
+          agentId,
+          name,
+          task,
+          status: "failed",
+          result: "stopped",
+        });
+        return "stopped";
+      }
+
+      for await (const event of subRuntime.run(subRequest, {
+        operationId: `subagent-op-${executionId}`,
+        traceId: `subagent-tr-${executionId}`,
+        workspaceId: "workspace-subagent",
+        userId: "user-subagent",
+        signal: host.signal,
+      })) {
+        if (event.type === "text" && event.text) {
+          streamed += event.text;
+          const now = Date.now();
+          if (now - lastPush >= 80) {
+            lastPush = now;
+            host.queue.push({
+              type: "subagent",
+              agentId,
+              name,
+              task,
+              status: "running",
+              progress: streamed.slice(-800),
+            });
+          }
+        } else if (event.type === "tool") {
+          host.queue.push({
+            type: "subagent",
+            agentId,
+            name,
+            task,
+            status: "running",
+            progress: `using ${event.name}…`,
+          });
+        } else if (event.type === "usage") {
+          host.queue.push(event);
+        }
+      }
+
+      const result = streamed || "done.";
+      const clipped = result.length > 12_000 ? `${result.slice(0, 12_000)}…` : result;
+      host.queue.push({
+        type: "subagent",
+        agentId,
+        name,
+        task,
+        status: "completed",
+        result: clipped,
+      });
+      return clipped;
+    } catch (error) {
+      const message = sanitizeToolError(
+        error instanceof Error ? error.message : String(error),
+      );
+      host.queue.push({
+        type: "subagent",
+        agentId,
+        name,
+        task,
+        status: "failed",
+        result: message,
+      });
+      return `Subagent failed: ${message}`;
+    } finally {
+      host.subagentGate.release();
+    }
+  }
+
   const nested = new Agent({
     streamFn: (m, ctx, options) =>
       host.models.streamSimple(m, ctx, {
         ...options,
-        maxTokens: Math.min(Math.max(options?.maxTokens ?? 8192, 1), 8192),
+        maxTokens: Math.min(
+          Math.max(options?.maxTokens ?? SUBAGENT_TOKEN_BUDGET_CEILING, 1),
+          SUBAGENT_TOKEN_BUDGET_CEILING,
+        ),
         reasoning: options?.reasoning ?? "low",
         onPayload: (payload: unknown) => {
           if (
@@ -1307,6 +1837,7 @@ export interface ToolHost {
   signal: AbortSignal;
   depth: number;
   tracker: ToolCallTracker;
+  transport?: InferenceTransport;
 }
 
 function createGate(max: number) {

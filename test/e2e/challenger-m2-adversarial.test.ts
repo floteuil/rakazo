@@ -311,7 +311,7 @@ describe("Challenger 2 Empirical Verification: M2 Zero-Provider, Fail-Closed & P
       const decision = policy.resolveRoute([tag]);
       expect(decision.isFree).toBe(true);
       expect(decision.costPerToken).toBe(0.0);
-      expect(decision.model).toContain(":free");
+      expect(decision.model).toMatch(/combo\/rakazo-|:free/);
       expect(APPROVED_FREE_PROVIDERS).toContain(decision.provider as any);
       expect(AVOIDED_PROVIDERS).not.toContain(decision.provider as any);
     }
@@ -320,7 +320,7 @@ describe("Challenger 2 Empirical Verification: M2 Zero-Provider, Fail-Closed & P
     const defaultDecision = policy.resolveRoute([]);
     expect(defaultDecision.isFree).toBe(true);
     expect(defaultDecision.costPerToken).toBe(0.0);
-    expect(defaultDecision.model).toBe("meta-llama/llama-3.3-70b-instruct:free");
+    expect(defaultDecision.model).toMatch(/combo\/rakazo-fast|meta-llama\/llama-3.3-70b-instruct:free/);
   });
 
   // ==========================================================================

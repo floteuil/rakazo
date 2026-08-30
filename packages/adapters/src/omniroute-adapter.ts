@@ -12,6 +12,9 @@ import {
   FREE_INFERENCE_UNAVAILABLE_MESSAGE,
   RakazoFreePolicyEngine,
 } from "./free-policy-engine.js";
+import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
+import { CanonicalAgentRuntime } from "./pi-runtime.js";
+import { computeSessionAffinityKey } from "./prefix-caching.js";
 
 export interface OmniRouteChatMessage {
   role: "system" | "user" | "assistant" | "tool";
@@ -28,6 +31,10 @@ export interface OmniRouteChatOptions {
   stream?: boolean;
   signal?: AbortSignal;
   timeoutMs?: number;
+  sessionId?: string;
+  workspaceId?: string;
+  botId?: string;
+  threadId?: string;
 }
 
 export interface OmniRouteStreamChunk {
@@ -66,14 +73,23 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
   private policyEngine: RakazoFreePolicyEngine;
   private approvedProviders = new Set<string>(APPROVED_FREE_PROVIDERS);
   private avoidedProviders = new Set<string>(AVOIDED_PROVIDERS);
+  private canonicalRuntime: CanonicalAgentRuntime;
 
   constructor(options: FreeOmniRouteAdapterOptions = {}) {
     const rawUrl = options.baseUrl || process.env.OMNIROUTE_BASE_URL || "http://127.0.0.1:8080/v1";
     this.baseUrl = rawUrl.replace(/\/+$/, "");
     this.apiKey = options.apiKey ?? (process.env.OMNIROUTE_API_KEY || "");
-    this.defaultModel = options.defaultModel || "meta-llama/llama-3.3-70b-instruct:free";
+    this.defaultModel = options.defaultModel || "combo/rakazo-fast";
     this.defaultTimeoutMs = options.timeoutMs ?? 30000;
     this.policyEngine = new RakazoFreePolicyEngine();
+    this.canonicalRuntime = new CanonicalAgentRuntime({
+      transport: new OmniRouteInferenceTransport({
+        baseUrl: this.baseUrl,
+        apiKey: this.apiKey,
+        defaultModel: this.defaultModel,
+        timeoutMs: this.defaultTimeoutMs,
+      }),
+    });
   }
 
   public getBaseUrl(): string {
@@ -89,11 +105,12 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
       id: "omniroute",
       contractVersion: "1",
       adapterVersion: "0.1.0",
-      capabilities: { streaming: true, compaction: false, tools: true, scripted: false },
+      capabilities: { streaming: true, compaction: true, tools: true, scripted: false },
     };
   }
 
   public async abort(runId: string): Promise<void> {
+    await this.canonicalRuntime.abort(runId);
     runningRuntimes.get(runId)?.abort();
   }
 
@@ -115,11 +132,23 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
 
     try {
       const url = `${this.baseUrl}/chat/completions`;
+      let sessionId = options.sessionId;
+      if (!sessionId && options.workspaceId && options.botId && options.threadId) {
+        sessionId = computeSessionAffinityKey({
+          workspaceId: options.workspaceId,
+          botId: options.botId,
+          threadId: options.threadId,
+        });
+      }
+
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
       if (this.apiKey) {
         headers.Authorization = `Bearer ${this.apiKey}`;
+      }
+      if (sessionId) {
+        headers["x-session-id"] = sessionId;
       }
 
       const response = await fetch(url, {
@@ -211,11 +240,23 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
 
     try {
       const url = `${this.baseUrl}/chat/completions`;
+      let sessionId = options.sessionId;
+      if (!sessionId && options.workspaceId && options.botId && options.threadId) {
+        sessionId = computeSessionAffinityKey({
+          workspaceId: options.workspaceId,
+          botId: options.botId,
+          threadId: options.threadId,
+        });
+      }
+
       const headers: Record<string, string> = {
         "Content-Type": "application/json",
       };
       if (this.apiKey) {
         headers.Authorization = `Bearer ${this.apiKey}`;
+      }
+      if (sessionId) {
+        headers["x-session-id"] = sessionId;
       }
 
       const response = await fetch(url, {
@@ -332,117 +373,14 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
     request: AgentRunRequest,
     context: AdapterContext,
   ): AsyncIterable<AgentRuntimeEvent> {
-    const controller = new AbortController();
-    runningRuntimes.set(request.runId, controller);
-    const signal = context.signal ?? controller.signal;
-
-    try {
-      if (signal.aborted) {
-        yield { type: "done", text: "aborted" };
-        return;
-      }
-
-      const messages: OmniRouteChatMessage[] = [];
-      if (request.instructions && request.instructions.trim().length > 0) {
-        messages.push({ role: "system", content: request.instructions });
-      }
-      if (request.history && request.history.length > 0) {
-        for (const msg of request.history) {
-          messages.push({
-            role:
-              msg.role === "system" ? "system" : msg.role === "assistant" ? "assistant" : "user",
-            content: msg.content,
-          });
-        }
-      }
-      if (request.prompt && request.prompt.trim().length > 0) {
-        messages.push({ role: "user", content: request.prompt });
-      }
-
-      const formattedTools = (request.tools || []).map((t) => ({
-        type: "function",
-        function: {
-          name: t.name,
-          description: t.description || "",
-          parameters: (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
-        },
-      }));
-
-      const modelId = request.model?.id || this.defaultModel;
-      this.policyEngine.vetoPaidFallback(modelId);
-
-      let accumulatedContent = "";
-      const pendingToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
-
-      yield { type: "progress", text: "En cours d'inférence gratuite..." };
-
-      for await (const chunk of this.stream({
-        model: modelId,
-        messages,
-        tools: formattedTools.length > 0 ? formattedTools : undefined,
-        signal,
-      })) {
-        if (chunk.content) {
-          accumulatedContent += chunk.content;
-          yield { type: "text", text: chunk.content };
-        }
-
-        if (chunk.toolCalls && chunk.toolCalls.length > 0) {
-          for (const tc of chunk.toolCalls) {
-            const index = tc.index ?? 0;
-            if (!pendingToolCalls[index]) {
-              pendingToolCalls[index] = {
-                id: tc.id || `${request.runId}:tool_${index}`,
-                name: tc.function?.name || "",
-                arguments: tc.function?.arguments || "",
-              };
-            } else {
-              if (tc.id) pendingToolCalls[index].id = tc.id;
-              if (tc.function?.name) pendingToolCalls[index].name += tc.function.name;
-              if (tc.function?.arguments)
-                pendingToolCalls[index].arguments += tc.function.arguments;
-            }
-          }
-        }
-      }
-
-      for (const tc of pendingToolCalls) {
-        if (!tc?.name) continue;
-        let parsedArgs: Record<string, unknown> = {};
-        try {
-          parsedArgs = JSON.parse(tc.arguments || "{}");
-        } catch {
-          parsedArgs = {};
-        }
-
-        yield {
-          type: "tool",
-          name: tc.name,
-          args: parsedArgs,
-          executionId: tc.id,
-        };
-
-        if (request.executeTool) {
-          try {
-            await request.executeTool(tc.name, parsedArgs, tc.id);
-          } catch {
-            // Silently continue or capture
-          }
-        }
-      }
-
-      yield {
-        type: "usage",
-        inputTokens: Math.ceil((request.instructions.length + request.prompt.length) / 4),
-        outputTokens: Math.ceil(accumulatedContent.length / 4),
-        provider: "omniroute",
-        model: modelId,
-      };
-
-      yield { type: "done", text: accumulatedContent };
-    } finally {
-      controller.abort();
-      runningRuntimes.delete(request.runId);
-    }
+    const runtime = new CanonicalAgentRuntime({
+      transport: new OmniRouteInferenceTransport({
+        baseUrl: this.baseUrl,
+        apiKey: this.apiKey,
+        defaultModel: request.model?.id || this.defaultModel,
+        timeoutMs: this.defaultTimeoutMs,
+      }),
+    });
+    yield* runtime.run(request, context);
   }
 }
