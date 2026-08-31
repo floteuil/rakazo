@@ -359,7 +359,12 @@ describe("Tool Response Semantic Compacting Suite", () => {
 
     it("handles direct array of DNS records", () => {
       const records = [
-        { type: "TXT", name: "rakazo.io", content: "v=spf1 include:_spf.google.com ~all", proxied: false },
+        {
+          type: "TXT",
+          name: "rakazo.io",
+          content: "v=spf1 include:_spf.google.com ~all",
+          proxied: false,
+        },
       ];
       const output = compactToolResult("cloudflare_list_dns_records", records);
       const parsed = JSON.parse(output);

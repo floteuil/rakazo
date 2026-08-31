@@ -158,7 +158,9 @@ describe("Milestone 4 Adversarial Challenge: Hybrid Prompt Injection & Budget Li
 
       const result = formatSkillsPrompt([skill]);
       expect(result).toBeDefined();
-      expect(result).toContain("### Compétence indexée : French Accents Skill (french-accents-skill)");
+      expect(result).toContain(
+        "### Compétence indexée : French Accents Skill (french-accents-skill)",
+      );
       expect(result).toContain('read_skill(name: "french-accents-skill")');
     });
 
@@ -407,7 +409,9 @@ describe("Milestone 4 Adversarial Challenge: Hybrid Prompt Injection & Budget Li
       const result = formatSkillsPrompt([directNoDesc, indexedNoDesc]);
       expect(result).toBeDefined();
       expect(result).toContain("### Compétence active : Direct No Desc (direct-no-desc)\nTags:");
-      expect(result).toContain("### Compétence indexée : Indexed No Desc (indexed-no-desc)\n- Description: Aucune description");
+      expect(result).toContain(
+        "### Compétence indexée : Indexed No Desc (indexed-no-desc)\n- Description: Aucune description",
+      );
     });
 
     it("4.6 truncates list to maximum 20 skills to protect LLM context length", () => {

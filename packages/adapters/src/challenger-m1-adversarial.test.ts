@@ -21,7 +21,14 @@ describe("Milestone 1 Challenger: Adversarial Stress & Correctness Verification"
     it("1.1 100,000 files list: compacts without OOM or hang, outputs bounded sample and directory summary", () => {
       const startTime = Date.now();
       const files: string[] = [];
-      const dirs = ["src/core", "packages/adapters", "packages/contracts", "apps/web", "apps/desktop", "infra/docker"];
+      const dirs = [
+        "src/core",
+        "packages/adapters",
+        "packages/contracts",
+        "apps/web",
+        "apps/desktop",
+        "infra/docker",
+      ];
       for (let i = 0; i < 100_000; i++) {
         const dir = dirs[i % dirs.length];
         files.push(`${dir}/module_${Math.floor(i / dirs.length)}/file_${i}.ts`);
@@ -346,7 +353,10 @@ describe("Milestone 1 Challenger: Adversarial Stress & Correctness Verification"
         description: i % 5 === 0 ? "D".repeat(500) : undefined,
       }));
 
-      const out = compactToolResult("github_search_repos", { items: massiveRepos, total_count: 10_000 });
+      const out = compactToolResult("github_search_repos", {
+        items: massiveRepos,
+        total_count: 10_000,
+      });
       const parsed = JSON.parse(out);
 
       expect(parsed.total_count).toBe(10_000);
@@ -453,7 +463,7 @@ describe("Milestone 1 Challenger: Adversarial Stress & Correctness Verification"
         {},
         { a: 1, b: null },
         new Date(),
-        new RegExp("abc"),
+        /abc/,
         new Map([["k", "v"]]),
         new Set([1, 2, 3]),
         new Error("Test error"),
@@ -463,7 +473,16 @@ describe("Milestone 1 Challenger: Adversarial Stress & Correctness Verification"
       ];
 
       for (const input of weirdInputs) {
-        for (const tool of ["list_files", "shell", "github_search_repos", "github_list_issues", "notion_search", "notion_query_database", "cloudflare_list_dns_records", "custom_mcp_tool"]) {
+        for (const tool of [
+          "list_files",
+          "shell",
+          "github_search_repos",
+          "github_list_issues",
+          "notion_search",
+          "notion_query_database",
+          "cloudflare_list_dns_records",
+          "custom_mcp_tool",
+        ]) {
           let output: string | undefined;
           expect(() => {
             output = compactToolResult(tool, input);
@@ -479,7 +498,10 @@ describe("Milestone 1 Challenger: Adversarial Stress & Correctness Verification"
         data: Array.from({ length: 1000 }, (_, i) => ({
           id: i,
           nested: {
-            sub: Array.from({ length: 50 }, (_, j) => `string_${i}_${j}_${"verbose_text_".repeat(20)}`),
+            sub: Array.from(
+              { length: 50 },
+              (_, j) => `string_${i}_${j}_${"verbose_text_".repeat(20)}`,
+            ),
           },
         })),
       };

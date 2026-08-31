@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { sanitizeToolError } from "./enterprise-tools.js";
+import { formatSkillsPrompt, type SkillItemLike } from "./executor.js";
 import {
   createToolCallTracker,
   evaluateToolCallGuard,
@@ -7,23 +9,20 @@ import {
   type ToolCallTracker,
 } from "./loop-guards.js";
 import {
+  type Assembled4BlockPrompt,
+  assemble4BlockCachePrompt,
+  type BotPromptConfig,
+  type ConversationTurn,
+  computeSessionAffinityKey,
+  type EphemeralUserTurn,
+  extractCacheTelemetry,
+  STATIC_PLATFORM_GUARDRAILS_BLOC_A,
+} from "./prefix-caching.js";
+import {
   compactToolResult,
   MAX_GENERIC_RESULT_CHARS,
   MAX_SHELL_OUTPUT_CHARS,
 } from "./tool-compacting.js";
-import { formatSkillsPrompt, type SkillItemLike } from "./executor.js";
-import { sanitizeToolError } from "./enterprise-tools.js";
-
-import {
-  assemble4BlockCachePrompt,
-  computeSessionAffinityKey,
-  extractCacheTelemetry,
-  STATIC_PLATFORM_GUARDRAILS_BLOC_A,
-  type Assembled4BlockPrompt,
-  type BotPromptConfig,
-  type ConversationTurn,
-  type EphemeralUserTurn,
-} from "./prefix-caching.js";
 
 // ============================================================================
 // 4-TIER E2E TEST SUITE FOR PREFIX CACHING & RUNTIME OPTIMIZATION
@@ -241,8 +240,16 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
       });
 
       it("1.5.5 isolates session affinity keys between different threads of the same bot", () => {
-        const t1 = computeSessionAffinityKey({ workspaceId: "ws-1", botId: "bot-1", threadId: "t-1" });
-        const t2 = computeSessionAffinityKey({ workspaceId: "ws-1", botId: "bot-1", threadId: "t-2" });
+        const t1 = computeSessionAffinityKey({
+          workspaceId: "ws-1",
+          botId: "bot-1",
+          threadId: "t-1",
+        });
+        const t2 = computeSessionAffinityKey({
+          workspaceId: "ws-1",
+          botId: "bot-1",
+          threadId: "t-2",
+        });
         expect(t1).not.toBe(t2);
       });
     });
@@ -267,9 +274,15 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
       it("1.6.2 preserves loop detector after 3 consecutive identical tool calls", () => {
         const tracker = createToolCallTracker();
 
-        expect(evaluateToolCallGuard(tracker, "web_search", { query: "Rakazo architecture" }).allow).toBe(true);
-        expect(evaluateToolCallGuard(tracker, "web_search", { query: "Rakazo architecture" }).allow).toBe(true);
-        const call3 = evaluateToolCallGuard(tracker, "web_search", { query: "Rakazo architecture" });
+        expect(
+          evaluateToolCallGuard(tracker, "web_search", { query: "Rakazo architecture" }).allow,
+        ).toBe(true);
+        expect(
+          evaluateToolCallGuard(tracker, "web_search", { query: "Rakazo architecture" }).allow,
+        ).toBe(true);
+        const call3 = evaluateToolCallGuard(tracker, "web_search", {
+          query: "Rakazo architecture",
+        });
         expect(call3.allow).toBe(false);
         if (!call3.allow) {
           expect(call3.terminate).toBe(true);
@@ -290,7 +303,12 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
 
       it("1.6.4 compacts GitHub repository searches into concise star and language summaries", () => {
         const repos = [
-          { full_name: "elie222/rakazo", stars: 1200, language: "TypeScript", description: "AI Agent platform" },
+          {
+            full_name: "elie222/rakazo",
+            stars: 1200,
+            language: "TypeScript",
+            description: "AI Agent platform",
+          },
         ];
         const compacted = compactToolResult("github_search_repos", repos);
         expect(compacted).toContain("elie222/rakazo (1200⭐, TypeScript)");
@@ -299,7 +317,7 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
       it("1.6.5 compacts Cloudflare DNS records into tabular arrays", () => {
         const records = [{ type: "A", name: "app.rakazo.com", content: "1.2.3.4", proxied: true }];
         const compacted = compactToolResult("cloudflare_list_dns_records", records);
-        expect(compacted).toContain("[\"A\",\"app.rakazo.com\",\"1.2.3.4\",true]");
+        expect(compacted).toContain('["A","app.rakazo.com","1.2.3.4",true]');
       });
     });
   });
@@ -452,7 +470,8 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
       });
 
       it("2.6.4 sanitizes credentials and Bearer tokens in error strings", () => {
-        const rawError = "Request failed with Authorization: Bearer sk-secret-token-12345 and ghp_MYGITHUBTOKEN";
+        const rawError =
+          "Request failed with Authorization: Bearer sk-secret-token-12345 and ghp_MYGITHUBTOKEN";
         const sanitized = sanitizeToolError(rawError);
         expect(sanitized).not.toContain("sk-secret-token-12345");
         expect(sanitized).not.toContain("ghp_MYGITHUBTOKEN");
@@ -505,7 +524,9 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
       const callResult1 = evaluateToolCallGuard(tracker, "read_file", { path: "/nonexistent.txt" });
       expect(callResult1.allow).toBe(true);
 
-      const compactedError = compactToolResult("read_file", { error: "File not found: /nonexistent.txt" });
+      const compactedError = compactToolResult("read_file", {
+        error: "File not found: /nonexistent.txt",
+      });
       expect(compactedError).toContain("File not found");
 
       const callResult2 = evaluateToolCallGuard(tracker, "read_file", { path: "/nonexistent.txt" });
@@ -544,7 +565,11 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
         currentTurn: { prompt: "Execute" },
       });
 
-      const affinity = computeSessionAffinityKey({ workspaceId: "ws", botId: "bot", threadId: "th" });
+      const affinity = computeSessionAffinityKey({
+        workspaceId: "ws",
+        botId: "bot",
+        threadId: "th",
+      });
       const telemetry = extractCacheTelemetry({ prompt_tokens: 300, cached_tokens: 1500 }, 250);
 
       expect(prompt.blocB).toContain("Skill A");
@@ -564,7 +589,9 @@ describe("Context Optimization & Prefix Caching (Master 4-Tier E2E)", () => {
       let cumulativePromptTokens = 0;
 
       for (let turn = 1; turn <= 12; turn++) {
-        const guard = evaluateToolCallGuard(tracker, "read_file", { path: `/src/components/View_${turn}.tsx` });
+        const guard = evaluateToolCallGuard(tracker, "read_file", {
+          path: `/src/components/View_${turn}.tsx`,
+        });
         expect(guard.allow).toBe(true);
 
         const baseStaticTokens = 1500;

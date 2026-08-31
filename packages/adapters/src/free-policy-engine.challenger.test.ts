@@ -1,3 +1,4 @@
+import { FREE_INFERENCE_UNAVAILABLE_MESSAGE, type InferenceUsageTag } from "@rakazo/contracts";
 import { describe, expect, it } from "vitest";
 import {
   APPROVED_FREE_PROVIDERS,
@@ -7,7 +8,6 @@ import {
   TAG_PRIORITY_WEIGHTS,
   VALID_TAGS,
 } from "./free-policy-engine.js";
-import { type InferenceUsageTag, FREE_INFERENCE_UNAVAILABLE_MESSAGE } from "@rakazo/contracts";
 
 /**
  * Helper to generate all k-permutations of an array
@@ -63,7 +63,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
 
       for (const perm of perms2) {
         const expectedTag = perm.reduce((best, cur) =>
-          TAG_PRIORITY_WEIGHTS[cur] > TAG_PRIORITY_WEIGHTS[best] ? cur : best
+          TAG_PRIORITY_WEIGHTS[cur] > TAG_PRIORITY_WEIGHTS[best] ? cur : best,
         );
 
         const resolved = resolveDeterministicTag(perm);
@@ -96,7 +96,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
 
       for (const perm of perms3) {
         const expectedTag = perm.reduce((best, cur) =>
-          TAG_PRIORITY_WEIGHTS[cur] > TAG_PRIORITY_WEIGHTS[best] ? cur : best
+          TAG_PRIORITY_WEIGHTS[cur] > TAG_PRIORITY_WEIGHTS[best] ? cur : best,
         );
 
         const resolved = resolveDeterministicTag(perm);
@@ -116,7 +116,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
 
       for (const perm of allHighPerms) {
         const expectedTag = perm.reduce((best, cur) =>
-          TAG_PRIORITY_WEIGHTS[cur] > TAG_PRIORITY_WEIGHTS[best] ? cur : best
+          TAG_PRIORITY_WEIGHTS[cur] > TAG_PRIORITY_WEIGHTS[best] ? cur : best,
         );
 
         const resolved = resolveDeterministicTag(perm);
@@ -131,7 +131,9 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
     it("handles repeated duplicate tags deterministically without corruption", () => {
       expect(engine.resolveRoute(["fast", "fast"]).category).toBe("fast");
       expect(engine.resolveRoute(["fast", "coding", "fast", "coding"]).category).toBe("coding");
-      expect(engine.resolveRoute(["writing", "reasoning", "writing", "analysis"]).category).toBe("reasoning");
+      expect(engine.resolveRoute(["writing", "reasoning", "writing", "analysis"]).category).toBe(
+        "reasoning",
+      );
       expect(engine.resolveRoute(["analysis", "analysis", "analysis"]).category).toBe("analysis");
     });
 
@@ -193,14 +195,9 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
       "google/gemini-1.5-pro",
     ];
 
-    it.each(commercialPaidModels)(
-      "strictly blocks paid model '%s'",
-      (paidModel) => {
-        expect(() => engine.vetoPaidFallback(paidModel)).toThrow(
-          FREE_INFERENCE_UNAVAILABLE_MESSAGE
-        );
-      }
-    );
+    it.each(commercialPaidModels)("strictly blocks paid model '%s'", (paidModel) => {
+      expect(() => engine.vetoPaidFallback(paidModel)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+    });
 
     it("strictly blocks case variations of paid models (e.g. GPT-4, Claude-3-Sonnet, GPT-OSS-120b)", () => {
       const caseVariants = [
@@ -214,9 +211,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
         "OPUS",
       ];
       for (const variant of caseVariants) {
-        expect(() => engine.vetoPaidFallback(variant)).toThrow(
-          FREE_INFERENCE_UNAVAILABLE_MESSAGE
-        );
+        expect(() => engine.vetoPaidFallback(variant)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
       }
     });
 
@@ -231,17 +226,19 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
         "combo/opus",
       ];
       for (const trojan of trojanModels) {
-        expect(() => engine.vetoPaidFallback(trojan)).toThrow(
-          FREE_INFERENCE_UNAVAILABLE_MESSAGE
-        );
+        expect(() => engine.vetoPaidFallback(trojan)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
       }
     });
 
     it("strictly blocks empty, whitespace-only, and non-string inputs", () => {
       expect(() => engine.vetoPaidFallback("")).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
       expect(() => engine.vetoPaidFallback("   ")).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.vetoPaidFallback(null as any)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.vetoPaidFallback(undefined as any)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.vetoPaidFallback(null as any)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => engine.vetoPaidFallback(undefined as any)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
       expect(() => engine.vetoPaidFallback(123 as any)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     });
 
@@ -295,7 +292,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
 
       for (const cost of leakCosts) {
         expect(() => engine.assertZeroCostAndAllowed("omniroute", cost)).toThrow(
-          FREE_INFERENCE_UNAVAILABLE_MESSAGE
+          FREE_INFERENCE_UNAVAILABLE_MESSAGE,
         );
       }
     });
@@ -305,7 +302,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
 
       for (const cost of invalidCosts) {
         expect(() => engine.assertZeroCostAndAllowed("omniroute", cost)).toThrow(
-          FREE_INFERENCE_UNAVAILABLE_MESSAGE
+          FREE_INFERENCE_UNAVAILABLE_MESSAGE,
         );
       }
     });
@@ -313,7 +310,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
     it("strictly blocks avoided providers regardless of zero cost", () => {
       for (const avoided of AVOIDED_PROVIDERS) {
         expect(() => engine.assertZeroCostAndAllowed(avoided, 0.0)).toThrow(
-          FREE_INFERENCE_UNAVAILABLE_MESSAGE
+          FREE_INFERENCE_UNAVAILABLE_MESSAGE,
         );
       }
     });
@@ -322,7 +319,7 @@ describe("Empirical Challenger: RakazoFreePolicyEngine Rigorous Stress Suite", (
       const unapproved = ["openai", "anthropic", "cohere", "groq", "together", "novamira"];
       for (const provider of unapproved) {
         expect(() => engine.assertZeroCostAndAllowed(provider, 0.0)).toThrow(
-          FREE_INFERENCE_UNAVAILABLE_MESSAGE
+          FREE_INFERENCE_UNAVAILABLE_MESSAGE,
         );
       }
     });

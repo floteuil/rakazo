@@ -1,8 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
 import {
-  type PromptExecutionLogInput,
   listPromptExecutionLogs,
+  type PromptExecutionLogInput,
   recordPromptExecutionLogAsync,
 } from "./telemetry.js";
 
@@ -248,7 +248,7 @@ describe("Milestone M1 Empirical Challenge — Database Telemetry & Schema Invar
       for (let i = 0; i < 1000; i++) {
         const mode = modes[i % modes.length];
         const category = categories[i % categories.length];
-        const isFree = mode === "free" ? true : (mode === "premium" ? false : undefined);
+        const isFree = mode === "free" ? true : mode === "premium" ? false : undefined;
 
         recordPromptExecutionLogAsync(prisma, {
           botId: `bot-${i % 20}`,

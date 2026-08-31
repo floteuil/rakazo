@@ -42,7 +42,10 @@ export function parseSimpleYaml(yamlStr: string): Record<string, unknown> {
     if (!trimmed || trimmed.startsWith("#")) continue;
 
     if (trimmed.startsWith("- ") && currentKey) {
-      const val = trimmed.slice(2).trim().replace(/^["']|["']$/g, "");
+      const val = trimmed
+        .slice(2)
+        .trim()
+        .replace(/^["']|["']$/g, "");
       if (!currentArray) {
         currentArray = [];
         result[currentKey] = currentArray;
@@ -155,7 +158,12 @@ export function parseSkillMarkdown(
     const lines = bodyContent.split(/\r?\n/);
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith("#") && !trimmed.startsWith("---") && !trimmed.startsWith("```")) {
+      if (
+        trimmed &&
+        !trimmed.startsWith("#") &&
+        !trimmed.startsWith("---") &&
+        !trimmed.startsWith("```")
+      ) {
         description = trimmed.slice(0, 300);
         break;
       }
@@ -167,15 +175,29 @@ export function parseSkillMarkdown(
   if (Array.isArray(frontmatter.tags)) {
     tags = frontmatter.tags.map((t) => String(t).trim()).filter(Boolean);
   } else if (typeof frontmatter.tags === "string") {
-    tags = frontmatter.tags.split(",").map((t) => t.trim()).filter(Boolean);
+    tags = frontmatter.tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
   } else if (Array.isArray(frontmatter.categories)) {
     tags = frontmatter.categories.map((t) => String(t).trim()).filter(Boolean);
   } else if (typeof frontmatter.categories === "string") {
-    tags = frontmatter.categories.split(",").map((t) => t.trim()).filter(Boolean);
+    tags = frontmatter.categories
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
   }
 
   // Extra metadata
-  const knownKeys = new Set(["name", "title", "slug", "description", "summary", "tags", "categories"]);
+  const knownKeys = new Set([
+    "name",
+    "title",
+    "slug",
+    "description",
+    "summary",
+    "tags",
+    "categories",
+  ]);
   const metadata: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(frontmatter)) {
     if (!knownKeys.has(key)) {

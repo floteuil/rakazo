@@ -1,12 +1,14 @@
-import { describe, expect, it, vi } from "vitest";
-import type { Actor, Bot, BotInferenceConfig, BotMcpConfig, InferenceUsageTag } from "@rakazo/contracts";
+import type {
+  Actor,
+  Bot,
+  BotInferenceConfig,
+  BotMcpConfig,
+  InferenceUsageTag,
+} from "@rakazo/contracts";
 import type { PrismaClient } from "@rakazo/db";
 import { createRepos } from "@rakazo/db";
-import {
-  extractBotInferenceConfig,
-  extractBotMcpConfig,
-  isToolPermitted,
-} from "./executor.js";
+import { describe, expect, it, vi } from "vitest";
+import { extractBotInferenceConfig, extractBotMcpConfig, isToolPermitted } from "./executor.js";
 import { RakazoFreePolicyEngine } from "./free-policy-engine.js";
 
 describe("Milestone 1 Challenger 2: Full-Chain Inference & MCP Integration (@rakazo/adapters)", () => {
@@ -313,27 +315,79 @@ describe("Milestone 1 Challenger 2: Full-Chain Inference & MCP Integration (@rak
     it("2.1 Resolves all 16 tag permutations with 100% mathematical determinism", () => {
       const policyEngine = new RakazoFreePolicyEngine();
 
-      const testCases: Array<{ tags: InferenceUsageTag[]; expectedModel: string; expectedCategory: string }> = [
+      const testCases: Array<{
+        tags: InferenceUsageTag[];
+        expectedModel: string;
+        expectedCategory: string;
+      }> = [
         // 0 tags (fallback)
         { tags: [], expectedModel: "combo/rakazo-fast", expectedCategory: "general" },
         // 1 tag
         { tags: ["coding"], expectedModel: "combo/rakazo-coding", expectedCategory: "coding" },
-        { tags: ["reasoning"], expectedModel: "combo/rakazo-reasoning", expectedCategory: "reasoning" },
+        {
+          tags: ["reasoning"],
+          expectedModel: "combo/rakazo-reasoning",
+          expectedCategory: "reasoning",
+        },
         { tags: ["fast"], expectedModel: "combo/rakazo-fast", expectedCategory: "fast" },
         { tags: ["writing"], expectedModel: "combo/rakazo-writing", expectedCategory: "writing" },
-        { tags: ["analysis"], expectedModel: "combo/rakazo-analysis", expectedCategory: "analysis" },
+        {
+          tags: ["analysis"],
+          expectedModel: "combo/rakazo-analysis",
+          expectedCategory: "analysis",
+        },
         // 2 tags (Priority: reasoning 100 > coding 80 > analysis 60 > writing 40 > fast 20)
-        { tags: ["coding", "reasoning"], expectedModel: "combo/rakazo-reasoning", expectedCategory: "reasoning" },
-        { tags: ["fast", "coding"], expectedModel: "combo/rakazo-coding", expectedCategory: "coding" },
-        { tags: ["writing", "analysis"], expectedModel: "combo/rakazo-analysis", expectedCategory: "analysis" },
-        { tags: ["fast", "writing"], expectedModel: "combo/rakazo-writing", expectedCategory: "writing" },
-        { tags: ["analysis", "reasoning"], expectedModel: "combo/rakazo-reasoning", expectedCategory: "reasoning" },
-        { tags: ["coding", "analysis"], expectedModel: "combo/rakazo-coding", expectedCategory: "coding" },
+        {
+          tags: ["coding", "reasoning"],
+          expectedModel: "combo/rakazo-reasoning",
+          expectedCategory: "reasoning",
+        },
+        {
+          tags: ["fast", "coding"],
+          expectedModel: "combo/rakazo-coding",
+          expectedCategory: "coding",
+        },
+        {
+          tags: ["writing", "analysis"],
+          expectedModel: "combo/rakazo-analysis",
+          expectedCategory: "analysis",
+        },
+        {
+          tags: ["fast", "writing"],
+          expectedModel: "combo/rakazo-writing",
+          expectedCategory: "writing",
+        },
+        {
+          tags: ["analysis", "reasoning"],
+          expectedModel: "combo/rakazo-reasoning",
+          expectedCategory: "reasoning",
+        },
+        {
+          tags: ["coding", "analysis"],
+          expectedModel: "combo/rakazo-coding",
+          expectedCategory: "coding",
+        },
         // 3 tags
-        { tags: ["fast", "writing", "coding"], expectedModel: "combo/rakazo-coding", expectedCategory: "coding" },
-        { tags: ["fast", "analysis", "reasoning"], expectedModel: "combo/rakazo-reasoning", expectedCategory: "reasoning" },
-        { tags: ["writing", "coding", "analysis"], expectedModel: "combo/rakazo-coding", expectedCategory: "coding" },
-        { tags: ["fast", "writing", "analysis"], expectedModel: "combo/rakazo-analysis", expectedCategory: "analysis" },
+        {
+          tags: ["fast", "writing", "coding"],
+          expectedModel: "combo/rakazo-coding",
+          expectedCategory: "coding",
+        },
+        {
+          tags: ["fast", "analysis", "reasoning"],
+          expectedModel: "combo/rakazo-reasoning",
+          expectedCategory: "reasoning",
+        },
+        {
+          tags: ["writing", "coding", "analysis"],
+          expectedModel: "combo/rakazo-coding",
+          expectedCategory: "coding",
+        },
+        {
+          tags: ["fast", "writing", "analysis"],
+          expectedModel: "combo/rakazo-analysis",
+          expectedCategory: "analysis",
+        },
       ];
 
       for (const tc of testCases) {

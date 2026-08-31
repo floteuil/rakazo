@@ -1,7 +1,4 @@
-import {
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
-  type InferenceUsageTag,
-} from "@rakazo/contracts";
+import { FREE_INFERENCE_UNAVAILABLE_MESSAGE, type InferenceUsageTag } from "@rakazo/contracts";
 
 export { FREE_INFERENCE_UNAVAILABLE_MESSAGE };
 
@@ -165,7 +162,13 @@ export class RakazoFreePolicyEngine {
    * and that the cost is strictly $0.0000000.
    */
   public assertZeroCostAndAllowed(provider: string, cost: number): void {
-    if (typeof cost !== "number" || Number.isNaN(cost) || cost !== 0.0 || cost > 0.00000001 || cost < 0) {
+    if (
+      typeof cost !== "number" ||
+      Number.isNaN(cost) ||
+      cost !== 0.0 ||
+      cost > 0.00000001 ||
+      cost < 0
+    ) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     }
 

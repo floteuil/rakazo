@@ -3,6 +3,7 @@
 > **Authoritative Technical Runbook and Environment Configuration Reference**  
 > **Repository**: `github.com/floteuil/rakazo`  
 > **Applies to**: Local Development, CI/CD Pipelines, Self-Hosted Deployments, and Autonomous Agents  
+> **Platform Version**: v2.6.0-omniroute-coherence-observability-certified  
 
 ---
 
@@ -96,7 +97,7 @@ Access the web user interface in your browser at `http://127.0.0.1:5173`.
 # Run strict type checking across all 19 packages (0 errors required)
 pnpm check
 
-# Execute full Vitest test suite (100% pass required)
+# Execute full Vitest test suite (100% pass required across 2,714 tests)
 pnpm test
 ```
 
@@ -104,7 +105,7 @@ pnpm test
 
 ## 3. Comprehensive Environment Variables Taxonomy
 
-Rakazo centralizes configuration through environment variables. Below is the complete catalog of all 52+ variables structured by functional service category.
+Rakazo centralizes configuration through environment variables. Below is the complete catalog of all variables structured by functional service category.
 
 ### 3.1 Core Server & General Configuration
 
@@ -177,7 +178,7 @@ These variables configure isolated execution environments where agent code, shel
 
 | Variable Name | Type / Format | Default Value | Required? | Description & Context |
 |---|---|---|---|---|
-| `AGENT_RUNTIME` | `pi` \| `fake` | `pi` | Optional | Agent execution engine. Defaults to the sovereign Pi autonomous runtime. |
+| `AGENT_RUNTIME` | `pi` \| `fake` | `pi` | Optional | Agent execution engine. Defaults to the sovereign Pi autonomous runtime (`CanonicalAgentRuntime`). |
 | `WAKEUP_DRIVER` | `graphile` \| `memory` | `graphile` | Optional | Background job queue driver. `graphile` uses PostgreSQL jobs table; `memory` runs in-process. |
 | `OPENROUTER_API_KEY` | OpenRouter API Key (`sk-or-v1-*`) | `""` | Recommended | API key for OpenRouter LLM gateway, powering subagent inference, chat, and Level 2 prompt compilation for Premium bots. |
 | `OPENROUTER_BASE_URL` | Valid HTTP/S URL | `https://openrouter.ai/api/v1` | Optional | OpenRouter API endpoint. Can be redirected to an OpenAI-compatible proxy or LiteLLM gateway. |
@@ -312,7 +313,7 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 Rakazo integrates **OmniRoute** as a sovereign, self-hosted, unprivileged free inference gateway microservice running alongside `@rakazo/api` and `@rakazo/worker`. This provides users with the option to deploy 100% free autonomous agents powered by live high-availability combo routes (`combo/rakazo-coding`, `combo/rakazo-reasoning`, `combo/rakazo-fast`, `combo/rakazo-writing`, `combo/rakazo-analysis`) without incurring API token costs.
 
-> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md) and [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md).
+> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md) and [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md).
 
 ### 5.1 Architecture & Network Topologies
 
@@ -331,7 +332,7 @@ OmniRoute supports two deployment topologies:
                                   ┌───────────────────────────────┐
                                   │      Local Development        │
                                   └───────────────┬───────────────┘
-                                                  │
+                                                   │
                          ┌────────────────────────┴─────────────────────────┐
                          ▼                                                  ▼
                  [ Web UI (Vite) ]                                  [ API Backend ]
@@ -402,7 +403,7 @@ Rakazo enforces a strict **Double Barrier Safety Architecture** to prevent paid 
    - Checks requested usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`) and maps them to approved free model tiers.
    - Asserts cost == `$0.000000` prior to dispatch. Rejects commercial proxies, unapproved providers, and any model lacking the `:free` suffix.
 2. **Barrier 2 (Adapter Response Verification - `@rakazo/adapters/src/omniroute-adapter.ts`)**:
-   - Inspects response headers (`x-omniroute-cost`) and SSE stream chunks.
+   - Inspects response headers (`x-omniroute-response-cost`, `x-omniroute-cost`) and SSE stream chunks.
    - If any positive cost (> `$0.000001`) or non-200 status code is detected, execution fails closed immediately with the sanitized message:
      ```text
      "Capacité gratuite temporairement indisponible"
@@ -453,7 +454,7 @@ docker compose -f infra/compose/docker-compose.yml exec api curl -s \
 | `pnpm dev` | Starts API (`apps/api`), Web (`apps/web`), Worker (`apps/worker`), and Supervisor (`infra/sandboxes/supervisor`) concurrently via Turborepo. |
 | `pnpm build` | Executes `turbo build` across all 19 workspace packages. |
 | `pnpm check` | Runs TypeScript compiler across all packages (`turbo check`). |
-| `pnpm test` | Runs the full Vitest unit, adversarial, and integration test suite. |
+| `pnpm test` | Runs the full Vitest unit, adversarial, and integration test suite (2,714 tests). |
 | `pnpm lint` | Validates code style and rules with Biome. |
 | `pnpm format` | Formats all files in the monorepo with Biome writeback. |
 
@@ -521,13 +522,12 @@ docker compose -f infra/compose/docker-compose.yml exec api curl -s \
 
 ## 8. Related Architecture & Governance Documents
 
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md): Master architectural production certification artifact.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md): Master architectural passation & certification artifact.
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](../RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master platform architectural specification.
 - [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md): Architectural handoff for OmniRoute Coolify deployment (Milestones M1–M5).
 - [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md): Authoritative Coolify PaaS production runbook for OmniRoute.
+- [`TEST_INFRA.md`](../TEST_INFRA.md): 4-Tier test infrastructure & methodology.
+- [`TEST_READY.md`](../TEST_READY.md): Master test certification report.
 - [`docs/computer-runtime.md`](computer-runtime.md): Architecture of computer sandboxes, supervisor protocols, and screen leases.
 - [`docs/self-host.md`](self-host.md): Self-hosting guide for Coolify PaaS and multi-container Docker environments.
 - [`docs/performance.md`](performance.md): Latency, prefix caching, and token optimization benchmarks.
-

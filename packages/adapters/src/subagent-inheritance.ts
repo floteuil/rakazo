@@ -77,7 +77,10 @@ export class SubagentExecutor {
       resolvedMode = request.requestedInferenceMode;
     }
 
-    const resolvedTags = (request.requestedUsageTags ?? request.parentBot.usageTags ?? []).slice(0, 3);
+    const resolvedTags = (request.requestedUsageTags ?? request.parentBot.usageTags ?? []).slice(
+      0,
+      3,
+    );
 
     const parentTools = request.parentBot.tools ?? [
       "web_search",
@@ -87,9 +90,7 @@ export class SubagentExecutor {
       "bash_exec",
     ];
 
-    const sanitizedTools = parentTools.filter(
-      (tool) => !DELEGATION_NAMES_SET.has(tool),
-    );
+    const sanitizedTools = parentTools.filter((tool) => !DELEGATION_NAMES_SET.has(tool));
 
     const systemPrompt = this.build4BlockSubagentPrompt({
       taskPrompt: request.taskPrompt,

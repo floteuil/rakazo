@@ -1,10 +1,10 @@
-import { describe, expect, it, vi } from "vitest";
 import {
   PromptCacheTelemetrySchema,
   PromptCompileInputSchema,
   PromptCompileOutputSchema,
   verifyMcpImmutabilityAtContractLevel,
 } from "@rakazo/contracts";
+import { describe, expect, it, vi } from "vitest";
 import {
   compilePromptLevel1Deterministic,
   createPromptCompilerService,
@@ -14,9 +14,13 @@ import {
 describe("Challenger 2 Empirical Verification Suite for Milestone 1", () => {
   describe("1. Security & Zero Secret Leak in Production Service (createPromptCompilerService)", () => {
     it("1.1 does NOT leak Authorization Bearer token or OpenRouter sk-or key in explanation when fetchFn rejects", async () => {
-      const mockFetch = vi.fn().mockRejectedValue(
-        new Error("HTTP 401 Unauthorized: Authorization: Bearer sk-or-v1-secret-key-1234567890abcdef and ghp_MYGITHUBSECRET"),
-      );
+      const mockFetch = vi
+        .fn()
+        .mockRejectedValue(
+          new Error(
+            "HTTP 401 Unauthorized: Authorization: Bearer sk-or-v1-secret-key-1234567890abcdef and ghp_MYGITHUBSECRET",
+          ),
+        );
 
       const service = createPromptCompilerService({
         apiKey: "sk-or-v1-secret-key-1234567890abcdef",
@@ -172,8 +176,7 @@ describe("Challenger 2 Empirical Verification Suite for Milestone 1", () => {
     });
 
     it("3.3 strips markdown fences around prompt when model outputs ```markdown ... ```", () => {
-      const fenced =
-        "<thought>Plan</thought>\n```markdown\n# Role & Identity\nAgent\n```";
+      const fenced = "<thought>Plan</thought>\n```markdown\n# Role & Identity\nAgent\n```";
 
       const { cleanContent } = extractThoughtTrace(fenced);
       expect(cleanContent).toBe("# Role & Identity\nAgent");

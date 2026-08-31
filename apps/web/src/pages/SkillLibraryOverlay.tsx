@@ -15,7 +15,8 @@ import {
   UploadCloud,
   X,
 } from "lucide-react";
-import React, { useEffect, useId, useMemo, useRef, useState } from "react";
+import type React from "react";
+import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { rpc } from "../lib/rpc";
 
 // ============================================================================
@@ -112,7 +113,10 @@ export function parseMarkdownContent(rawText: string, filename?: string): Parsed
       if (!trimmed || trimmed.startsWith("#")) continue;
 
       if (trimmed.startsWith("- ") && currentKey === "tags") {
-        const item = trimmed.slice(2).trim().replace(/^['"]|['"]$/g, "");
+        const item = trimmed
+          .slice(2)
+          .trim()
+          .replace(/^['"]|['"]$/g, "");
         if (item) tags.push(item);
         continue;
       }
@@ -165,7 +169,10 @@ export function parseMarkdownContent(rawText: string, filename?: string): Parsed
     if (h1Match && h1Match[1]) {
       name = h1Match[1].trim();
     } else if (filename) {
-      name = filename.replace(/\.(md|markdown|txt)$/i, "").replace(/[-_]+/g, " ").trim();
+      name = filename
+        .replace(/\.(md|markdown|txt)$/i, "")
+        .replace(/[-_]+/g, " ")
+        .trim();
     } else {
       name = "Nouvelle compétence";
     }
@@ -180,7 +187,12 @@ export function parseMarkdownContent(rawText: string, filename?: string): Parsed
     const lines = content.split(/\r?\n/);
     for (const l of lines) {
       const trimmed = l.trim();
-      if (trimmed && !trimmed.startsWith("#") && !trimmed.startsWith("```") && !trimmed.startsWith(">")) {
+      if (
+        trimmed &&
+        !trimmed.startsWith("#") &&
+        !trimmed.startsWith("```") &&
+        !trimmed.startsWith(">")
+      ) {
         description = trimmed.slice(0, 300);
         break;
       }
@@ -347,7 +359,8 @@ export function SkillLibraryOverlay({
         metadata: s.metadata,
         createdAt: s.createdAt,
         updatedAt: s.updatedAt,
-        sizeBytes: s.metadata && typeof s.metadata.sizeBytes === "number" ? s.metadata.sizeBytes : 1500,
+        sizeBytes:
+          s.metadata && typeof s.metadata.sizeBytes === "number" ? s.metadata.sizeBytes : 1500,
       }));
       setSkills(formatted);
       setError(null);
@@ -571,7 +584,9 @@ export function SkillLibraryOverlay({
       }
       setViewMode("catalog");
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Erreur lors de l'enregistrement de la compétence.");
+      setError(
+        err instanceof Error ? err.message : "Erreur lors de l'enregistrement de la compétence.",
+      );
     } finally {
       setSaving(false);
     }
@@ -625,7 +640,9 @@ export function SkillLibraryOverlay({
       setEditorContent(parsed.content);
       setViewMode("editor");
       setError(null);
-      setSuccess(`Fichier « ${file.name} » importé avec succès. Vérifiez et enregistrez votre compétence.`);
+      setSuccess(
+        `Fichier « ${file.name} » importé avec succès. Vérifiez et enregistrez votre compétence.`,
+      );
     };
     reader.onerror = () => {
       setError("Erreur lors de la lecture du fichier Markdown.");
@@ -761,7 +778,11 @@ export function SkillLibraryOverlay({
           <div className="flex items-center gap-2 border-b border-rose-500/20 bg-rose-500/10 px-6 py-2.5 text-xs text-rose-400">
             <AlertCircle size={14} className="shrink-0" />
             <span className="flex-1">{error}</span>
-            <button type="button" onClick={() => setError(null)} className="text-rose-400/80 hover:text-rose-200">
+            <button
+              type="button"
+              onClick={() => setError(null)}
+              className="text-rose-400/80 hover:text-rose-200"
+            >
               ✕
             </button>
           </div>
@@ -770,7 +791,11 @@ export function SkillLibraryOverlay({
           <div className="flex items-center gap-2 border-b border-emerald-500/20 bg-emerald-500/10 px-6 py-2.5 text-xs text-emerald-400">
             <Check size={14} className="shrink-0" />
             <span className="flex-1">{success}</span>
-            <button type="button" onClick={() => setSuccess(null)} className="text-emerald-400/80 hover:text-emerald-200">
+            <button
+              type="button"
+              onClick={() => setSuccess(null)}
+              className="text-emerald-400/80 hover:text-emerald-200"
+            >
               ✕
             </button>
           </div>
@@ -836,7 +861,10 @@ export function SkillLibraryOverlay({
               }`}
             >
               <div className="flex items-center justify-center gap-2">
-                <UploadCloud size={16} className={isDragging ? "text-emerald-400" : "text-[#71717A]"} />
+                <UploadCloud
+                  size={16}
+                  className={isDragging ? "text-emerald-400" : "text-[#71717A]"}
+                />
                 <p className="text-xs font-medium text-[#A1A1AA]">
                   Glissez un fichier Markdown (.md) ici ou cliquez sur Importer
                 </p>
@@ -850,7 +878,9 @@ export function SkillLibraryOverlay({
             <div className="flex-1 overflow-y-auto p-4 sm:p-6 rk-scroll">
               {loading ? (
                 <div className="flex h-48 flex-col items-center justify-center text-center">
-                  <p className="text-sm font-medium text-[#71717A]">Chargement de la bibliothèque…</p>
+                  <p className="text-sm font-medium text-[#71717A]">
+                    Chargement de la bibliothèque…
+                  </p>
                 </div>
               ) : filteredSkills.length === 0 ? (
                 <div className="flex h-48 flex-col items-center justify-center text-center">
@@ -860,7 +890,8 @@ export function SkillLibraryOverlay({
                       : "Aucune compétence enregistrée pour le moment"}
                   </p>
                   <p className="mt-1 text-xs text-[#52525B]">
-                    Importez des fichiers Markdown ou créez vos premiers guides d'instructions souverains.
+                    Importez des fichiers Markdown ou créez vos premiers guides d'instructions
+                    souverains.
                   </p>
                 </div>
               ) : (
@@ -986,7 +1017,9 @@ export function SkillLibraryOverlay({
               <div className="flex items-center gap-3">
                 <div>
                   <div className="flex items-center gap-2">
-                    <h3 className="text-sm font-semibold text-white">{editorName || "Compétence"}</h3>
+                    <h3 className="text-sm font-semibold text-white">
+                      {editorName || "Compétence"}
+                    </h3>
                     <SkillSizeBadge sizeBytes={editorByteLength} />
                   </div>
                   <p className="text-xs text-[#71717A] font-mono">{editorSlug || "slug-auto"}</p>
@@ -994,7 +1027,8 @@ export function SkillLibraryOverlay({
               </div>
               <div className="flex items-center gap-2">
                 <span className="text-xs text-[#71717A]">
-                  Taille totale : {(editorByteLength / 1024).toFixed(1)} Ko ({editorByteLength} octets)
+                  Taille totale : {(editorByteLength / 1024).toFixed(1)} Ko ({editorByteLength}{" "}
+                  octets)
                 </span>
               </div>
             </div>
@@ -1021,8 +1055,8 @@ export function SkillLibraryOverlay({
               </div>
               <p className="mt-3 text-xs leading-relaxed text-[#A1A1AA]">
                 Êtes-vous sûr de vouloir supprimer définitivement la compétence{" "}
-                <span className="font-semibold text-white">« {deleteTarget.name} »</span> ? Cette action est
-                irréversible et détachera cette compétence de tous les agents.
+                <span className="font-semibold text-white">« {deleteTarget.name} »</span> ? Cette
+                action est irréversible et détachera cette compétence de tous les agents.
               </p>
               <div className="mt-6 flex items-center justify-end gap-3">
                 <button

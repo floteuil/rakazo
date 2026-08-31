@@ -1,18 +1,20 @@
-import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { FREE_INFERENCE_UNAVAILABLE_MESSAGE } from "@rakazo/contracts";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
-} from "@rakazo/contracts";
-import {
-  RakazoFreePolicyEngine,
   APPROVED_FREE_PROVIDERS,
   AVOIDED_PROVIDERS,
+  RakazoFreePolicyEngine,
 } from "../../../adapters/src/free-policy-engine.js";
 import {
-  SubagentExecutor,
-  SUBAGENT_TOKEN_BUDGET_CEILING,
-  SUBAGENT_MAX_DEPTH,
-  SUBAGENT_DELEGATION_TOOL_NAMES,
-} from "../../../adapters/src/subagent-inheritance.js";
+  computeToolCallSignature,
+  createToolCallTracker,
+  evaluateToolCallGuard,
+  MAX_TOOL_ITERATIONS_PER_TURN,
+} from "../../../adapters/src/loop-guards.js";
+import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
+import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
 import {
   assemble4BlockCachePrompt,
   computeSessionAffinityKey,
@@ -20,25 +22,18 @@ import {
   STATIC_PLATFORM_GUARDRAILS_BLOC_A,
 } from "../../../adapters/src/prefix-caching.js";
 import {
-  compactToolResult,
-  cleanJsonPayload,
-} from "../../../adapters/src/tool-compacting.js";
+  SUBAGENT_DELEGATION_TOOL_NAMES,
+  SUBAGENT_MAX_DEPTH,
+  SUBAGENT_TOKEN_BUDGET_CEILING,
+  SubagentExecutor,
+} from "../../../adapters/src/subagent-inheritance.js";
+import { cleanJsonPayload, compactToolResult } from "../../../adapters/src/tool-compacting.js";
+import type { PrismaClient } from "../../../db/src/client.js";
 import {
-  createToolCallTracker,
-  computeToolCallSignature,
-  evaluateToolCallGuard,
-  MAX_TOOL_ITERATIONS_PER_TURN,
-} from "../../../adapters/src/loop-guards.js";
-import {
-  recordPromptExecutionLogAsync,
   listPromptExecutionLogs,
   type PromptExecutionLogInput,
+  recordPromptExecutionLogAsync,
 } from "../../../db/src/telemetry.js";
-import type { PrismaClient } from "../../../db/src/client.js";
-import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
-import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
 
 function getRepoRoot(): string {
   let dir = import.meta.dirname ?? process.cwd();
@@ -180,7 +175,9 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
       expect(call3.allow).toBe(false);
       if (!call3.allow) {
         expect(call3.terminate).toBe(true);
-        expect(call3.reason).toContain("Loop detected: Tool 'read_file' called 3 consecutive times");
+        expect(call3.reason).toContain(
+          "Loop detected: Tool 'read_file' called 3 consecutive times",
+        );
       }
     });
   });
@@ -208,8 +205,18 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
 
     it("F3-3: Compacts GitHub repository search items to dense single-line strings", () => {
       const repos = [
-        { full_name: "elie222/rakazo", stars: 1200, language: "TypeScript", description: "Agent workspace" },
-        { full_name: "floteuil/OmniRoute", stars: 450, language: "Go", description: "Inference gateway" },
+        {
+          full_name: "elie222/rakazo",
+          stars: 1200,
+          language: "TypeScript",
+          description: "Agent workspace",
+        },
+        {
+          full_name: "floteuil/OmniRoute",
+          stars: 450,
+          language: "Go",
+          description: "Inference gateway",
+        },
       ];
       const compacted = compactToolResult("github_search_repos", { total_count: 2, items: repos });
       expect(compacted).toContain("elie222/rakazo (1200⭐, TypeScript)");
@@ -232,7 +239,9 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
         { type: "CNAME", name: "api.rakazo.internal", content: "rakazo.internal", proxied: true },
       ];
       const compacted = compactToolResult("cloudflare_list_dns_records", records);
-      expect(compacted).toBe('[["A","rakazo.internal","127.0.0.1",false],["CNAME","api.rakazo.internal","rakazo.internal",true]]');
+      expect(compacted).toBe(
+        '[["A","rakazo.internal","127.0.0.1",false],["CNAME","api.rakazo.internal","rakazo.internal",true]]',
+      );
     });
   });
 
@@ -328,7 +337,12 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
     });
 
     it("F6-2: Strictly vetoes paid models (gpt-4, claude-3, sonnet, opus)", () => {
-      const paidModels = ["openai/gpt-4o", "anthropic/claude-3-opus", "anthropic/claude-3.5-sonnet", "openai/gpt-oss-120b"];
+      const paidModels = [
+        "openai/gpt-4o",
+        "anthropic/claude-3-opus",
+        "anthropic/claude-3.5-sonnet",
+        "openai/gpt-oss-120b",
+      ];
       for (const model of paidModels) {
         expect(() => engine.vetoPaidFallback(model)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
       }
@@ -336,19 +350,29 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
 
     it("F6-3: Strictly vetoes avoided and unapproved providers", () => {
       for (const avoided of AVOIDED_PROVIDERS) {
-        expect(() => engine.assertZeroCostAndAllowed(avoided, 0.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+        expect(() => engine.assertZeroCostAndAllowed(avoided, 0.0)).toThrow(
+          FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+        );
       }
-      expect(() => engine.assertZeroCostAndAllowed("unapproved_commercial_proxy", 0.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.assertZeroCostAndAllowed("unapproved_commercial_proxy", 0.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
     });
 
     it("F6-4: Rejects any cost greater than $0.0000000", () => {
-      expect(() => engine.assertZeroCostAndAllowed("meta-llama", 0.00001)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.assertZeroCostAndAllowed("meta-llama", 1.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.assertZeroCostAndAllowed("meta-llama", 0.00001)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => engine.assertZeroCostAndAllowed("meta-llama", 1.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
     });
 
     it("F6-5: Validates post-inference cost and provider integrity", () => {
       expect(() => engine.validatePostInferenceCost(0.0, "qwen")).not.toThrow();
-      expect(() => engine.validatePostInferenceCost(0.001, "qwen")).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.validatePostInferenceCost(0.001, "qwen")).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
     });
   });
 
@@ -475,9 +499,13 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
   // ============================================================================
   describe("Feature 9: 4-Block KV Prefix Caching Assembly (R4)", () => {
     it("F9-1: Block A contains static platform invariants and anti-loop constraints", () => {
-      expect(STATIC_PLATFORM_GUARDRAILS_BLOC_A).toContain("=== BLOC A : INVARIANT PLATFORM GUARDRAILS");
+      expect(STATIC_PLATFORM_GUARDRAILS_BLOC_A).toContain(
+        "=== BLOC A : INVARIANT PLATFORM GUARDRAILS",
+      );
       expect(STATIC_PLATFORM_GUARDRAILS_BLOC_A).toContain("Maximum 25 tool steps");
-      expect(STATIC_PLATFORM_GUARDRAILS_BLOC_A).toContain("Maximum 3 consecutive identical tool calls");
+      expect(STATIC_PLATFORM_GUARDRAILS_BLOC_A).toContain(
+        "Maximum 3 consecutive identical tool calls",
+      );
     });
 
     it("F9-2: Block B contains bot identity, instructions, and sorted active skills", () => {
@@ -564,7 +592,11 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
     });
 
     it("F10-4: Transmits x-session-id header over HTTP to OmniRoute gateway", async () => {
-      const sessionId = computeSessionAffinityKey({ workspaceId: "ws1", botId: "b1", threadId: "t1" });
+      const sessionId = computeSessionAffinityKey({
+        workspaceId: "ws1",
+        botId: "b1",
+        threadId: "t1",
+      });
 
       await fetch(`${serverUrl}/chat/completions`, {
         method: "POST",
@@ -616,7 +648,9 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
     });
 
     it("F11-5: Error message string matches exact specification: 'Capacité gratuite temporairement indisponible'", () => {
-      expect(FREE_INFERENCE_UNAVAILABLE_MESSAGE).toBe("Capacité gratuite temporairement indisponible");
+      expect(FREE_INFERENCE_UNAVAILABLE_MESSAGE).toBe(
+        "Capacité gratuite temporairement indisponible",
+      );
     });
   });
 
@@ -832,7 +866,10 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
     });
 
     it("F15-3: Master architect handoff document exists and is populated", () => {
-      const handoffPath = resolve(rootDir, "RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md");
+      const handoffPath = resolve(
+        rootDir,
+        "RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md",
+      );
       expect(existsSync(handoffPath)).toBe(true);
       const content = readFileSync(handoffPath, "utf-8");
       expect(content).toContain("OmniRoute");

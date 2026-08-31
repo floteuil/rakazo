@@ -1,7 +1,7 @@
-import { describe, expect, it, vi } from "vitest";
 import type { AdapterContext, AgentRunRequest } from "@rakazo/adapter-kit";
-import { PiAgentRuntime } from "./pi-runtime.js";
+import { describe, expect, it, vi } from "vitest";
 import { sanitizeToolError } from "./enterprise-tools.js";
+import { PiAgentRuntime } from "./pi-runtime.js";
 
 const context: AdapterContext = {
   operationId: "e2e-token-efficiency",
@@ -63,14 +63,16 @@ describe("E2E Token Efficiency Track: Runtime Calibration, Parsimony & Multi-Tie
   // ==========================================================================
   describe("Tier 2: Boundary & Corner Cases", () => {
     it("2.1 Output Ceiling Boundary: Handles requests demanding up to 16,384 tokens without truncation", () => {
-      const prompt = "Generate a complete TypeScript adapter for 5 enterprise connectors including schemas, tests, and error handlers.";
+      const prompt =
+        "Generate a complete TypeScript adapter for 5 enterprise connectors including schemas, tests, and error handlers.";
       expect(prompt.length).toBeGreaterThan(50);
       const allocatedMaxTokens = 16384;
       expect(allocatedMaxTokens).toBe(16384);
     });
 
     it("2.2 Empty or missing system instructions fallback gracefully", () => {
-      const defaultSystemPrompt = "You are a Rakazo bot with a persistent sandbox filesystem and shell. Be concise.";
+      const defaultSystemPrompt =
+        "You are a Rakazo bot with a persistent sandbox filesystem and shell. Be concise.";
       expect(defaultSystemPrompt).toContain("Rakazo bot");
       expect(defaultSystemPrompt).toContain("Be concise");
     });
@@ -98,7 +100,8 @@ describe("E2E Token Efficiency Track: Runtime Calibration, Parsimony & Multi-Tie
       expect(subagentTask).toBeDefined();
 
       // 2. Subagent executes shell tool returning 5000 chars with embedded token
-      const rawOutput = "Connecting to git with ghp_SecretGitHubToken12345\n" + "LOG_ENTRY_".repeat(400) + "\nDone";
+      const rawOutput =
+        "Connecting to git with ghp_SecretGitHubToken12345\n" + "LOG_ENTRY_".repeat(400) + "\nDone";
       expect(rawOutput.length).toBeGreaterThan(4000);
 
       // 3. Error sanitization ensures no secret leaks

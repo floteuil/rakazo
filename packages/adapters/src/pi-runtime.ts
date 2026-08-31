@@ -13,11 +13,11 @@ import type {
 } from "@rakazo/adapter-kit";
 import { builtinAgentTools, DELEGATION_TOOL_NAMES } from "./builtin-tools.js";
 import { sanitizeToolError } from "./enterprise-tools.js";
-import {
-  type InferenceTransport,
-  type InferenceTransportChunk,
-  type InferenceTransportMessage,
-  type InferenceTransportRequest,
+import type {
+  InferenceTransport,
+  InferenceTransportChunk,
+  InferenceTransportMessage,
+  InferenceTransportRequest,
 } from "./inference-transport.js";
 import {
   createToolCallTracker,
@@ -27,8 +27,8 @@ import {
 import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
 import { PiAiInferenceTransport } from "./pi-ai-transport.js";
 import { PiRuntimeCredentialStore, toOAuthCredential } from "./pi-credentials.js";
-import { compilePromptLevel1Deterministic } from "./prompt-compiler.js";
 import { computeSessionAffinityKey } from "./prefix-caching.js";
+import { compilePromptLevel1Deterministic } from "./prompt-compiler.js";
 import {
   DELEGATION_NAMES_SET,
   SUBAGENT_MAX_DEPTH,
@@ -69,10 +69,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
     running.get(runId)?.abort();
   }
 
-  async *run(
-    request: AgentRunRequest,
-    context: AdapterContext,
-  ): AsyncIterable<AgentRuntimeEvent> {
+  async *run(request: AgentRunRequest, context: AdapterContext): AsyncIterable<AgentRuntimeEvent> {
     const controller = new AbortController();
     running.set(request.runId, controller);
     const signal = context.signal ?? controller.signal;
@@ -112,9 +109,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
       tracker,
     };
 
-    const toolDefs = Array.isArray(request.tools)
-      ? request.tools
-      : builtinAgentTools;
+    const toolDefs = Array.isArray(request.tools) ? request.tools : builtinAgentTools;
     const normalizedNames = normalizeAgentToolNames(toolDefs);
     const toolByName = new Map<string, ConnectorTool>();
     toolDefs.forEach((tool, index) => {
@@ -137,12 +132,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
     if (request.history && request.history.length > 0) {
       for (const msg of request.history) {
         messages.push({
-          role:
-            msg.role === "system"
-              ? "system"
-              : msg.role === "assistant"
-                ? "assistant"
-                : "user",
+          role: msg.role === "system" ? "system" : msg.role === "assistant" ? "assistant" : "user",
           content: msg.content,
         });
       }
@@ -216,16 +206,12 @@ export class CanonicalAgentRuntime implements AgentRuntime {
               } else {
                 if (tc.id) pendingToolCalls[index].id = tc.id;
                 if (tc.name) pendingToolCalls[index].name += tc.name;
-                if (tc.arguments)
-                  pendingToolCalls[index].arguments += tc.arguments;
+                if (tc.arguments) pendingToolCalls[index].arguments += tc.arguments;
               }
             } else if (chunk.type === "usage" && chunk.usage) {
-              const totalPromptTokens =
-                (chunk.usage.cachedTokens ?? 0) + chunk.usage.inputTokens;
+              const totalPromptTokens = (chunk.usage.cachedTokens ?? 0) + chunk.usage.inputTokens;
               const cacheHitRatio =
-                totalPromptTokens > 0
-                  ? (chunk.usage.cachedTokens ?? 0) / totalPromptTokens
-                  : 0;
+                totalPromptTokens > 0 ? (chunk.usage.cachedTokens ?? 0) / totalPromptTokens : 0;
 
               queue.push({
                 type: "usage",
@@ -244,9 +230,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             return;
           }
 
-          const validToolCalls = pendingToolCalls.filter(
-            (tc) => Boolean(tc && tc.name),
-          );
+          const validToolCalls = pendingToolCalls.filter((tc) => Boolean(tc && tc.name));
 
           if (validToolCalls.length === 0) {
             if (!streamed) {
@@ -274,8 +258,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
           iteration++;
 
           if (iteration >= MAX_TOOL_ITERATIONS_PER_TURN) {
-            const limitMsg =
-              "Tool iteration limit reached (25 steps). Stopping turn.";
+            const limitMsg = "Tool iteration limit reached (25 steps). Stopping turn.";
             queue.push({ type: "text", text: limitMsg });
             queue.push({ type: "done", text: limitMsg });
             return;
@@ -297,11 +280,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             const originalTool = toolByName.get(tc.name);
             const toolName = originalTool ? originalTool.name : tc.name;
 
-            const guard = evaluateToolCallGuard(
-              host.tracker,
-              toolName,
-              parsedArgs,
-            );
+            const guard = evaluateToolCallGuard(host.tracker, toolName, parsedArgs);
             if (!guard.allow) {
               messages.push({
                 role: "tool",
@@ -325,9 +304,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             });
 
             if (toolName === "request_takeover") {
-              const reason = String(
-                parsedArgs.reason ?? "I need you on the screen.",
-              );
+              const reason = String(parsedArgs.reason ?? "I need you on the screen.");
               queue.push({ type: "takeover", reason });
               messages.push({
                 role: "tool",
@@ -340,11 +317,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             }
 
             if (toolName === "run_subagent") {
-              const subResult = await executeSubagent(
-                host,
-                tc.id,
-                parsedArgs,
-              );
+              const subResult = await executeSubagent(host, tc.id, parsedArgs);
               messages.push({
                 role: "tool",
                 tool_call_id: tc.id,
@@ -356,15 +329,9 @@ export class CanonicalAgentRuntime implements AgentRuntime {
 
             if (request.executeTool) {
               try {
-                const rawResult = await request.executeTool(
-                  toolName,
-                  parsedArgs,
-                  tc.id,
-                );
+                const rawResult = await request.executeTool(toolName, parsedArgs, tc.id);
                 const resultString = isAgentToolExecutionResult(rawResult)
-                  ? rawResult.content
-                      .map((c) => (c.type === "text" ? c.text : ""))
-                      .join("")
+                  ? rawResult.content.map((c) => (c.type === "text" ? c.text : "")).join("")
                   : compactToolResult(toolName, rawResult);
 
                 messages.push({
@@ -375,9 +342,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
                 });
               } catch (toolErr: any) {
                 const sanitizedErr = sanitizeToolError(
-                  toolErr instanceof Error
-                    ? toolErr.message
-                    : String(toolErr),
+                  toolErr instanceof Error ? toolErr.message : String(toolErr),
                 );
                 messages.push({
                   role: "tool",
@@ -397,9 +362,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
           }
         }
       } catch (error) {
-        const message = sanitizeToolError(
-          error instanceof Error ? error.message : String(error),
-        );
+        const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
         queue.push({ type: "text", text: `I hit a problem: ${message}` });
         queue.push({ type: "done", text: message });
       } finally {
@@ -557,7 +520,9 @@ export class PiAgentRuntime implements AgentRuntime {
               const usage = event.message.usage as unknown as Record<string, unknown>;
               const inputTokens = (usage.input ?? usage.prompt_tokens ?? 0) as number;
               const outputTokens = (usage.output ?? usage.completion_tokens ?? 0) as number;
-              const cachedTokens = ((usage.prompt_tokens_details as Record<string, unknown> | undefined)?.cached_tokens ??
+              const cachedTokens = ((
+                usage.prompt_tokens_details as Record<string, unknown> | undefined
+              )?.cached_tokens ??
                 usage.cached_tokens ??
                 (usage as Record<string, unknown>).cache_read_input_tokens ??
                 0) as number;
@@ -1151,7 +1116,11 @@ export function buildSubagentPrompt(name: string, task?: string, extra?: string)
   });
 }
 
-export async function executeSubagent(host: ToolHost, executionId: string, args: Record<string, unknown>) {
+export async function executeSubagent(
+  host: ToolHost,
+  executionId: string,
+  args: Record<string, unknown>,
+) {
   if (host.depth >= SUBAGENT_MAX_DEPTH) return "Subagents cannot nest further.";
   await host.subagentGate.acquire();
   const agentId = executionId;
@@ -1170,9 +1139,7 @@ export async function executeSubagent(host: ToolHost, executionId: string, args:
     progress: "starting…",
   });
 
-  const availableTools = Array.isArray(host.request.tools)
-    ? host.request.tools
-    : builtinAgentTools;
+  const availableTools = Array.isArray(host.request.tools) ? host.request.tools : builtinAgentTools;
   const childDefs = availableTools.filter(
     (tool) => !DELEGATION_TOOL_NAMES.has(tool.name) && !DELEGATION_NAMES_SET.has(tool.name),
   );
@@ -1189,22 +1156,22 @@ export async function executeSubagent(host: ToolHost, executionId: string, args:
 
   const isParentFree = Boolean(
     host.transport?.isFree ||
-    host.request.model.provider === "omniroute" ||
-    host.request.model.provider === "combo" ||
-    host.request.model.id.startsWith("combo/") ||
-    (host.request as any).inferenceMode === "free"
+      host.request.model.provider === "omniroute" ||
+      host.request.model.provider === "combo" ||
+      host.request.model.id.startsWith("combo/") ||
+      (host.request as any).inferenceMode === "free",
   );
 
   if (isParentFree || host.transport) {
     const subTransport = isParentFree
-      ? (host.transport?.isFree
-          ? host.transport
-          : new OmniRouteInferenceTransport({
-              defaultModel: host.request.model.id?.startsWith("combo/")
-                ? host.request.model.id
-                : "combo/rakazo-fast",
-              apiKey: host.apiKey,
-            }))
+      ? host.transport?.isFree
+        ? host.transport
+        : new OmniRouteInferenceTransport({
+            defaultModel: host.request.model.id?.startsWith("combo/")
+              ? host.request.model.id
+              : "combo/rakazo-fast",
+            apiKey: host.apiKey,
+          })
       : host.transport!;
 
     const subRuntime = new CanonicalAgentRuntime({ transport: subTransport });
@@ -1290,9 +1257,7 @@ export async function executeSubagent(host: ToolHost, executionId: string, args:
       });
       return clipped;
     } catch (error) {
-      const message = sanitizeToolError(
-        error instanceof Error ? error.message : String(error),
-      );
+      const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
       host.queue.push({
         type: "subagent",
         agentId,
@@ -1804,7 +1769,6 @@ function jsonField(spec: unknown): ReturnType<typeof Type.String> {
   if (type === "object") return jsonSchemaParameters(definition) as never;
   return Type.String();
 }
-
 
 function assistantText(message: unknown): string {
   if (!message || typeof message !== "object" || !("content" in message)) return "";

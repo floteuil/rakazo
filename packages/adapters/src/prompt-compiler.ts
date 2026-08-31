@@ -39,7 +39,8 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
   let roleText = "";
   let explicitRoleIndex = -1;
 
-  const rolePrefixRegex = /^(?:you are|tu es|agir en tant que|act as|role\s*:|identity\s*:)\s*(.+)/i;
+  const rolePrefixRegex =
+    /^(?:you are|tu es|agir en tant que|act as|role\s*:|identity\s*:)\s*(.+)/i;
 
   for (const rawLine of rawLines) {
     const trimmed = rawLine.trim();
@@ -58,7 +59,8 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
       const name = botTitle || botName;
       roleText = `You are ${name}, a dedicated and specialized AI assistant configured to execute tasks with high precision and reliability.`;
     } else {
-      roleText = "You are a professional, autonomous AI assistant focused on high-quality task execution.";
+      roleText =
+        "You are a professional, autonomous AI assistant focused on high-quality task execution.";
     }
   }
 
@@ -69,10 +71,14 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
   const errorItems: string[] = [];
   const otherItems: string[] = [];
 
-  const ruleKeywords = /^(?:always|never|do not|must|ensure|ne jamais|toujours|ne pas|obligatoire|strictement|rule\s*:|constraint\s*:)/i;
-  const formatKeywords = /^(?:format|output|deliverable|markdown|json|table|bullet|structure|reponse en|sortie\s*:)/i;
-  const errorKeywords = /^(?:if error|in case of|when missing|si erreur|en cas de|fallback|when unclear|si incertain)/i;
-  const missionKeywords = /^(?:your mission|mission|goal|objective|help|summarize|analyze|create|manage|generate|tu dois|ton but|ton objectif)/i;
+  const ruleKeywords =
+    /^(?:always|never|do not|must|ensure|ne jamais|toujours|ne pas|obligatoire|strictement|rule\s*:|constraint\s*:)/i;
+  const formatKeywords =
+    /^(?:format|output|deliverable|markdown|json|table|bullet|structure|reponse en|sortie\s*:)/i;
+  const errorKeywords =
+    /^(?:if error|in case of|when missing|si erreur|en cas de|fallback|when unclear|si incertain)/i;
+  const missionKeywords =
+    /^(?:your mission|mission|goal|objective|help|summarize|analyze|create|manage|generate|tu dois|ton but|ton objectif)/i;
   const bulletCleanerRegex = /^(?:[-*•]|\d+\.)\s*/;
 
   for (const [i, line] of lines.entries()) {
@@ -115,7 +121,9 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
   // Ensure baseline defaults for empty sections
   if (ruleItems.length === 0) {
     ruleItems.push("Execute instructions methodically and maintain factual accuracy.");
-    ruleItems.push("Adhere strictly to the requested scope without hallucinating unverified information.");
+    ruleItems.push(
+      "Adhere strictly to the requested scope without hallucinating unverified information.",
+    );
     ruleItems.push("Preserve context across interactions and prioritize user goals.");
   }
 
@@ -127,7 +135,9 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
   if (errorItems.length === 0) {
     errorItems.push("If critical information is missing, ask targeted clarifying questions.");
     errorItems.push("State uncertainties explicitly rather than making unsupported assumptions.");
-    errorItems.push("If an error occurs, provide a transparent explanation and actionable fallback steps.");
+    errorItems.push(
+      "If an error occurs, provide a transparent explanation and actionable fallback steps.",
+    );
   }
 
   const compiledInstruction = [
@@ -171,7 +181,10 @@ export function compilePromptLevel1Deterministic(input: PromptCompileInput): Pro
 /**
  * Strips reasoning thought tokens (<thought>...</thought>) and accidental markdown fences.
  */
-export function extractThoughtTrace(content: string): { cleanContent: string; thoughtTrace?: string } {
+export function extractThoughtTrace(content: string): {
+  cleanContent: string;
+  thoughtTrace?: string;
+} {
   let thoughtTrace: string | undefined;
   const thoughtMatch = content.match(/<thought>([\s\S]*?)<\/thought>/i);
   if (thoughtMatch?.[1]) {
@@ -193,12 +206,19 @@ export function extractThoughtTrace(content: string): { cleanContent: string; th
 /**
  * Creates an instance of PromptCompilerService.
  */
-export function createPromptCompilerService(options: PromptCompilerOptions = {}): PromptCompilerService {
-  const baseUrl = (options.baseUrl ?? process.env.OPENROUTER_BASE_URL ?? "https://openrouter.ai/api/v1").replace(
-    /\/+$/,
-    "",
-  );
-  const modelId = options.modelId ?? process.env.PI_DEFAULT_MODEL ?? process.env.OPENROUTER_MODEL ?? DEFAULT_PROMPT_COMPILER_MODEL;
+export function createPromptCompilerService(
+  options: PromptCompilerOptions = {},
+): PromptCompilerService {
+  const baseUrl = (
+    options.baseUrl ??
+    process.env.OPENROUTER_BASE_URL ??
+    "https://openrouter.ai/api/v1"
+  ).replace(/\/+$/, "");
+  const modelId =
+    options.modelId ??
+    process.env.PI_DEFAULT_MODEL ??
+    process.env.OPENROUTER_MODEL ??
+    DEFAULT_PROMPT_COMPILER_MODEL;
   const apiKey = options.apiKey ?? process.env.OPENROUTER_API_KEY ?? process.env.PI_MODEL_API_KEY;
   const fetchFn = options.fetchFn ?? fetch;
   const timeoutMs = options.timeoutMs ?? 15000;
@@ -218,7 +238,8 @@ export function createPromptCompilerService(options: PromptCompilerOptions = {})
         const fallback = compilePromptLevel1Deterministic(input);
         return {
           ...fallback,
-          explanation: "OpenRouter API key not configured. Gracefully fell back to Level 1 deterministic compilation.",
+          explanation:
+            "OpenRouter API key not configured. Gracefully fell back to Level 1 deterministic compilation.",
         };
       }
 
@@ -301,11 +322,14 @@ export function createPromptCompilerService(options: PromptCompilerOptions = {})
         const { cleanContent, thoughtTrace } = extractThoughtTrace(rawContent);
         const durationMs = Date.now() - startTime;
 
-        const promptTokens = data.usage?.prompt_tokens ?? Math.max(1, Math.round(userPayload.length / 4));
-        const completionTokens = data.usage?.completion_tokens ?? Math.max(1, Math.round(cleanContent.length / 4));
+        const promptTokens =
+          data.usage?.prompt_tokens ?? Math.max(1, Math.round(userPayload.length / 4));
+        const completionTokens =
+          data.usage?.completion_tokens ?? Math.max(1, Math.round(cleanContent.length / 4));
         const cachedTokens =
           data.usage?.prompt_tokens_details?.cached_tokens ?? data.usage?.cached_tokens ?? 0;
-        const cacheHitRatio = promptTokens > 0 ? Math.min(1, Math.max(0, cachedTokens / promptTokens)) : 0;
+        const cacheHitRatio =
+          promptTokens > 0 ? Math.min(1, Math.max(0, cachedTokens / promptTokens)) : 0;
 
         const telemetry: PromptCacheTelemetry = {
           cachedTokens,

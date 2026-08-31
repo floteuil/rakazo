@@ -25,7 +25,10 @@ async function getLoopGuardsModule() {
   try {
     const modulePath = "./loop-guards.js";
     const mod = await import(modulePath);
-    if (typeof mod.createToolCallTracker === "function" && typeof mod.evaluateToolCallGuard === "function") {
+    if (
+      typeof mod.createToolCallTracker === "function" &&
+      typeof mod.evaluateToolCallGuard === "function"
+    ) {
       return mod;
     }
   } catch {
@@ -67,7 +70,8 @@ async function getLoopGuardsModule() {
       if (tracker.stepCount > 25) {
         return {
           allow: false,
-          reason: "Circuit breaker triggered: Exceeded maximum of 25 tool execution steps in a single turn. Synthesizing final response with current findings.",
+          reason:
+            "Circuit breaker triggered: Exceeded maximum of 25 tool execution steps in a single turn. Synthesizing final response with current findings.",
           terminate: true,
         };
       }
@@ -112,7 +116,9 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
       const tracker = guards.createToolCallTracker();
 
       for (let i = 1; i <= 10; i++) {
-        const result = guards.evaluateToolCallGuard(tracker, "read_file", { path: `src/file_${i}.ts` });
+        const result = guards.evaluateToolCallGuard(tracker, "read_file", {
+          path: `src/file_${i}.ts`,
+        });
         expect(result).toEqual({ allow: true });
         expect(tracker.stepCount).toBe(i);
       }
@@ -165,39 +171,72 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
     });
 
     it("1.6 Secret Sanitization: masks GitHub PATs and OAuth tokens", () => {
-      const errorWithGhp = "GitHub API error: Bad credentials with ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456";
-      const errorWithPat = "Authentication failed for github_pat_11AAAAAAA01234567890_abcdefghijklmnopqrstuvwxyz";
+      const errorWithGhp =
+        "GitHub API error: Bad credentials with ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456";
+      const errorWithPat =
+        "Authentication failed for github_pat_11AAAAAAA01234567890_abcdefghijklmnopqrstuvwxyz";
 
-      expect(sanitizeToolError(errorWithGhp)).toBe("GitHub API error: Bad credentials with ghp_[redacted]");
-      expect(sanitizeToolError(errorWithPat)).toBe("Authentication failed for github_pat_[redacted]");
+      expect(sanitizeToolError(errorWithGhp)).toBe(
+        "GitHub API error: Bad credentials with ghp_[redacted]",
+      );
+      expect(sanitizeToolError(errorWithPat)).toBe(
+        "Authentication failed for github_pat_[redacted]",
+      );
     });
 
     it("1.7 Secret Sanitization: masks Notion, Postiz, Novamira, n8n, Cloudflare tokens", () => {
-      expect(sanitizeToolError("Notion failed: secret_abcdef123456")).toBe("Notion failed: secret_[redacted]");
-      expect(sanitizeToolError("Notion integration ntn_1234567890 expired")).toBe("Notion integration ntn_[redacted] expired");
-      expect(sanitizeToolError("Postiz key pk_live_9988776655 invalid")).toBe("Postiz key pk_[redacted] invalid");
-      expect(sanitizeToolError("Novamira key nova_adm_112233 refused")).toBe("Novamira key nova_[redacted] refused");
-      expect(sanitizeToolError("n8n webhook n8n_api_key_445566 unauthorized")).toBe("n8n webhook n8n_api_[redacted] unauthorized");
-      expect(sanitizeToolError("Cloudflare cf_token_abc123-xyz refused")).toBe("Cloudflare cf_token_[redacted] refused");
-      expect(sanitizeToolError("Cloudflare cfat_998877_token revoked")).toBe("Cloudflare cfat_[redacted] revoked");
+      expect(sanitizeToolError("Notion failed: secret_abcdef123456")).toBe(
+        "Notion failed: secret_[redacted]",
+      );
+      expect(sanitizeToolError("Notion integration ntn_1234567890 expired")).toBe(
+        "Notion integration ntn_[redacted] expired",
+      );
+      expect(sanitizeToolError("Postiz key pk_live_9988776655 invalid")).toBe(
+        "Postiz key pk_[redacted] invalid",
+      );
+      expect(sanitizeToolError("Novamira key nova_adm_112233 refused")).toBe(
+        "Novamira key nova_[redacted] refused",
+      );
+      expect(sanitizeToolError("n8n webhook n8n_api_key_445566 unauthorized")).toBe(
+        "n8n webhook n8n_api_[redacted] unauthorized",
+      );
+      expect(sanitizeToolError("Cloudflare cf_token_abc123-xyz refused")).toBe(
+        "Cloudflare cf_token_[redacted] refused",
+      );
+      expect(sanitizeToolError("Cloudflare cfat_998877_token revoked")).toBe(
+        "Cloudflare cfat_[redacted] revoked",
+      );
     });
 
     it("1.8 Secret Sanitization: masks OpenRouter, Anthropic, and OpenAI API keys", () => {
-      expect(sanitizeToolError("OpenRouter error: sk-or-v1-abcdef1234567890")).toBe("OpenRouter error: sk-or-[redacted]");
-      expect(sanitizeToolError("Anthropic rate limit: sk-ant-api03-abcdef123456")).toBe("Anthropic rate limit: sk-ant-[redacted]");
-      expect(sanitizeToolError("OpenAI quota exceeded: sk-123456789012345678901234567890")).toBe("OpenAI quota exceeded: sk-[redacted]");
+      expect(sanitizeToolError("OpenRouter error: sk-or-v1-abcdef1234567890")).toBe(
+        "OpenRouter error: sk-or-[redacted]",
+      );
+      expect(sanitizeToolError("Anthropic rate limit: sk-ant-api03-abcdef123456")).toBe(
+        "Anthropic rate limit: sk-ant-[redacted]",
+      );
+      expect(sanitizeToolError("OpenAI quota exceeded: sk-123456789012345678901234567890")).toBe(
+        "OpenAI quota exceeded: sk-[redacted]",
+      );
     });
 
     it("1.9 Secret Sanitization: masks PostgreSQL database passwords in connection URLs", () => {
-      const dbUrl = "Failed to connect to postgresql://postgres_user:SuperSecretPassword123@db.rakazo.internal:5432/rakazo_prod";
+      const dbUrl =
+        "Failed to connect to postgresql://postgres_user:SuperSecretPassword123@db.rakazo.internal:5432/rakazo_prod";
       const sanitized = sanitizeToolError(dbUrl);
-      expect(sanitized).toBe("Failed to connect to postgres://postgres_user:[redacted]@db.rakazo.internal:5432/rakazo_prod");
+      expect(sanitized).toBe(
+        "Failed to connect to postgres://postgres_user:[redacted]@db.rakazo.internal:5432/rakazo_prod",
+      );
       expect(sanitized).not.toContain("SuperSecretPassword123");
     });
 
     it("1.10 Secret Sanitization: masks Bearer and Basic headers", () => {
-      expect(sanitizeToolError("Request header Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 refused")).toBe("Request header Bearer [redacted] refused");
-      expect(sanitizeToolError("Basic dXNlcm5hbWU6cGFzc3dvcmQ= invalid credentials")).toBe("Basic [redacted] invalid credentials");
+      expect(
+        sanitizeToolError("Request header Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9 refused"),
+      ).toBe("Request header Bearer [redacted] refused");
+      expect(sanitizeToolError("Basic dXNlcm5hbWU6cGFzc3dvcmQ= invalid credentials")).toBe(
+        "Basic [redacted] invalid credentials",
+      );
     });
   });
 
@@ -248,16 +287,36 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
 
     it("2.3 Canonical Argument Signature: Object key ordering differences produce identical signature", async () => {
       const guards = await getLoopGuardsModule();
-      const sig1 = guards.computeToolCallSignature("query_db", { query: "SELECT 1", limit: 10, offset: 0 });
-      const sig2 = guards.computeToolCallSignature("query_db", { offset: 0, query: "SELECT 1", limit: 10 });
+      const sig1 = guards.computeToolCallSignature("query_db", {
+        query: "SELECT 1",
+        limit: 10,
+        offset: 0,
+      });
+      const sig2 = guards.computeToolCallSignature("query_db", {
+        offset: 0,
+        query: "SELECT 1",
+        limit: 10,
+      });
       expect(sig1).toBe(sig2);
 
       const tracker = guards.createToolCallTracker();
-      guards.evaluateToolCallGuard(tracker, "query_db", { query: "SELECT 1", limit: 10, offset: 0 });
-      guards.evaluateToolCallGuard(tracker, "query_db", { offset: 0, query: "SELECT 1", limit: 10 });
+      guards.evaluateToolCallGuard(tracker, "query_db", {
+        query: "SELECT 1",
+        limit: 10,
+        offset: 0,
+      });
+      guards.evaluateToolCallGuard(tracker, "query_db", {
+        offset: 0,
+        query: "SELECT 1",
+        limit: 10,
+      });
       expect(tracker.consecutiveSameCallCount).toBe(2);
 
-      const third = guards.evaluateToolCallGuard(tracker, "query_db", { limit: 10, offset: 0, query: "SELECT 1" });
+      const third = guards.evaluateToolCallGuard(tracker, "query_db", {
+        limit: 10,
+        offset: 0,
+        query: "SELECT 1",
+      });
       expect(third.allow).toBe(false);
     });
 
@@ -271,11 +330,14 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
 
     it("2.5 Secret Sanitization Boundary: Handles empty strings and strings without secrets cleanly", () => {
       expect(sanitizeToolError("")).toBe("");
-      expect(sanitizeToolError("Clean error: File not found at /src/index.ts")).toBe("Clean error: File not found at /src/index.ts");
+      expect(sanitizeToolError("Clean error: File not found at /src/index.ts")).toBe(
+        "Clean error: File not found at /src/index.ts",
+      );
     });
 
     it("2.6 Secret Sanitization Boundary: Multiple secrets of different types in a single error message", () => {
-      const multiError = "Failed to sync repo with ghp_11111111111111111111 and Notion secret_2222222222222222 on postgres://user:pass123@db:5432/app";
+      const multiError =
+        "Failed to sync repo with ghp_11111111111111111111 and Notion secret_2222222222222222 on postgres://user:pass123@db:5432/app";
       const sanitized = sanitizeToolError(multiError);
       expect(sanitized).toContain("ghp_[redacted]");
       expect(sanitized).toContain("secret_[redacted]");
@@ -293,9 +355,15 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
       const guards = await getLoopGuardsModule();
       const tracker = guards.createToolCallTracker();
 
-      guards.evaluateToolCallGuard(tracker, "shell", { command: "curl -s http://failing-endpoint" });
-      guards.evaluateToolCallGuard(tracker, "shell", { command: "curl -s http://failing-endpoint" });
-      const third = guards.evaluateToolCallGuard(tracker, "shell", { command: "curl -s http://failing-endpoint" });
+      guards.evaluateToolCallGuard(tracker, "shell", {
+        command: "curl -s http://failing-endpoint",
+      });
+      guards.evaluateToolCallGuard(tracker, "shell", {
+        command: "curl -s http://failing-endpoint",
+      });
+      const third = guards.evaluateToolCallGuard(tracker, "shell", {
+        command: "curl -s http://failing-endpoint",
+      });
 
       expect(third.allow).toBe(false);
       expect(tracker.stepCount).toBe(3);
@@ -309,11 +377,15 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
       for (let i = 0; i < 2; i++) {
         const error = sanitizeToolError("GitHub failed: Bad credentials with ghp_ABC1234567890");
         expect(error).toBe("GitHub failed: Bad credentials with ghp_[redacted]");
-        const guardRes = guards.evaluateToolCallGuard(tracker, "github_search_repos", { query: "rakazo" });
+        const guardRes = guards.evaluateToolCallGuard(tracker, "github_search_repos", {
+          query: "rakazo",
+        });
         expect(guardRes.allow).toBe(true);
       }
 
-      const thirdGuard = guards.evaluateToolCallGuard(tracker, "github_search_repos", { query: "rakazo" });
+      const thirdGuard = guards.evaluateToolCallGuard(tracker, "github_search_repos", {
+        query: "rakazo",
+      });
       expect(thirdGuard.allow).toBe(false);
     });
   });
@@ -327,11 +399,17 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
       const tracker = guards.createToolCallTracker();
 
       // Turn 1: Agent tries git pull
-      expect(guards.evaluateToolCallGuard(tracker, "shell", { command: "git pull origin main" }).allow).toBe(true);
+      expect(
+        guards.evaluateToolCallGuard(tracker, "shell", { command: "git pull origin main" }).allow,
+      ).toBe(true);
       // Turn 2: Agent tries git pull again
-      expect(guards.evaluateToolCallGuard(tracker, "shell", { command: "git pull origin main" }).allow).toBe(true);
+      expect(
+        guards.evaluateToolCallGuard(tracker, "shell", { command: "git pull origin main" }).allow,
+      ).toBe(true);
       // Turn 3: Agent tries git pull third time
-      const intercepted = guards.evaluateToolCallGuard(tracker, "shell", { command: "git pull origin main" });
+      const intercepted = guards.evaluateToolCallGuard(tracker, "shell", {
+        command: "git pull origin main",
+      });
       expect(intercepted.allow).toBe(false);
       if (!intercepted.allow) {
         expect(intercepted.reason).toContain("Loop detected");
@@ -344,11 +422,15 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
       const tracker = guards.createToolCallTracker();
 
       for (let i = 1; i <= 25; i++) {
-        const res = guards.evaluateToolCallGuard(tracker, "web_search", { query: `rakazo architecture topic ${i}` });
+        const res = guards.evaluateToolCallGuard(tracker, "web_search", {
+          query: `rakazo architecture topic ${i}`,
+        });
         expect(res.allow).toBe(true);
       }
 
-      const blocked = guards.evaluateToolCallGuard(tracker, "web_search", { query: "rakazo architecture topic 26" });
+      const blocked = guards.evaluateToolCallGuard(tracker, "web_search", {
+        query: "rakazo architecture topic 26",
+      });
       expect(blocked.allow).toBe(false);
       if (!blocked.allow) {
         expect(blocked.reason).toContain("Circuit breaker triggered");

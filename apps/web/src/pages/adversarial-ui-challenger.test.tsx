@@ -1,15 +1,15 @@
+import { type BotMcpConfig, SOVEREIGN_MCP_CONNECTORS } from "@rakazo/contracts";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
-import { SOVEREIGN_MCP_CONNECTORS, type BotMcpConfig } from "@rakazo/contracts";
-import { BotMcpToolSelector } from "./BotMcpToolSelector";
-import { PluginsOverlay } from "./PluginsOverlay";
-import { SkillLibraryOverlay } from "./SkillLibraryOverlay";
-import { ModelSettingsOverlay } from "./ModelSettingsOverlay";
-import { VoiceSettingsOverlay } from "./VoiceSettingsOverlay";
 import { AuthPage } from "./Auth";
+import { BotMcpToolSelector } from "./BotMcpToolSelector";
+import { ModelSettingsOverlay } from "./ModelSettingsOverlay";
+import { PluginsOverlay } from "./PluginsOverlay";
 import { RoutineSchedule } from "./RoutineSchedule";
+import { SkillLibraryOverlay } from "./SkillLibraryOverlay";
+import { VoiceSettingsOverlay } from "./VoiceSettingsOverlay";
 
 // ============================================================================
 // ADVERSARIAL CHALLENGER 1: WEBUI MOBILE-FIRST & MCP UI EMPIRICAL HARNESS
@@ -97,7 +97,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
           onSelectBot={() => {}}
           onAddBot={() => {}}
           activeBotId="bot-1"
-        />
+        />,
       );
 
       expect(html).toContain("-translate-x-full");
@@ -113,7 +113,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
           onSelectBot={() => {}}
           onAddBot={() => {}}
           activeBotId="bot-1"
-        />
+        />,
       );
 
       expect(html).toContain("translate-x-0 shadow-2xl");
@@ -131,7 +131,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
           onSelectBot={() => {}}
           onAddBot={() => {}}
           activeBotId="bot-1"
-        />
+        />,
       );
 
       expect(html).toContain("min-h-[44px]");
@@ -146,36 +146,28 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       const html = renderToStaticMarkup(
         <MemoryRouter>
           <AuthPage mode="up" />
-        </MemoryRouter>
+        </MemoryRouter>,
       );
       expect(html).toContain("text-[17px]");
     });
 
     it("2.2 verifies SkillLibraryOverlay uses mobile-first text-[16px] with sm: scale down", () => {
-      const html = renderToStaticMarkup(
-        <SkillLibraryOverlay onClose={() => {}} />
-      );
+      const html = renderToStaticMarkup(<SkillLibraryOverlay onClose={() => {}} />);
       expect(html).toContain("text-[16px] sm:text-xs");
     });
 
     it("2.3 checks ModelSettingsOverlay inputs for >= 16px mobile font sizing", () => {
-      const html = renderToStaticMarkup(
-        <ModelSettingsOverlay onClose={() => {}} />
-      );
+      const html = renderToStaticMarkup(<ModelSettingsOverlay onClose={() => {}} />);
       expect(html).toContain("text-[16px] sm:text-[14px]");
     });
 
     it("2.4 audits BotMcpToolSelector search input styling", () => {
-      const html = renderToStaticMarkup(
-        <BotMcpToolSelector value={{}} onChange={() => {}} />
-      );
-      expect(html).toContain("placeholder=\"Filtrer les connecteurs et outils");
+      const html = renderToStaticMarkup(<BotMcpToolSelector value={{}} onChange={() => {}} />);
+      expect(html).toContain('placeholder="Filtrer les connecteurs et outils');
     });
 
     it("2.5 audits PluginsOverlay search input styling", () => {
-      const html = renderToStaticMarkup(
-        <PluginsOverlay onClose={() => {}} />
-      );
+      const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} />);
       expect(html).toContain("Filtrer les connecteurs &amp; outils...");
     });
   });
@@ -185,7 +177,8 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
   // --------------------------------------------------------------------------
   describe("Suite 3: Safe-Area Insets & Viewport Resilience", () => {
     it("3.1 verifies safe-area-inset-bottom padding formula with max fallback", () => {
-      const composerClass = "px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 sm:pt-3";
+      const composerClass =
+        "px-3 pt-2 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 sm:pt-3";
       expect(composerClass).toContain("env(safe-area-inset-bottom)");
       expect(composerClass).toContain("max(");
     });
@@ -206,9 +199,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
     });
 
     it("3.3 verifies full-screen modal overlays use max viewport heights with scroll safety", () => {
-      const html = renderToStaticMarkup(
-        <PluginsOverlay onClose={() => {}} />
-      );
+      const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} />);
       expect(html).toContain("fixed inset-0");
       expect(html).toContain("z-50");
       expect(html).toContain("overflow-hidden");
@@ -250,16 +241,14 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
                 tools: { "github.search_repositories": true },
               }}
               onChange={() => {}}
-            />
+            />,
           );
         }).not.toThrow();
       }
     });
 
     it("4.2 PluginsOverlay: renders all 8 Sovereign connectors and 40 tools without XSS execution", () => {
-      const html = renderToStaticMarkup(
-        <PluginsOverlay onClose={() => {}} />
-      );
+      const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} />);
 
       // Verify all 8 connectors exist
       expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(8);
@@ -282,7 +271,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       };
 
       const html = renderToStaticMarkup(
-        <BotMcpToolSelector value={partialConfig} onChange={() => {}} />
+        <BotMcpToolSelector value={partialConfig} onChange={() => {}} />,
       );
 
       expect(html).toContain("GitHub");
@@ -302,9 +291,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
 
       for (const conf of configurations) {
         expect(() => {
-          renderToStaticMarkup(
-            <BotMcpToolSelector value={conf as any} onChange={() => {}} />
-          );
+          renderToStaticMarkup(<BotMcpToolSelector value={conf as any} onChange={() => {}} />);
         }).not.toThrow();
       }
     });

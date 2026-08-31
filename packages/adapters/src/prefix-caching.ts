@@ -1,9 +1,6 @@
-import {
-  MAX_CONSECUTIVE_REDUNDANT_CALLS,
-  MAX_TOOL_ITERATIONS_PER_TURN,
-} from "./loop-guards.js";
-import { compactToolResult } from "./tool-compacting.js";
 import { formatSkillsPrompt, type SkillItemLike } from "./executor.js";
+import { MAX_CONSECUTIVE_REDUNDANT_CALLS, MAX_TOOL_ITERATIONS_PER_TURN } from "./loop-guards.js";
+import { compactToolResult } from "./tool-compacting.js";
 
 // ============================================================================
 // 4-BLOCK PREFIX CACHING SYSTEM PROMPT & TELEMETRY ENGINE
@@ -87,7 +84,9 @@ export function assemble4BlockCachePrompt(params: {
         const compacted = compactToolResult(tr.toolName, tr.result);
         return `[Tool: ${tr.toolName}] -> ${compacted}`;
       });
-      compactedHistoryBlocks.push(`${turn.role.toUpperCase()}: ${turn.content}\n${compactedResults.join("\n")}`);
+      compactedHistoryBlocks.push(
+        `${turn.role.toUpperCase()}: ${turn.content}\n${compactedResults.join("\n")}`,
+      );
     } else {
       compactedHistoryBlocks.push(`${turn.role.toUpperCase()}: ${turn.content}`);
     }
@@ -95,7 +94,9 @@ export function assemble4BlockCachePrompt(params: {
 
   const blocC = [
     "=== BLOC C : HISTORIQUE CONVERSATIONNEL COMPACTÉ ===",
-    compactedHistoryBlocks.length > 0 ? compactedHistoryBlocks.join("\n\n") : "(Nouvelle conversation - aucun historique)",
+    compactedHistoryBlocks.length > 0
+      ? compactedHistoryBlocks.join("\n\n")
+      : "(Nouvelle conversation - aucun historique)",
   ].join("\n\n");
 
   const attachedFilesDesc =

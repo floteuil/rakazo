@@ -1,17 +1,17 @@
-import { describe, expect, it, vi } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
+  type PromptCacheTelemetry,
   PromptCacheTelemetrySchema,
   PromptCompilationLevelSchema,
-  type PromptCacheTelemetry,
 } from "@rakazo/contracts";
+import { describe, expect, it, vi } from "vitest";
+import type { PrismaClient } from "../../../db/src/client.js";
 import {
-  recordPromptExecutionLogAsync,
   listPromptExecutionLogs,
   type PromptExecutionLogInput,
+  recordPromptExecutionLogAsync,
 } from "../../../db/src/telemetry.js";
-import type { PrismaClient } from "../../../db/src/client.js";
 
 function getRepoRoot(): string {
   let dir = import.meta.dirname ?? process.cwd();
@@ -68,7 +68,9 @@ describe("Requirement R3: SQL Telemetry & Prefix Caching E2E", () => {
       expect(schemaContent).toMatch(/@@index\(\[botId\]\)/);
       expect(schemaContent).toMatch(/@@index\(\[createdAt\]\)/);
       expect(schemaContent).toMatch(/@@index\(\[model\]\)/);
-      expect(schemaContent).toMatch(/bot\s+Bot\?\s+@relation\(fields:\s*\[botId\],\s*references:\s*\[id\]/);
+      expect(schemaContent).toMatch(
+        /bot\s+Bot\?\s+@relation\(fields:\s*\[botId\],\s*references:\s*\[id\]/,
+      );
     });
 
     it("1.4 Computes and validates cacheHitRatio correctly via PromptCacheTelemetrySchema", () => {
@@ -163,7 +165,9 @@ describe("Requirement R3: SQL Telemetry & Prefix Caching E2E", () => {
 
       const failingPrisma = {
         promptExecutionLog: {
-          create: vi.fn().mockRejectedValue(new Error("PostgreSQL connection timeout [FATAL 57P01]")),
+          create: vi
+            .fn()
+            .mockRejectedValue(new Error("PostgreSQL connection timeout [FATAL 57P01]")),
         },
       } as unknown as PrismaClient;
 

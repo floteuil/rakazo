@@ -43,7 +43,10 @@ export function parseSimpleYaml(yamlStr: string): Record<string, unknown> {
     if (!trimmed || trimmed.startsWith("#")) continue;
 
     if (trimmed.startsWith("- ") && currentKey) {
-      const val = trimmed.slice(2).trim().replace(/^["']|["']$/g, "");
+      const val = trimmed
+        .slice(2)
+        .trim()
+        .replace(/^["']|["']$/g, "");
       if (!currentArray) {
         currentArray = [];
         result[currentKey] = currentArray;
@@ -148,7 +151,12 @@ export function parseSkillMarkdown(
     const lines = bodyContent.split(/\r?\n/);
     for (const line of lines) {
       const trimmed = line.trim();
-      if (trimmed && !trimmed.startsWith("#") && !trimmed.startsWith("---") && !trimmed.startsWith("```")) {
+      if (
+        trimmed &&
+        !trimmed.startsWith("#") &&
+        !trimmed.startsWith("---") &&
+        !trimmed.startsWith("```")
+      ) {
         description = trimmed.slice(0, 300);
         break;
       }
@@ -159,12 +167,23 @@ export function parseSkillMarkdown(
   if (Array.isArray(frontmatter.tags)) {
     tags = frontmatter.tags.map((t) => String(t).trim()).filter(Boolean);
   } else if (typeof frontmatter.tags === "string") {
-    tags = frontmatter.tags.split(",").map((t) => t.trim()).filter(Boolean);
+    tags = frontmatter.tags
+      .split(",")
+      .map((t) => t.trim())
+      .filter(Boolean);
   } else if (Array.isArray(frontmatter.categories)) {
     tags = frontmatter.categories.map((t) => String(t).trim()).filter(Boolean);
   }
 
-  const knownKeys = new Set(["name", "title", "slug", "description", "summary", "tags", "categories"]);
+  const knownKeys = new Set([
+    "name",
+    "title",
+    "slug",
+    "description",
+    "summary",
+    "tags",
+    "categories",
+  ]);
   const metadata: Record<string, unknown> = {};
   for (const [key, value] of Object.entries(frontmatter)) {
     if (!knownKeys.has(key)) {
@@ -241,8 +260,10 @@ export function formatSkillsPrompt(activeSkills: SkillRecord[]): string | undefi
 
 export class SovereignSkillsEngine {
   private skills: Map<string, SkillRecord> = new Map();
-  private botSkills: Map<string, { id: string; workspaceId: string; botId: string; skillId: string; enabled: boolean }> =
-    new Map();
+  private botSkills: Map<
+    string,
+    { id: string; workspaceId: string; botId: string; skillId: string; enabled: boolean }
+  > = new Map();
   private bots: Map<string, { id: string; workspaceId: string; name: string }> = new Map();
 
   createBot(workspaceId: string, name: string): { id: string; workspaceId: string; name: string } {
@@ -358,7 +379,14 @@ export class SovereignSkillsEngine {
   async executeReadSkill(
     actor: Actor,
     nameOrSlug: string,
-  ): Promise<{ name?: string; slug?: string; description?: string; tags?: string[]; content?: string; error?: string }> {
+  ): Promise<{
+    name?: string;
+    slug?: string;
+    description?: string;
+    tags?: string[];
+    content?: string;
+    error?: string;
+  }> {
     const target = (nameOrSlug || "").trim().toLowerCase();
     if (!target) return { error: "Paramètre 'name' manquant pour read_skill." };
 
@@ -439,7 +467,9 @@ Guidelines for vacuuming and buffer sizing.
       const result = parseSkillMarkdown(markdown);
       expect(result.name).toBe("PostgreSQL Tuning Expert");
       expect(result.slug).toBe("postgresql-tuning-expert");
-      expect(result.description).toBe("Advanced database configuration, indexing and query planning");
+      expect(result.description).toBe(
+        "Advanced database configuration, indexing and query planning",
+      );
       expect(result.tags).toEqual(["sql", "postgres", "performance"]);
       expect(result.metadata.version).toBe("2.1.0");
       expect(result.content).toContain("# PostgreSQL Optimization");
@@ -521,7 +551,9 @@ Scraperr instructions.
       };
 
       const prompt = formatSkillsPrompt([skill]);
-      expect(prompt).toContain("### Compétence indexée : Docling Large Manual (docling-large-manual)");
+      expect(prompt).toContain(
+        "### Compétence indexée : Docling Large Manual (docling-large-manual)",
+      );
       expect(prompt).toContain('read_skill(name: "docling-large-manual")');
       expect(prompt).not.toContain("XXXXXXXX");
     });
@@ -725,7 +757,8 @@ Confidential formula.
       const engine = new SovereignSkillsEngine();
       const bot = engine.createBot(actor1.workspaceId, "Document RAG Agent");
 
-      const doclingMarkdown = `---
+      const doclingMarkdown =
+        `---
 name: Docling Document Parser
 slug: docling-document-parser
 description: "Expert en parsing, extraction et structuration de documents complexes (PDF, DOCX, HTML, tableaux) via la bibliothèque IBM Docling pour ingestion dans la base de connaissances et pipelines RAG."
@@ -760,7 +793,9 @@ print(result.document.export_to_markdown())
 
       // System Prompt must contain condensed index
       const prompt = formatSkillsPrompt(botSkills);
-      expect(prompt).toContain("### Compétence indexée : Docling Document Parser (docling-document-parser)");
+      expect(prompt).toContain(
+        "### Compétence indexée : Docling Document Parser (docling-document-parser)",
+      );
       expect(prompt).toContain('read_skill(name: "docling-document-parser")');
 
       // Tool Call retrieves full manual

@@ -48,7 +48,12 @@ describe("E2E Token Efficiency Suite: Tool Response Semantic Compacting", () => 
           name: "rakazo-core",
           full_name: "rakazo/rakazo-core",
           private: false,
-          owner: { login: "rakazo", id: 1, avatar_url: "https://example.com/avatar.png", site_admin: false },
+          owner: {
+            login: "rakazo",
+            id: 1,
+            avatar_url: "https://example.com/avatar.png",
+            site_admin: false,
+          },
           html_url: "https://github.com/rakazo/rakazo-core",
           description: "Autonomous multi-agent runtime for enterprise operations",
           fork: false,
@@ -98,7 +103,11 @@ describe("E2E Token Efficiency Suite: Tool Response Semantic Compacting", () => 
           url: "https://notion.so/workspace/page-abc-123",
           title: "Architecture Decisions Record",
           properties: {
-            Name: { id: "title", type: "title", title: [{ plain_text: "Architecture Decisions Record" }] },
+            Name: {
+              id: "title",
+              type: "title",
+              title: [{ plain_text: "Architecture Decisions Record" }],
+            },
           },
         },
       ];
@@ -201,7 +210,8 @@ describe("E2E Token Efficiency Suite: Tool Response Semantic Compacting", () => 
     });
 
     it("2.7 Special characters & Unicode: preserves emojis, French accents, newlines, tabs", () => {
-      const specialText = "Résultat d'analyse : Échec à l'étape 3 🚀\n\tDétail: Spécification validée à 100%.";
+      const specialText =
+        "Résultat d'analyse : Échec à l'étape 3 🚀\n\tDétail: Spécification validée à 100%.";
       const output = compactToolResult("shell", specialText);
       expect(output).toBe(specialText);
     });
@@ -219,7 +229,8 @@ describe("E2E Token Efficiency Suite: Tool Response Semantic Compacting", () => 
     it("3.1 Compacting + Secret Tokens: shell compression preserves surrounding context while truncating middle", () => {
       const head = "Connecting to upstream with ghp_ABCDEFGHIJKLMNOPQRSTUVWXYZ123456\n";
       const hugeMiddle = "DATA_CHUNK_".repeat(600);
-      const tail = "\nDatabase connection failed for postgres://admin:secretPass@localhost:5432/rakazo";
+      const tail =
+        "\nDatabase connection failed for postgres://admin:secretPass@localhost:5432/rakazo";
       const raw = head + hugeMiddle + tail;
 
       const output = compactToolResult("shell", raw);
@@ -230,7 +241,11 @@ describe("E2E Token Efficiency Suite: Tool Response Semantic Compacting", () => 
 
     it("3.2 File list compacting + Special paths: 50 nested paths with sensitive filenames", () => {
       const files = Array.from({ length: 50 }, (_, i) =>
-        i === 0 ? "secrets/.env.production" : i === 49 ? "infra/certs/tls.key" : `src/lib/helper_${i}.ts`
+        i === 0
+          ? "secrets/.env.production"
+          : i === 49
+            ? "infra/certs/tls.key"
+            : `src/lib/helper_${i}.ts`,
       );
       const output = compactToolResult("list_files", files);
       expect(output).toContain("50 files");
@@ -239,8 +254,12 @@ describe("E2E Token Efficiency Suite: Tool Response Semantic Compacting", () => 
     });
 
     it("3.3 Multi-connector batch outputs: compacts heterogeneous results deterministically", () => {
-      const ghOutput = compactToolResult("github_search_repos", [{ full_name: "rakazo/web", stargazers_count: 10 }]);
-      const dnsOutput = compactToolResult("cloudflare_list_dns_records", [{ name: "rakazo.io", type: "A", content: "1.1.1.1", proxied: true }]);
+      const ghOutput = compactToolResult("github_search_repos", [
+        { full_name: "rakazo/web", stargazers_count: 10 },
+      ]);
+      const dnsOutput = compactToolResult("cloudflare_list_dns_records", [
+        { name: "rakazo.io", type: "A", content: "1.1.1.1", proxied: true },
+      ]);
 
       expect(JSON.parse(ghOutput).items[0]).toContain("rakazo/web");
       expect(JSON.parse(dnsOutput)[0]).toEqual(["A", "rakazo.io", "1.1.1.1", true]);
@@ -267,9 +286,11 @@ describe("E2E Token Efficiency Suite: Tool Response Semantic Compacting", () => 
     });
 
     it("4.2 Scenario 2: TypeScript Compiler Build Failure (20,000 character compiler log)", () => {
-      const startLog = "turbo run build --filter=@rakazo/adapters\n[tsc] packages/adapters/src/pi-runtime.ts(45,7): error TS2322: Type 'number' is not assignable to type 'string'.\n";
+      const startLog =
+        "turbo run build --filter=@rakazo/adapters\n[tsc] packages/adapters/src/pi-runtime.ts(45,7): error TS2322: Type 'number' is not assignable to type 'string'.\n";
       const noisyMiddle = "Info: Processing module declaration ".repeat(500);
-      const endLog = "\n[tsc] Found 14 errors in 4 files.\n[turbo] ERROR: command finished with error: exit status 1";
+      const endLog =
+        "\n[tsc] Found 14 errors in 4 files.\n[turbo] ERROR: command finished with error: exit status 1";
       const fullCompilerOutput = startLog + noisyMiddle + endLog;
 
       const output = compactToolResult("shell", fullCompilerOutput);

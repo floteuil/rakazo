@@ -70,7 +70,9 @@ describe("Skills Repository", () => {
 
   describe("createSkill", () => {
     it("creates a skill with provided and default values", async () => {
-      const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "s-new", ...data }));
+      const create = vi
+        .fn()
+        .mockImplementation(({ data }) => Promise.resolve({ id: "s-new", ...data }));
       const prisma = { skill: { create } } as unknown as PrismaClient;
 
       const input = {
@@ -180,9 +182,11 @@ describe("Skills Repository", () => {
         },
       };
 
-      const $transaction = vi.fn().mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
-        return callback(tx);
-      });
+      const $transaction = vi
+        .fn()
+        .mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
+          return callback(tx);
+        });
 
       const prisma = { $transaction } as unknown as PrismaClient;
 
@@ -214,9 +218,11 @@ describe("Skills Repository", () => {
         },
       };
 
-      const $transaction = vi.fn().mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
-        return callback(tx);
-      });
+      const $transaction = vi
+        .fn()
+        .mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
+          return callback(tx);
+        });
 
       const prisma = { $transaction } as unknown as PrismaClient;
 

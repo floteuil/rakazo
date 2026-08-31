@@ -186,16 +186,9 @@ export function BotSettingsSkillsSection({
   return (
     <div className="mt-6 border-t border-[#26262A] pt-5" data-testid="bot-settings-skills">
       <div className="flex items-center justify-between">
-        <span className="text-[14px] font-medium text-[#ECECEE]">
-          Compétences actives (Skills)
-        </span>
+        <span className="text-[14px] font-medium text-[#ECECEE]">Compétences actives (Skills)</span>
         <span data-testid="skills-stats-badge" className="text-[11px] text-[#71717A]">
-          {formatSkillSummaryLabel(
-            activeSkillsList.length,
-            directCount,
-            directBytes,
-            indexedCount,
-          )}
+          {formatSkillSummaryLabel(activeSkillsList.length, directCount, directBytes, indexedCount)}
         </span>
       </div>
 
@@ -499,9 +492,9 @@ describe("Milestone 3 — CreateBotForm & BotSettings Adversarial Challenge", ()
       expect(stats.directCount).toBe(1);
       expect(stats.directBytes).toBe(4095);
       expect(stats.indexedCount).toBe(0);
-      expect(formatSkillSummaryLabel(1, stats.directCount, stats.directBytes, stats.indexedCount)).toBe(
-        "1 directe(s) (4.0 Ko)",
-      );
+      expect(
+        formatSkillSummaryLabel(1, stats.directCount, stats.directBytes, stats.indexedCount),
+      ).toBe("1 directe(s) (4.0 Ko)");
     });
 
     it("2.5 Boundary condition: exactly 4096 bytes is classified as Indexed (>= 4096)", () => {
@@ -515,9 +508,9 @@ describe("Milestone 3 — CreateBotForm & BotSettings Adversarial Challenge", ()
       expect(stats.directCount).toBe(0);
       expect(stats.directBytes).toBe(0);
       expect(stats.indexedCount).toBe(1);
-      expect(formatSkillSummaryLabel(1, stats.directCount, stats.directBytes, stats.indexedCount)).toBe(
-        "0 directe(s) (0.0 Ko), 1 indexée(s)",
-      );
+      expect(
+        formatSkillSummaryLabel(1, stats.directCount, stats.directBytes, stats.indexedCount),
+      ).toBe("0 directe(s) (0.0 Ko), 1 indexée(s)");
     });
 
     it("2.6 Boundary condition: exactly 4097 bytes is classified as Indexed", () => {

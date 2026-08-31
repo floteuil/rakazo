@@ -276,7 +276,11 @@ describe("Empirical Challenger M1: API Router Persistence & Escalation Defenses"
       };
 
       const prisma = {
-        user: { findUniqueOrThrow: vi.fn().mockResolvedValue({ id: actor.userId, email: actor.email, name: "User" }) },
+        user: {
+          findUniqueOrThrow: vi
+            .fn()
+            .mockResolvedValue({ id: actor.userId, email: actor.email, name: "User" }),
+        },
         userModelCredential: { findFirst: vi.fn().mockResolvedValue(null) },
         deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
         bot: {
@@ -285,7 +289,10 @@ describe("Empirical Challenger M1: API Router Persistence & Escalation Defenses"
         },
         message: { findMany: vi.fn().mockResolvedValue([]) },
         run: { findFirst: vi.fn().mockResolvedValue(null) },
-        event: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+        event: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
       };
 

@@ -112,7 +112,9 @@ describe("Dynamic Per-Bot Tool Filtering & Security Gate", () => {
       expect(extractBotMcpConfig({})).toBeUndefined();
       expect(extractBotMcpConfig({ metadata: {} })).toBeUndefined();
       expect(extractBotMcpConfig({ metadata: { mcp: {} } })).toBeUndefined();
-      expect(extractBotMcpConfig({ metadata: { mcp: { connectors: {}, tools: {} } } })).toBeUndefined();
+      expect(
+        extractBotMcpConfig({ metadata: { mcp: { connectors: {}, tools: {} } } }),
+      ).toBeUndefined();
     });
 
     it("extracts mcp config from bot.metadata.mcp", () => {
@@ -136,13 +138,13 @@ describe("Dynamic Per-Bot Tool Filtering & Security Gate", () => {
         extractBotMcpConfig({ metadata: { mcpConfig: { connectors: { postiz: true } } } }),
       )?.toEqual({ connectors: { postiz: true } });
 
-      expect(
-        extractBotMcpConfig({ mcp: { connectors: { n8n: true } } }),
-      )?.toEqual({ connectors: { n8n: true } });
+      expect(extractBotMcpConfig({ mcp: { connectors: { n8n: true } } }))?.toEqual({
+        connectors: { n8n: true },
+      });
 
-      expect(
-        extractBotMcpConfig({ mcpConfig: { connectors: { cloudflare: true } } }),
-      )?.toEqual({ connectors: { cloudflare: true } });
+      expect(extractBotMcpConfig({ mcpConfig: { connectors: { cloudflare: true } } }))?.toEqual({
+        connectors: { cloudflare: true },
+      });
     });
   });
 
@@ -226,7 +228,7 @@ describe("Dynamic Per-Bot Tool Filtering & Security Gate", () => {
         },
         tools: {
           github_search_repos: true, // override: allow search even though github is disabled
-          notion_create_page: false,  // override: deny create even though notion is enabled
+          notion_create_page: false, // override: deny create even though notion is enabled
         },
       };
 
@@ -260,12 +262,21 @@ describe("Dynamic Per-Bot Tool Filtering & Security Gate", () => {
       const parentTools: ConnectorTool[] = [
         { name: "read_file", description: "Read a file", inputSchema: { type: "object" } },
         { name: "web_search", description: "Search web", inputSchema: { type: "object" } },
-        { name: "run_subagent", description: "Run subagent helper", inputSchema: { type: "object" } },
+        {
+          name: "run_subagent",
+          description: "Run subagent helper",
+          inputSchema: { type: "object" },
+        },
         { name: "spawn_bot", description: "Spawn bot", inputSchema: { type: "object" } },
       ];
 
       // Simulated childDefs derivation in pi-runtime
-      const delegationToolNames = new Set(["run_subagent", "spawn_bot", "archive_bot", "delete_bot"]);
+      const delegationToolNames = new Set([
+        "run_subagent",
+        "spawn_bot",
+        "archive_bot",
+        "delete_bot",
+      ]);
       const childDefs = parentTools.filter((tool) => !delegationToolNames.has(tool.name));
 
       expect(childDefs.map((t) => t.name)).toEqual(["read_file", "web_search"]);
@@ -321,4 +332,3 @@ describe("Dynamic Per-Bot Tool Filtering & Security Gate", () => {
     });
   });
 });
-

@@ -255,6 +255,30 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
           </div>
         </div>
 
+        <div
+          data-testid="omniroute-capability-banner"
+          className="mx-6 mt-3 rounded-[14px] border border-emerald-500/30 bg-emerald-950/20 px-4 py-3 sm:mx-8"
+        >
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <span className="h-2 w-2 rounded-full bg-emerald-400" />
+              <span className="text-[13px] font-semibold text-emerald-300">
+                Mode Gratuit · Découplage Dynamique (OmniRoute)
+              </span>
+            </div>
+            <span className="rounded bg-emerald-500/20 px-2 py-0.5 text-[10px] font-mono text-emerald-300 uppercase tracking-wider">
+              Zéro-Coût Garanti
+            </span>
+          </div>
+          <p className="mt-1.5 text-[12.5px] leading-relaxed text-zinc-400">
+            Pour les agents en mode Gratuit, l'intelligence est routée dynamiquement par profil de
+            capacité (
+            <strong className="text-zinc-200">Coding, Reasoning, Fast, Writing, Analysis</strong>).
+            Aucun modèle statique n'est figé, assurant une disponibilité souveraine permanente et
+            sans frais.
+          </p>
+        </div>
+
         <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-hidden px-6 py-6 sm:px-8 md:flex-row">
           <div className="flex min-h-0 shrink-0 flex-col md:w-[310px]">
             <div className="mb-3 text-[13.5px] text-[#85858A]">Fournisseurs</div>

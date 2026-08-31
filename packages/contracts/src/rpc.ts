@@ -44,10 +44,7 @@ import {
 } from "./domain.js";
 import { ProductEventSchema } from "./events.js";
 import { Id } from "./ids.js";
-import {
-  PromptCompileInputSchema,
-  PromptCompileOutputSchema,
-} from "./prompt-compiler.js";
+import { PromptCompileInputSchema, PromptCompileOutputSchema } from "./prompt-compiler.js";
 import { SearchQueryOutputSchema } from "./search.js";
 
 const botId = z.object({ botId: Id });

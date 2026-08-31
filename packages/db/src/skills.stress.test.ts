@@ -24,7 +24,9 @@ describe("Adversarial & Stress Tests — Skills Repository & Persistence", () =>
     it("handles SQL injection payloads in slug, name, and search queries safely", async () => {
       const sqlInjectionSlug = "admin' OR '1'='1'; DROP TABLE skills; --";
       const sqlInjectionName = "'; SELECT * FROM users; --";
-      const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "s-sec", ...data }));
+      const create = vi
+        .fn()
+        .mockImplementation(({ data }) => Promise.resolve({ id: "s-sec", ...data }));
       const prisma = { skill: { create } } as unknown as PrismaClient;
 
       const result = await createSkill(prisma, {
@@ -47,7 +49,9 @@ describe("Adversarial & Stress Tests — Skills Repository & Persistence", () =>
 
     it("handles ultra-large markdown payload (10 MB content stress test)", async () => {
       const largeContent = "# Big Skill\n" + "A".repeat(10 * 1024 * 1024); // 10MB
-      const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "s-big", ...data }));
+      const create = vi
+        .fn()
+        .mockImplementation(({ data }) => Promise.resolve({ id: "s-big", ...data }));
       const prisma = { skill: { create } } as unknown as PrismaClient;
 
       const result = await createSkill(prisma, {
@@ -74,7 +78,9 @@ describe("Adversarial & Stress Tests — Skills Repository & Persistence", () =>
       };
       const nonStandardTags = ["tag-1", "tag:special#chars", "🇫🇷 français", "🤖 ai-agent"];
 
-      const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "s-json", ...data }));
+      const create = vi
+        .fn()
+        .mockImplementation(({ data }) => Promise.resolve({ id: "s-json", ...data }));
       const prisma = { skill: { create } } as unknown as PrismaClient;
 
       const result = await createSkill(prisma, {
@@ -98,7 +104,9 @@ describe("Adversarial & Stress Tests — Skills Repository & Persistence", () =>
     });
 
     it("coerces missing / undefined optional fields to valid database defaults", async () => {
-      const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "s-defs", ...data }));
+      const create = vi
+        .fn()
+        .mockImplementation(({ data }) => Promise.resolve({ id: "s-defs", ...data }));
       const prisma = { skill: { create } } as unknown as PrismaClient;
 
       const result = await createSkill(prisma, {
@@ -213,7 +221,9 @@ describe("Adversarial & Stress Tests — Skills Repository & Persistence", () =>
       const tx = {
         botSkill: { deleteMany, createMany, findMany },
       };
-      const $transaction = vi.fn().mockImplementation(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx));
+      const $transaction = vi
+        .fn()
+        .mockImplementation(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx));
       const prisma = { $transaction } as unknown as PrismaClient;
 
       // Passing duplicate skill IDs in list
@@ -238,18 +248,22 @@ describe("Adversarial & Stress Tests — Skills Repository & Persistence", () =>
 
     it("propagates error and aborts transaction if createMany fails", async () => {
       const deleteMany = vi.fn().mockResolvedValue({ count: 1 });
-      const createMany = vi.fn().mockRejectedValue(new Error("FK constraint violation: foreign skillId"));
+      const createMany = vi
+        .fn()
+        .mockRejectedValue(new Error("FK constraint violation: foreign skillId"));
       const findMany = vi.fn();
 
       const tx = {
         botSkill: { deleteMany, createMany, findMany },
       };
-      const $transaction = vi.fn().mockImplementation(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx));
+      const $transaction = vi
+        .fn()
+        .mockImplementation(async (cb: (t: typeof tx) => Promise<unknown>) => cb(tx));
       const prisma = { $transaction } as unknown as PrismaClient;
 
-      await expect(
-        assignSkillsToBot(prisma, ws1, bot1, ["non-existent-skill-id"]),
-      ).rejects.toThrow("FK constraint violation");
+      await expect(assignSkillsToBot(prisma, ws1, bot1, ["non-existent-skill-id"])).rejects.toThrow(
+        "FK constraint violation",
+      );
 
       expect(deleteMany).toHaveBeenCalled();
       expect(createMany).toHaveBeenCalled();
@@ -293,7 +307,8 @@ describe("Adversarial & Stress Tests — Skills Repository & Persistence", () =>
 
   describe("4. Toggle BotSkill State Machine", () => {
     it("toggles enabled from true to false and back", async () => {
-      const update = vi.fn()
+      const update = vi
+        .fn()
         .mockResolvedValueOnce({ botId: bot1, skillId: "s1", enabled: false })
         .mockResolvedValueOnce({ botId: bot1, skillId: "s1", enabled: true });
       const prisma = { botSkill: { update } } as unknown as PrismaClient;

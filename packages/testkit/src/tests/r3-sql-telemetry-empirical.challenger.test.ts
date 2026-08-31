@@ -1,11 +1,11 @@
 import { describe, expect, it, vi } from "vitest";
+import { sanitizeToolError } from "../../../adapters/src/enterprise-tools.js";
+import type { PrismaClient } from "../../../db/src/client.js";
 import {
   listPromptExecutionLogs,
-  recordPromptExecutionLogAsync,
   type PromptExecutionLogInput,
+  recordPromptExecutionLogAsync,
 } from "../../../db/src/telemetry.js";
-import type { PrismaClient } from "../../../db/src/client.js";
-import { sanitizeToolError } from "../../../adapters/src/enterprise-tools.js";
 
 describe("Milestone M3 Empirical Challenger: SQL Telemetry Resilience & Adversarial Sanitization", () => {
   /* ======================================================================== */
@@ -329,7 +329,9 @@ describe("Milestone M3 Empirical Challenger: SQL Telemetry Resilience & Adversar
       expect(sanitized).toContain("n8n_api_[redacted]");
       expect(sanitized).toContain("cf_token_[redacted]");
       expect(sanitized).toContain("cfat_[redacted]");
-      expect(sanitized).toContain("postgres://admin_user:[redacted]@db.internal.cloud:5432/rakazo_prod");
+      expect(sanitized).toContain(
+        "postgres://admin_user:[redacted]@db.internal.cloud:5432/rakazo_prod",
+      );
       expect(sanitized).toContain("postgres://floteuil:[redacted]@10.0.0.5:5432/db");
       expect(sanitized).toContain("Bearer [redacted]");
       expect(sanitized).toContain("Basic [redacted]");

@@ -447,7 +447,15 @@ describe("API Router — Bot Procedures & Inference Persistence Integration", ()
       };
 
       const prisma = {
-        user: { findUniqueOrThrow: vi.fn().mockResolvedValue({ id: "user-paris-1", email: "dev@workspacegroupefloteuil.eu", name: "Dev" }) },
+        user: {
+          findUniqueOrThrow: vi
+            .fn()
+            .mockResolvedValue({
+              id: "user-paris-1",
+              email: "dev@workspacegroupefloteuil.eu",
+              name: "Dev",
+            }),
+        },
         userModelCredential: { findFirst: vi.fn().mockResolvedValue(null) },
         deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
         bot: {
@@ -456,7 +464,10 @@ describe("API Router — Bot Procedures & Inference Persistence Integration", ()
         },
         message: { findMany: vi.fn().mockResolvedValue([]) },
         run: { findFirst: vi.fn().mockResolvedValue(null) },
-        event: { findFirst: vi.fn().mockResolvedValue(null), findMany: vi.fn().mockResolvedValue([]) },
+        event: {
+          findFirst: vi.fn().mockResolvedValue(null),
+          findMany: vi.fn().mockResolvedValue([]),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
       };
 

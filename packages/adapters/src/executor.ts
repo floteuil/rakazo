@@ -169,13 +169,8 @@ export function extractBotMcpConfig(bot: unknown): BotMcpConfig | undefined {
 
   const cfg = candidate as BotMcpConfig;
   const hasConnectors =
-    cfg.connectors &&
-    typeof cfg.connectors === "object" &&
-    Object.keys(cfg.connectors).length > 0;
-  const hasTools =
-    cfg.tools &&
-    typeof cfg.tools === "object" &&
-    Object.keys(cfg.tools).length > 0;
+    cfg.connectors && typeof cfg.connectors === "object" && Object.keys(cfg.connectors).length > 0;
+  const hasTools = cfg.tools && typeof cfg.tools === "object" && Object.keys(cfg.tools).length > 0;
 
   if (!hasConnectors && !hasTools) return undefined;
   return cfg;
@@ -189,19 +184,17 @@ export function extractBotInferenceConfig(bot: unknown): BotInferenceConfig | un
       ? (b.metadata as Record<string, unknown>)
       : undefined;
 
-  const candidate =
-    meta?.inference ??
-    meta?.inferenceConfig ??
-    b.inference ??
-    b.inferenceConfig;
+  const candidate = meta?.inference ?? meta?.inferenceConfig ?? b.inference ?? b.inferenceConfig;
 
   if (!candidate || typeof candidate !== "object") return undefined;
   const cfg = candidate as Record<string, unknown>;
   const rawMode = cfg.mode;
   const mode: InferenceMode = rawMode === "free" ? "free" : "premium";
   const tags: InferenceUsageTag[] = Array.isArray(cfg.tags)
-    ? cfg.tags.filter((t): t is InferenceUsageTag =>
-        typeof t === "string" && ["coding", "writing", "reasoning", "fast", "analysis"].includes(t as any),
+    ? cfg.tags.filter(
+        (t): t is InferenceUsageTag =>
+          typeof t === "string" &&
+          ["coding", "writing", "reasoning", "fast", "analysis"].includes(t as any),
       )
     : [];
 
@@ -211,10 +204,7 @@ export function extractBotInferenceConfig(bot: unknown): BotInferenceConfig | un
   };
 }
 
-export function isToolPermitted(
-  toolName: string,
-  mcpConfig?: BotMcpConfig | null,
-): boolean {
+export function isToolPermitted(toolName: string, mcpConfig?: BotMcpConfig | null): boolean {
   if (!mcpConfig) return true;
   const hasConnectors =
     mcpConfig.connectors &&
@@ -1170,7 +1160,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
             const result = await rawApplyTool(name, args, executionId);
             return sanitizeToolResult(result);
           } catch (error) {
-            const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
+            const message = sanitizeToolError(
+              error instanceof Error ? error.message : String(error),
+            );
             if (error instanceof Error) {
               error.message = message;
               throw error;
@@ -1232,9 +1224,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
           : taskPrompt;
 
         const botInference = extractBotInferenceConfig(bot);
-        const isFreeMode =
-          options?.inferenceMode === "free" ||
-          botInference?.mode === "free";
+        const isFreeMode = options?.inferenceMode === "free" || botInference?.mode === "free";
 
         let activeRuntime: AgentRuntime = deps.runtime;
         let runtimeModel = {
@@ -1488,7 +1478,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
               recordPromptExecutionLogAsync(deps.prisma, {
                 botId: bot.id,
                 executionId: runId,
-                provider: isFreeMode ? (freeRouteDecision?.provider ?? event.provider) : event.provider,
+                provider: isFreeMode
+                  ? (freeRouteDecision?.provider ?? event.provider)
+                  : event.provider,
                 model: isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model,
                 levelUsed: isFreeMode ? "omniroute_gateway" : "pi_runtime",
                 promptTokens: event.inputTokens,
@@ -1498,7 +1490,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 durationMs: runDurationMs,
                 inferenceMode: isFreeMode ? "free" : "premium",
                 requestedCategory: isFreeMode ? (freeRouteDecision?.category ?? "general") : null,
-                resolvedProvider: isFreeMode ? (freeRouteDecision?.provider ?? event.provider) : event.provider,
+                resolvedProvider: isFreeMode
+                  ? (freeRouteDecision?.provider ?? event.provider)
+                  : event.provider,
                 resolvedModel: isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model,
                 isFree: isFreeMode,
               });

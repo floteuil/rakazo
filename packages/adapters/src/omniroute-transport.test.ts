@@ -1,14 +1,14 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentRunRequest, ConnectorTool } from "@rakazo/adapter-kit";
-import { MockOmniRouteServer } from "./omniroute-mock.js";
-import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
-import { PiAiInferenceTransport } from "./pi-ai-transport.js";
-import { CanonicalAgentRuntime, PiAgentRuntime } from "./pi-runtime.js";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type {
   InferenceTransport,
   InferenceTransportChunk,
   InferenceTransportRequest,
 } from "./inference-transport.js";
+import { MockOmniRouteServer } from "./omniroute-mock.js";
+import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
+import { PiAiInferenceTransport } from "./pi-ai-transport.js";
+import { CanonicalAgentRuntime, PiAgentRuntime } from "./pi-runtime.js";
 
 describe("R1 & R2: InferenceTransport & Canonical MCP Tool Loop Test Suite", () => {
   let mockServer: MockOmniRouteServer;
@@ -245,7 +245,10 @@ describe("R1 & R2: InferenceTransport & Canonical MCP Tool Loop Test Suite", () 
       expect(toolResultMessage?.content).toContain("Vitest");
 
       // Verify events emitted
-      const textEvents = events.filter((e) => e.type === "text").map((e) => e.text).join("");
+      const textEvents = events
+        .filter((e) => e.type === "text")
+        .map((e) => e.text)
+        .join("");
       expect(textEvents).toContain("Based on Vitest documentation");
       const doneEvent = events.find((e) => e.type === "done");
       expect(doneEvent).toBeDefined();
@@ -330,7 +333,9 @@ describe("R1 & R2: InferenceTransport & Canonical MCP Tool Loop Test Suite", () 
           prompt: "Solve captcha",
           instructions: "Assistant",
           history: [],
-          tools: [{ name: "request_takeover", description: "takeover", inputSchema: { type: "object" } }],
+          tools: [
+            { name: "request_takeover", description: "takeover", inputSchema: { type: "object" } },
+          ],
           model: { provider: "omniroute", id: "combo/rakazo-fast" },
         },
         {

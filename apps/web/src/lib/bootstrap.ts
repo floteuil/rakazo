@@ -5,10 +5,10 @@ import { rpc } from "./rpc";
 
 let primedBootstrap: { botId?: string; promise: Promise<AppBootstrap> } | null = null;
 
-const initialTarget = initialBootstrapTarget(
-  window.location.pathname,
-  Boolean(window.rakazoDesktop),
-);
+const initialTarget =
+  typeof window !== "undefined"
+    ? initialBootstrapTarget(window.location?.pathname ?? "/", Boolean(window.rakazoDesktop))
+    : null;
 if (initialTarget) {
   const { botId } = initialTarget;
   const promise = requestBootstrap(botId);

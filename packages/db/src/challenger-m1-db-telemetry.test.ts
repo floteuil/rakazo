@@ -1,16 +1,16 @@
-import { describe, expect, it, vi } from "vitest";
-import { readFileSync, readdirSync, statSync } from "node:fs";
-import { resolve, join } from "node:path";
+import { readdirSync, readFileSync, statSync } from "node:fs";
+import { join, resolve } from "node:path";
 import type { Actor } from "@rakazo/contracts";
+import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
+import { appendEvent, followThreadEvents } from "./events.js";
+import { createRepos } from "./repos.js";
+import { IsolationError } from "./scope.js";
 import {
   listPromptExecutionLogs,
-  recordPromptExecutionLogAsync,
   type PromptExecutionLogInput,
+  recordPromptExecutionLogAsync,
 } from "./telemetry.js";
-import { createRepos } from "./repos.js";
-import { appendEvent, followThreadEvents } from "./events.js";
-import { IsolationError } from "./scope.js";
 
 /* ========================================================================== */
 /* SECTION 1: DATABASE TELEMETRY & CLAMPING MATRIX                            */
@@ -303,7 +303,12 @@ describe("Pillar 2: Non-Blocking Persistence Under Simulated Failures", () => {
 
   it("2.5 Realtime publisher failures do not prevent event creation or crash caller", async () => {
     const failingRealtime = {
-      describe: () => ({ id: "test", contractVersion: "1", adapterVersion: "1", capabilities: { push: true, distributed: false } }),
+      describe: () => ({
+        id: "test",
+        contractVersion: "1",
+        adapterVersion: "1",
+        capabilities: { push: true, distributed: false },
+      }),
       publish: vi.fn().mockRejectedValue(new Error("Realtime redis pubsub cluster down")),
       subscribe: vi.fn(),
       close: vi.fn(),
@@ -355,7 +360,13 @@ describe("Pillar 3: List Queries & Multi-Filter Combinatorics", () => {
   describe("3.1 listPromptExecutionLogs 16-Permutation Matrix", () => {
     const filterPermutations: Array<{
       desc: string;
-      filter?: { botId?: string; model?: string; inferenceMode?: string; isFree?: boolean; limit?: number };
+      filter?: {
+        botId?: string;
+        model?: string;
+        inferenceMode?: string;
+        isFree?: boolean;
+        limit?: number;
+      };
       expectedWhere: Record<string, unknown>;
       expectedTake: number;
     }> = [
@@ -509,7 +520,11 @@ describe("Pillar 3: List Queries & Multi-Filter Combinatorics", () => {
       parentBotId: null,
       createdAt: new Date(),
       updatedAt: new Date(),
-      thread: { id: "thread-test", unread: false, messages: [{ blocks: [{ kind: "text", text: "Hello!" }] }] },
+      thread: {
+        id: "thread-test",
+        unread: false,
+        messages: [{ blocks: [{ kind: "text", text: "Hello!" }] }],
+      },
       runs: [{ status: "running" }],
       computer: { scope: "team" },
       ...overrides,
@@ -689,12 +704,22 @@ describe("Pillar 4: Migration SQL Syntax & Relational Integrity Audit", () => {
     const m0015 = readFileSync(m0015Path, "utf-8");
 
     expect(m0015).toContain('ALTER TABLE "prompt_execution_logs" ADD COLUMN "inferenceMode" TEXT');
-    expect(m0015).toContain('ALTER TABLE "prompt_execution_logs" ADD COLUMN "requestedCategory" TEXT');
-    expect(m0015).toContain('ALTER TABLE "prompt_execution_logs" ADD COLUMN "resolvedProvider" TEXT');
+    expect(m0015).toContain(
+      'ALTER TABLE "prompt_execution_logs" ADD COLUMN "requestedCategory" TEXT',
+    );
+    expect(m0015).toContain(
+      'ALTER TABLE "prompt_execution_logs" ADD COLUMN "resolvedProvider" TEXT',
+    );
     expect(m0015).toContain('ALTER TABLE "prompt_execution_logs" ADD COLUMN "resolvedModel" TEXT');
-    expect(m0015).toContain('ALTER TABLE "prompt_execution_logs" ADD COLUMN "isFree" BOOLEAN DEFAULT false');
-    expect(m0015).toContain('CREATE INDEX "prompt_execution_logs_inferenceMode_idx" ON "prompt_execution_logs"("inferenceMode")');
-    expect(m0015).toContain('CREATE INDEX "prompt_execution_logs_isFree_idx" ON "prompt_execution_logs"("isFree")');
+    expect(m0015).toContain(
+      'ALTER TABLE "prompt_execution_logs" ADD COLUMN "isFree" BOOLEAN DEFAULT false',
+    );
+    expect(m0015).toContain(
+      'CREATE INDEX "prompt_execution_logs_inferenceMode_idx" ON "prompt_execution_logs"("inferenceMode")',
+    );
+    expect(m0015).toContain(
+      'CREATE INDEX "prompt_execution_logs_isFree_idx" ON "prompt_execution_logs"("isFree")',
+    );
   });
 
   it("4.4 Validates ON DELETE CASCADE integrity across all relational models", () => {

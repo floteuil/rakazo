@@ -560,7 +560,8 @@ describe("Milestone M1 Empirical Challenge — Contracts & Validation Harness", 
           }
         }
 
-        const mode = Math.random() > 0.5 ? "free" : (Math.random() > 0.5 ? "premium" : getRandomString(5));
+        const mode =
+          Math.random() > 0.5 ? "free" : Math.random() > 0.5 ? "premium" : getRandomString(5);
         const modeValid = mode === "free" || mode === "premium";
 
         const expectedValid = allValid && tagCount <= 3 && modeValid;

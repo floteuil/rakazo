@@ -1,9 +1,15 @@
-import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import type { AgentRunRequest, ConnectorTool } from "@rakazo/adapter-kit";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  type InferenceTransport,
-  type InferenceTransportChunk,
-  type InferenceTransportRequest,
+  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+  RakazoFreePolicyEngine,
+  resolveDeterministicTag,
+  TAG_PRIORITY_WEIGHTS,
+} from "./free-policy-engine.js";
+import type {
+  InferenceTransport,
+  InferenceTransportChunk,
+  InferenceTransportRequest,
 } from "./inference-transport.js";
 import {
   computeToolCallSignature,
@@ -15,12 +21,6 @@ import {
 import { MockOmniRouteServer } from "./omniroute-mock.js";
 import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
 import { CanonicalAgentRuntime, PiAgentRuntime } from "./pi-runtime.js";
-import {
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
-  RakazoFreePolicyEngine,
-  resolveDeterministicTag,
-  TAG_PRIORITY_WEIGHTS,
-} from "./free-policy-engine.js";
 
 /**
  * Scripted Mock Transport for deterministic multi-turn simulation
@@ -48,9 +48,7 @@ class ScriptedMockTransport implements InferenceTransport {
     return this.callCount;
   }
 
-  async *stream(
-    request: InferenceTransportRequest,
-  ): AsyncIterable<InferenceTransportChunk> {
+  async *stream(request: InferenceTransportRequest): AsyncIterable<InferenceTransportChunk> {
     const currentIndex = this.callCount++;
     this.requests.push(request);
     const result = this.stepGenerator(request, currentIndex);
@@ -79,8 +77,7 @@ describe("Empirical Challenger M1: Hardened Stress Suite", () => {
   // ============================================================================
   describe("Dimension 1: Multi-Step Sequential MCP Tool Loops", () => {
     it("executes 5 sequential tool calls feeding back intermediate outputs into context", async () => {
-      const executedSteps: Array<{ name: string; args: any; callId: string }> =
-        [];
+      const executedSteps: Array<{ name: string; args: any; callId: string }> = [];
 
       // Mock transport that drives 5 consecutive distinct steps and then completes
       const transport = new ScriptedMockTransport((req, stepIndex) => {
@@ -124,16 +121,14 @@ describe("Empirical Challenger M1: Hardened Stress Suite", () => {
 
       const runtime = new CanonicalAgentRuntime({ transport });
 
-      const executeTool = vi.fn(
-        async (name: string, args: Record<string, unknown>, id: string) => {
-          executedSteps.push({ name, args, callId: id });
-          return {
-            status: "ok",
-            stage: args.stage,
-            output: `result_from_${name}`,
-          };
-        },
-      );
+      const executeTool = vi.fn(async (name: string, args: Record<string, unknown>, id: string) => {
+        executedSteps.push({ name, args, callId: id });
+        return {
+          status: "ok",
+          stage: args.stage,
+          output: `result_from_${name}`,
+        };
+      });
 
       const tools: ConnectorTool[] = [1, 2, 3, 4, 5].map((i) => ({
         name: `workflow_step_${i}`,
@@ -322,7 +317,9 @@ describe("Empirical Challenger M1: Hardened Stress Suite", () => {
 
       const runtime = new CanonicalAgentRuntime({ transport });
       const executeTool = vi.fn(async () => {
-        throw new Error("GitHub error with ghp_SecretPAT1234567890 on postgres://user:pass123@db:5432/app");
+        throw new Error(
+          "GitHub error with ghp_SecretPAT1234567890 on postgres://user:pass123@db:5432/app",
+        );
       });
 
       const events: any[] = [];
@@ -334,7 +331,9 @@ describe("Empirical Challenger M1: Hardened Stress Suite", () => {
           prompt: "Sync data",
           instructions: "Assistant",
           history: [],
-          tools: [{ name: "failing_secret_tool", description: "err", inputSchema: { type: "object" } }],
+          tools: [
+            { name: "failing_secret_tool", description: "err", inputSchema: { type: "object" } },
+          ],
           model: { provider: "omniroute", id: "combo/rakazo-fast" },
           executeTool,
         },
@@ -683,7 +682,10 @@ describe("Empirical Challenger M1: Hardened Stress Suite", () => {
 
       const lastEvent = events[events.length - 1];
       expect(lastEvent).toEqual({ type: "done", text: "stopped" });
-      const textEvents = events.filter((e) => e.type === "text").map((e) => e.text).join("");
+      const textEvents = events
+        .filter((e) => e.type === "text")
+        .map((e) => e.text)
+        .join("");
       expect(textEvents).not.toContain("Chunk 3");
     });
 
@@ -718,7 +720,9 @@ describe("Empirical Challenger M1: Hardened Stress Suite", () => {
           prompt: "Run slow tool",
           instructions: "Assistant",
           history: [],
-          tools: [{ name: "slow_computation", description: "slow", inputSchema: { type: "object" } }],
+          tools: [
+            { name: "slow_computation", description: "slow", inputSchema: { type: "object" } },
+          ],
           model: { provider: "omniroute", id: "combo/rakazo-fast" },
           executeTool,
         },
@@ -817,11 +821,21 @@ describe("Empirical Challenger M1: Hardened Stress Suite", () => {
     });
 
     it("fails closed on non-zero or negative or invalid cost assertions", () => {
-      expect(() => engine.assertZeroCostAndAllowed("omniroute", 0.0001)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.assertZeroCostAndAllowed("omniroute", -1.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.assertZeroCostAndAllowed("omniroute", Number.NaN)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.assertZeroCostAndAllowed("unapproved_commercial_proxy", 0.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.assertZeroCostAndAllowed("unknown_vendor", 0.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.assertZeroCostAndAllowed("omniroute", 0.0001)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => engine.assertZeroCostAndAllowed("omniroute", -1.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => engine.assertZeroCostAndAllowed("omniroute", Number.NaN)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => engine.assertZeroCostAndAllowed("unapproved_commercial_proxy", 0.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => engine.assertZeroCostAndAllowed("unknown_vendor", 0.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
     });
   });
 });

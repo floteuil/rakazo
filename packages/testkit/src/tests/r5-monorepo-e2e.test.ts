@@ -1,5 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
-import { readFileSync, existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 import {
   PromptCacheTelemetrySchema,
@@ -8,29 +7,27 @@ import {
   PromptCompileOutputSchema,
   verifyMcpImmutabilityAtContractLevel,
 } from "@rakazo/contracts";
-import {
-  builtinAgentTools,
-  DELEGATION_TOOL_NAMES,
-} from "../../../adapters/src/builtin-tools.js";
-import {
-  createPromptCompilerService,
-  compilePromptLevel1Deterministic,
-  extractThoughtTrace,
-} from "../../../adapters/src/prompt-compiler.js";
-import {
-  buildSubagentPrompt,
-  executeSubagent,
-  type ToolHost,
-  type EventQueue,
-} from "../../../adapters/src/pi-runtime.js";
-import {
-  recordPromptExecutionLogAsync,
-  listPromptExecutionLogs,
-  type PromptExecutionLogInput,
-} from "../../../db/src/telemetry.js";
-import type { PrismaClient } from "../../../db/src/client.js";
+import { describe, expect, it, vi } from "vitest";
+import { builtinAgentTools, DELEGATION_TOOL_NAMES } from "../../../adapters/src/builtin-tools.js";
 import { DestinationEmulator } from "../../../adapters/src/destination-emulator.js";
 import { McpEmulator } from "../../../adapters/src/mcp-emulator.js";
+import {
+  buildSubagentPrompt,
+  type EventQueue,
+  executeSubagent,
+  type ToolHost,
+} from "../../../adapters/src/pi-runtime.js";
+import {
+  compilePromptLevel1Deterministic,
+  createPromptCompilerService,
+  extractThoughtTrace,
+} from "../../../adapters/src/prompt-compiler.js";
+import type { PrismaClient } from "../../../db/src/client.js";
+import {
+  listPromptExecutionLogs,
+  type PromptExecutionLogInput,
+  recordPromptExecutionLogAsync,
+} from "../../../db/src/telemetry.js";
 
 function getRepoRoot(): string {
   let dir = import.meta.dirname ?? process.cwd();
@@ -84,7 +81,10 @@ function createHarnessHost(overrides?: Partial<ToolHost>): ToolHost {
     subagentGate: { acquire: vi.fn().mockResolvedValue(undefined), release: vi.fn() },
     signal: new AbortController().signal,
     depth: 0,
-    tracker: { record: vi.fn(), check: vi.fn().mockReturnValue(true) } as unknown as ToolHost["tracker"],
+    tracker: {
+      record: vi.fn(),
+      check: vi.fn().mockReturnValue(true),
+    } as unknown as ToolHost["tracker"],
     ...overrides,
   };
 }
@@ -137,7 +137,11 @@ describe("Requirement R5 & Master E2E Suite (Tiers 1-4)", () => {
   describe("Tier 3: Cross-Feature Combinations (Pairwise Inter-Module Interactions)", () => {
     it("3.1 Pairwise: Subagent Prompt Compilation + Tool Filtering + Telemetry Record (R1 + R3)", async () => {
       // 1. Compile subagent prompt
-      const subagent = buildSubagentPrompt("sql-analyzer", "Analyze slow database queries", "Format: list");
+      const subagent = buildSubagentPrompt(
+        "sql-analyzer",
+        "Analyze slow database queries",
+        "Format: list",
+      );
       expect(subagent.levelUsed).toBe("level1_deterministic");
       expect(subagent.compiledInstruction).toContain("## Core Mission");
 
@@ -201,7 +205,10 @@ describe("Requirement R5 & Master E2E Suite (Tiers 1-4)", () => {
         headers: { "content-type": "application/json" },
         body: JSON.stringify({
           method: "tools/call",
-          params: { name: "notes.write", arguments: { path: "audit.log", text: "Subagent completed audit." } },
+          params: {
+            name: "notes.write",
+            arguments: { path: "audit.log", text: "Subagent completed audit." },
+          },
         }),
       });
 
@@ -305,8 +312,12 @@ describe("Requirement R5 & Master E2E Suite (Tiers 1-4)", () => {
 
       expect(englishCompiled.telemetry?.promptTokens).toBeGreaterThan(5);
       expect(frenchCompiled.telemetry?.promptTokens).toBeGreaterThan(5);
-      expect(englishCompiled.telemetry?.completionTokens).toBeGreaterThan(englishCompiled.telemetry?.promptTokens ?? 0);
-      expect(frenchCompiled.telemetry?.completionTokens).toBeGreaterThan(frenchCompiled.telemetry?.promptTokens ?? 0);
+      expect(englishCompiled.telemetry?.completionTokens).toBeGreaterThan(
+        englishCompiled.telemetry?.promptTokens ?? 0,
+      );
+      expect(frenchCompiled.telemetry?.completionTokens).toBeGreaterThan(
+        frenchCompiled.telemetry?.promptTokens ?? 0,
+      );
     });
 
     it("3.10 Pairwise: Multi-concurrency Subagent Delegation + Telemetry Resilience (R1 + R3 + R5)", async () => {
@@ -360,7 +371,9 @@ describe("Requirement R5 & Master E2E Suite (Tiers 1-4)", () => {
 
       expect(compiled.levelUsed).toBe("level1_deterministic");
       expect(compiled.compiledInstruction).toContain("# Role & Identity");
-      expect(compiled.compiledInstruction).toMatch(/Agent Gestion des Réclamations|support-reclamations/);
+      expect(compiled.compiledInstruction).toMatch(
+        /Agent Gestion des Réclamations|support-reclamations/,
+      );
       expect(compiled.compiledInstruction).toContain("## Operational Rules & Constraints");
       expect(compiled.compiledInstruction).toContain("## Output Format & Deliverables");
       expect(compiled.compiledInstruction).toContain("## Error Handling & Edge Cases");
@@ -435,37 +448,78 @@ describe("Requirement R5 & Master E2E Suite (Tiers 1-4)", () => {
         actionTaken: string;
       };
 
-      function simulateSync(hasUpstreamUpdates: boolean, mergeConflicts: boolean, testGatePassed: boolean): SyncStepResult[] {
+      function simulateSync(
+        hasUpstreamUpdates: boolean,
+        mergeConflicts: boolean,
+        testGatePassed: boolean,
+      ): SyncStepResult[] {
         const history: SyncStepResult[] = [];
         if (!hasUpstreamUpdates) {
-          history.push({ stage: "FETCH", status: "SUCCESS", actionTaken: "No new commits detected." });
+          history.push({
+            stage: "FETCH",
+            status: "SUCCESS",
+            actionTaken: "No new commits detected.",
+          });
           return history;
         }
 
-        history.push({ stage: "FETCH", status: "SUCCESS", actionTaken: "Fetched upstream/main commits." });
+        history.push({
+          stage: "FETCH",
+          status: "SUCCESS",
+          actionTaken: "Fetched upstream/main commits.",
+        });
 
         if (mergeConflicts) {
-          history.push({ stage: "MERGE", status: "CONFLICT", actionTaken: "git merge --abort executed." });
-          history.push({ stage: "PR_ALERT", status: "CONFLICT", actionTaken: "Created alert PR on upstream-sync-conflict." });
+          history.push({
+            stage: "MERGE",
+            status: "CONFLICT",
+            actionTaken: "git merge --abort executed.",
+          });
+          history.push({
+            stage: "PR_ALERT",
+            status: "CONFLICT",
+            actionTaken: "Created alert PR on upstream-sync-conflict.",
+          });
           return history;
         }
 
         history.push({ stage: "MERGE", status: "SUCCESS", actionTaken: "Local merge succeeded." });
 
         if (!testGatePassed) {
-          history.push({ stage: "TEST_GATE", status: "TEST_FAILURE", actionTaken: "turbo check or pnpm test failed." });
-          history.push({ stage: "PR_ALERT", status: "TEST_FAILURE", actionTaken: "git merge --abort and alert PR created." });
+          history.push({
+            stage: "TEST_GATE",
+            status: "TEST_FAILURE",
+            actionTaken: "turbo check or pnpm test failed.",
+          });
+          history.push({
+            stage: "PR_ALERT",
+            status: "TEST_FAILURE",
+            actionTaken: "git merge --abort and alert PR created.",
+          });
           return history;
         }
 
-        history.push({ stage: "TEST_GATE", status: "SUCCESS", actionTaken: "turbo check and pnpm test passed 100%." });
-        history.push({ stage: "PUSH", status: "SUCCESS", actionTaken: "Pushed clean merge to origin/main." });
+        history.push({
+          stage: "TEST_GATE",
+          status: "SUCCESS",
+          actionTaken: "turbo check and pnpm test passed 100%.",
+        });
+        history.push({
+          stage: "PUSH",
+          status: "SUCCESS",
+          actionTaken: "Pushed clean merge to origin/main.",
+        });
         return history;
       }
 
       // Test breaking upstream update blocked by test gate
       const failingUpdateRun = simulateSync(true, false, false);
-      expect(failingUpdateRun.map((s) => s.stage)).toEqual(["FETCH", "MERGE", "TEST_GATE", "PR_ALERT"]);
+      expect(failingUpdateRun.map((s) => s.stage)).toEqual([
+        "FETCH",
+        "MERGE",
+        "TEST_GATE",
+        "PR_ALERT",
+      ]);
       expect(failingUpdateRun[3]?.actionTaken).toContain("alert PR created");
 
       // Test clean non-breaking update passed to origin/main
@@ -479,7 +533,8 @@ describe("Requirement R5 & Master E2E Suite (Tiers 1-4)", () => {
       const botMetadata = {
         name: "autonomous-devops",
         title: "Autonomous DevOps Specialist",
-        instructions: "Monitor VPS server metrics, handle deployments on Coolify, and alert on outages.",
+        instructions:
+          "Monitor VPS server metrics, handle deployments on Coolify, and alert on outages.",
       };
 
       // 2. Prompt Compilation for Bot

@@ -1,62 +1,104 @@
-# Project: RAKAZO — Finalisation Professionnelle de l'Intégration OmniRoute
+# Project: RAKAZO OmniRoute Coherence, Observability & Production Excellence
 
 ## Architecture
-Rakazo operates as a high-reliability, multi-package TypeScript monorepo (`@rakazo/contracts`, `@rakazo/adapters`, `@rakazo/runtime`, `@rakazo/db`, `@rakazo/chat-ui`, `apps/web`, `apps/api`, `apps/worker`) deploying a unified agentic execution architecture with dual-path inference transports:
-- **Pluggable Inference Transport Layer (`InferenceTransport`)**: Decouples the raw model streaming transport from the canonical agentic loop.
-  - **Premium Track (`PiAiInferenceTransport`)**: Routes direct to OpenRouter (`openai/gpt-oss-120b`) via `@earendil-works/pi-ai` with full tool calling capabilities.
-  - **Free Track (`OmniRouteInferenceTransport`)**: Routes to sovereign OmniRoute gateway (`OMNIROUTE_BASE_URL`, `OMNIROUTE_API_KEY`) targeting live high-availability combos (`combo/rakazo-*`) with FNV-1a session affinity (`x-session-id`) and strict zero-cost enforcement.
-- **Full-Chain Free Mode Persistence**:
-  - WebUI (`apps/web`) -> Contracts (`@rakazo/contracts`) -> oRPC API (`apps/api`) -> Prisma Repositories (`@rakazo/db`) -> Restitution UI -> Runtime Executor (`@rakazo/adapters`).
-  - Strict preservation of `inference: { mode, tags }` across bot creation, editing, reloading, duplication, and subagent spawning.
-  - Legacy bots without explicit inference configuration cleanly default to Premium (`gpt-oss-120b`).
-- **Canonical Agentic Turn Loop**: Both Free and Premium paths execute the exact same unified agentic loop:
-  - Full MCP tool calling and execution with feedback loops to the model.
-  - Strict loop guards: `MAX_TOOL_ITERATIONS_PER_TURN = 25` and max 3 redundant consecutive tool calls.
-  - Semantic result compaction (`compactToolResult`) for shell outputs, file trees, GitHub, Notion, Cloudflare, and JSON payloads.
-  - Triple-tier `AbortSignal` cancellation propagation.
-- **Strict Subagent Confinement & Zero-Cost Inheritance**:
-  - Subagents spawned by a Free parent unconditionally inherit `inferenceMode: "free"` with zero privilege escalation.
-  - Hard limit of 8,192 tokens for subagent context/generation.
-  - Recursion depth strictly capped at 1 (`SUBAGENT_MAX_DEPTH = 1`).
-  - Delegation tools (`run_subagent`, `spawn_subagent`, `delegate_task`, `spawn_bot`, `archive_bot`, `delete_bot`) stripped from child catalogs.
-- **Deterministic Cognitive Priority Routing**:
-  - 5 intent profiles mapped to live combos: `coding` -> `combo/rakazo-coding`, `reasoning` -> `combo/rakazo-reasoning`, `fast` -> `combo/rakazo-fast`, `writing` -> `combo/rakazo-writing`, `analysis` -> `combo/rakazo-analysis`.
-  - Multi-tag resolution resolved via deterministic priority matrix: `reasoning` (100) > `coding` (80) > `analysis` (60) > `writing` (40) > `fast` (20) without combinatorial explosion.
-- **4-Block KV Prefix Caching Synergy & Session Affinity**:
-  - Prompt assembled into 4 deterministic blocks: Block A (invariants at Token 0), Block B (persona & sorted skills), Block C (compacted history), Block D (ephemeral query).
-  - 32-bit FNV-1a hash key `computeSessionAffinityKey` injected as `x-session-id` into OmniRoute requests for sticky GPU cache hits (>80%).
-- **Double Fail-Closed Zero-Cost Barrier & SQL Telemetry**:
-  - Pre-dispatch gate (`RakazoFreePolicyEngine.vetoPaidFallback`, `assertZeroCostAndAllowed`) and post-response gate (`x-omniroute-cost: 0.00`, approved provider validation) abort immediately with `"Capacité gratuite temporairement indisponible"` if cost > 0 or unapproved route attempted.
-  - Non-blocking SQL telemetry via `PromptExecutionLog` in `@rakazo/db`.
-  - Secrets hygiene: automated regex redaction of API keys and tokens.
-- **Cross-Device UI & VPS Isolation**:
-  - Mobile, tablet, and desktop responsiveness (320px to 1440px+), 44px touch targets, safe-area bottom padding, iOS 16px input zoom prevention.
-  - Isolated Coolify PaaS container on port 20128 with zero interference on VPS co-located services.
+Rakazo is an enterprise-grade AI agent platform organized as a Turborepo 2 + pnpm monorepo comprising 19 packages (11 shared packages, 6 applications, 2 infra/deploy modules).
+
+The OmniRoute integration establishes a strict 3-tier architectural decoupling:
+1. **Level 1 (Product / User Intent)**: Stable user configuration (`mode: "free"`, cognitive tags `coding`, `reasoning`, `fast`, `writing`, `analysis`) persisted in `@rakazo/db` (`bot.metadata.inference`).
+2. **Level 2 (Logical Route Contract)**: Deterministic resolution via Cognitive Priority Matrix in `RakazoFreePolicyEngine` to canonical capability contracts (`combo/rakazo-coding`, `combo/rakazo-reasoning`, `combo/rakazo-fast`, `combo/rakazo-writing`, `combo/rakazo-analysis`).
+3. **Level 3 (Real Execution Resolution)**: Dynamic per-turn execution resolution by the sovereign OmniRoute gateway (`omniroute-gateway:8080/v1`) to live healthy free models (`mistralai/codestral-latest`, `groq/llama-3.3-70b-versatile`, `qwen/qwen-2.5-coder-32b-instruct`).
+
+```
+[User / WebUI Settings]
+       │ (Stable Intent: Mode=Free, Tag=Coding)
+       ▼
+[Cognitive Priority Matrix] ──► Logical Route Contract: combo/rakazo-coding
+       │
+       ▼
+[OmniRoute Sovereign Gateway] ──► Dynamic Resolution: mistralai/codestral-latest
+       │
+       ├─► HTTP Response Headers (x-omniroute-provider, x-omniroute-model, x-omniroute-response-cost, etc.)
+       │
+       ▼
+[CanonicalAgentRuntime / Executor]
+       │
+       ├─► Non-blocking SQL Telemetry (PromptExecutionLog: resolvedProvider, resolvedModel, cacheHitRatio)
+       └─► Streaming Event Stream ──► WebUI MessageView (Turn Metadata Badge: "Modèle utilisé: Codestral · Mistral AI")
+```
 
 ## Feature Inventory
-| # | Feature | Description | Milestone | Source | Status |
-|---|---------|-------------|-----------|--------|--------|
-| 1 | Full-Chain Free Mode Persistence & Mapping | Persist `inference: { mode, tags }` in `packages/db/src/repos.ts` (`mapBot`, `createBot`, `updateBot`) & `router.ts` (`bots.duplicate`) | M1 | R1 | VERIFIED |
-| 2 | Legacy Default & Subagent Bot Inheritance | Legacy bots default to Premium; child bots spawned by Free parents inherit Free mode | M1 | R1 | VERIFIED |
-| 3 | Secure Coolify Connection & Env Config | Declare `OMNIROUTE_BASE_URL` & `OMNIROUTE_API_KEY` in `docker-compose.yaml`, `apps/api/src/env.ts` | M2 | R2 | VERIFIED |
-| 4 | Secret Masking & Hygiene Compliance | Mask `OMNIROUTE_API_KEY` in `apps/worker/src/index.ts`; verify zero plaintext secrets in repo/docs | M2 | R2 | VERIFIED |
-| 5 | OmniRoute Live Combos Integration | Map 5 intent profiles to live `combo/rakazo-*` combos in `RakazoFreePolicyEngine` | M3 | R3 | VERIFIED |
-| 6 | Deterministic Cognitive Priority Routing | Multi-tag resolution via cognitive hierarchy (`reasoning` 100 > `coding` 80 > `analysis` 60 > `writing` 40 > `fast` 20) | M3 | R3 | VERIFIED |
-| 7 | Unified Canonical MCP Tool Loop | Full MCP tool calling loop with 25-step circuit breaker, 3-call redundancy detector & `compactToolResult` | M3 | R4 | VERIFIED |
-| 8 | Strict Subagent Free Mode Inheritance & Limits | Enforce Free inheritance, 8,192 token ceiling, depth 1, and strip delegation tools | M3 | R5 | VERIFIED |
-| 9 | Double Fail-Closed Zero-Cost Barrier | Pre-dispatch and post-response validation aborting with $0.00 and fail-closed error string | M3 | R5 | VERIFIED |
-| 10 | 4-Block KV Prefix Caching & FNV-1a Session Affinity | Assemble 4 prompt blocks and inject `x-session-id: sess_<hex>` header | M3 | R6 | VERIFIED |
-| 11 | SQL Telemetry & PromptExecutionLog Ingestion | Ingest `x-omniroute-*` response headers into `PromptExecutionLog` in `@rakazo/db` | M3 | R6 | VERIFIED |
-| 12 | Comprehensive E2E Testing Suite & Stress Hardening | Tiers 1-5 tests validating 100% features, edge cases, and adversarial challenges | M3 | R1-R6 | VERIFIED |
-| 13 | VPS Non-Interference & Master Production Certification | Compile `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`, update blueprints & docs | M4 | R7 | VERIFIED |
+| # | Feature | Description | Milestone | Source |
+|---|---------|-------------|-----------|--------|
+| 1 | 3-Level Dynamic Decoupling | Complete separation between User Intent, Logical Combo Route, and Dynamic Resolution | M1 | ORIGINAL_REQUEST §R1 |
+| 2 | Static Coupling Ban | Zero hardcoded model/provider enums in contracts/db; upstream OmniRoute updates require 0 code changes | M1 | ORIGINAL_REQUEST §R1 |
+| 3 | OmniRoute Response Header Capture | Capture `x-omniroute-provider`, `x-omniroute-model`, `x-omniroute-latency-ms`, `x-omniroute-session-id`, `x-omniroute-version`, `x-omniroute-response-cost` | M1 | ORIGINAL_REQUEST §R2 |
+| 4 | End-to-End Metadata Propagation | Propagate headers from Transport -> Runtime -> DB Telemetry -> UI streaming without overriding intent | M1 | ORIGINAL_REQUEST §R2 |
+| 5 | Non-blocking SQL Telemetry | `PromptExecutionLog` model with non-blocking async persistence and bounded fields | M2 | ORIGINAL_REQUEST §R2 |
+| 6 | 4-Block Token 0 Invariant Cache | Static guardrails (Bloc A) and sorted skills (Bloc B) at Token 0 (~1500-3500 tokens) | M2 | ORIGINAL_REQUEST §R4 |
+| 7 | Provider-Independent Session Affinity | FNV-1a hash over `workspace:bot:thread` for `x-session-id` without provider pollution | M2 | ORIGINAL_REQUEST §R4 |
+| 8 | Strict Cache Ratio Calculation | Mathematical formula `cachedTokens / promptTokens` bounded [0, 1] without double counting | M2 | ORIGINAL_REQUEST §R4 |
+| 9 | Canonical Agentic Loop Guards | 25 max iterations, 3-repetition circuit breaker with key canonicalization | M3 | ORIGINAL_REQUEST §R5 |
+| 10 | Semantic Tool Compaction | Intelligent trimming (`compactToolResult`) for shell, list_files, github, notion, cloudflare | M3 | ORIGINAL_REQUEST §R5 |
+| 11 | Subagent Strict Confinement | Parent Free => Subagent Free, depth ceiling 1, 8192 token ceiling, delegation tool stripping | M3 | ORIGINAL_REQUEST §R5 |
+| 12 | Double Zero-Cost Barrier | Pre-dispatch veto and post-response assertion of $0.00 cost with fail-closed immediate error | M3 | ORIGINAL_REQUEST §R5 |
+| 13 | WebUI Bot Settings Decoupling | Display stable intent ("Gratuit via OmniRoute · Profil : Coding") without model promises | M4 | ORIGINAL_REQUEST §R3 |
+| 14 | WebUI Chat Turn Execution Badge | Render per-turn real execution metadata ("Modèle utilisé : Codestral · Mistral AI") under assistant replies | M4 | ORIGINAL_REQUEST §R3 |
+| 15 | Smooth Dynamic Failover UX | Dynamic failover updates per-turn metadata seamlessly without anxiety-inducing error alerts | M4 | ORIGINAL_REQUEST §R3 |
+| 16 | Mobile & Desktop Responsive UX | 320px to 1440px+ responsive layouts with touch targets >= 44px and safe area insets | M4 | ORIGINAL_REQUEST §R3 |
+| 17 | E2E Testing Track & Test Harness | Opaque-box test suite across Tiers 1-4 with >= 11*N test cases | M5 | ORIGINAL_REQUEST Acceptance Criteria |
+| 18 | Triple Coherence Verification | Formal equation `OmniRoute Headers == PromptExecutionLog == WebUI Rendered Metadata` | M5 | ORIGINAL_REQUEST §R6 |
+| 19 | Monorepo Zero-Error Typecheck & 100% Tests | `pnpm check` on 19 packages with 0 TS errors and 100% tests passing | M5 | ORIGINAL_REQUEST Acceptance Criteria |
+| 20 | VPS Multi-App & Premium Route Sanctuary | Preserve 15 VPS apps and OpenRouter `gpt-oss-120b` route | M6 | ORIGINAL_REQUEST §R6 |
+| 21 | Documentation Updates | Update `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`, `AGENTS.md`, `docs/ENVIRONMENT_SETUP.md`, `docs/OMNIROUTE_DEPLOYMENT.md` | M6 | ORIGINAL_REQUEST §R6 |
+| 22 | Master Passation Artifact | Authoritative handoff `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md` | M6 | ORIGINAL_REQUEST §R6 |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
 |---|------|-------|-------------|--------|
-| M1 | Free Mode Persistence Integrity & Full-Chain Verification (R1) | Fix `packages/db/src/repos.ts`, `apps/api/src/router.ts`, unit & persistence tests | Survey | DONE |
-| M2 | Secure Coolify Connection & Credential Hygiene (R2) | `docker-compose.yaml`, `apps/api/src/env.ts`, `apps/worker/src/index.ts`, secret audit | M1 | DONE |
-| M3 | E2E Regression Pass & Adversarial Hardening (R3-R6, Tiers 1-5) | Full E2E test execution, adversarial stress verification, zero-cost gate audit | M2 | DONE |
-| M4 | Master Certification, Blueprints & VPS Final Handoff (R7) | Master certification artifact, updated blueprints/docs, clean forensic audit | M3 | DONE |
+| M1 | Dynamic Decoupling & Header Propagation | Contracts, OmniRouteInferenceTransport, Cognitive Priority, Response Headers | none | DONE |
+| M2 | Database Telemetry & 2-Tier Caching | `PromptExecutionLog`, non-blocking logging, 4-block cache, FNV-1a session key, strict cache ratio | M1 | DONE |
+| M3 | MCP Agentic Loop & Subagent Confinement | `CanonicalAgentRuntime`, loop guards, semantic compaction, subagent confinement, zero-cost barrier | M1, M2 | DONE |
+| M4 | WebUI UX Decoupling & Turn Observability | Bot Settings intent labels, MessageView per-turn execution metadata badge, failover handling | M1, M2, M3 | DONE |
+| M5 | E2E Testing Track & Triple Coherence | Opaque-box E2E suite, Tiers 1-4, Triple Coherence certification, 0 TS errors across 19 pkgs | M1-M4 | DONE |
+| M6 | Authority Documentation & Master Handoff | RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md, Blueprint, VPS Sanctuary | M1-M5 | DONE |
 
-## Master Certification Artifact
-- `/Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app/RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`
+## Interface Contracts
+### Contracts ↔ Adapters ↔ Transport
+- `BotInferenceConfig`: `{ mode: "premium" | "free", tags: ("coding" | "writing" | "reasoning" | "fast" | "analysis")[] }`
+- `RakazoFreePolicyEngine.resolveInferenceModel(config)` -> `combo/rakazo-<tag>`
+- `OmniRouteInferenceTransport` captures headers:
+  - `x-omniroute-provider`: string
+  - `x-omniroute-model`: string
+  - `x-omniroute-latency-ms`: string (parsed to number)
+  - `x-omniroute-session-id`: string
+  - `x-omniroute-version`: string
+  - `x-omniroute-response-cost` (fallback `x-omniroute-cost`): string (verified == "0" or "0.000000")
+
+### Runtime ↔ Database Telemetry
+- `recordPromptExecutionLogAsync(prisma, { botId, executionId, provider, model, levelUsed, promptTokens, completionTokens, cachedTokens, cacheHitRatio, durationMs, costEstimatedUsd, inferenceMode, requestedCategory, resolvedProvider, resolvedModel, isFree })`: non-blocking `void`.
+
+### Runtime ↔ WebUI
+- Stream usage & metadata events: `{ type: "usage", inputTokens, outputTokens, cachedTokens, cacheHitRatio, provider, model, resolvedProvider, resolvedModel, latencyMs, isFree }`.
+- WebUI displays:
+  - Settings: `Gratuit via OmniRoute · Profil : [Tag]`
+  - Message Details: `Modèle utilisé : [ResolvedModel] · [ResolvedProvider]`
+
+## Code Layout
+- `packages/contracts/src/domain.ts`: Inference domain types & schemas.
+- `packages/adapters/src/free-policy-engine.ts`: Cognitive Priority Matrix & zero-cost policy.
+- `packages/adapters/src/omniroute-transport.ts`: OmniRoute transport & header capture.
+- `packages/adapters/src/prefix-caching.ts`: 4-Block layout & FNV-1a session affinity.
+- `packages/adapters/src/loop-guards.ts`: Circuit breakers & iteration guards.
+- `packages/adapters/src/tool-compacting.ts`: Multi-tool semantic compaction.
+- `packages/adapters/src/subagent-inheritance.ts`: Sub-agent isolation & confinement.
+- `packages/adapters/src/pi-runtime.ts`: CanonicalAgentRuntime execution loop.
+- `packages/adapters/src/executor.ts`: End-to-end execution pipeline & telemetry dispatch.
+- `packages/db/prisma/schema.prisma`: PromptExecutionLog model definition.
+- `packages/db/src/telemetry.ts`: Non-blocking telemetry persistence functions.
+- `apps/web/src/pages/Shell.tsx`: WebUI Shell, Bot Settings & MessageView rendering.
+- `apps/web/src/pages/ModelSettingsOverlay.tsx`: Bot Settings overlay & model cards.
+- `docs/OMNIROUTE_DEPLOYMENT.md`: OmniRoute VPS deployment and multi-app topology.
+- `docs/ENVIRONMENT_SETUP.md`: Environment setup and configuration guide.
+- `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`: Master architectural blueprint.
+- `AGENTS.md`: Agent runtime standards and operational rules.
+- `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`: Master passation artifact.

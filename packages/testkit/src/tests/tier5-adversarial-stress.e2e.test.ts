@@ -1,32 +1,24 @@
-import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from "vitest";
 import {
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
   APPROVED_FREE_PROVIDERS,
   AVOIDED_PROVIDERS,
+  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
 } from "@rakazo/contracts";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { RakazoFreePolicyEngine } from "../../../adapters/src/free-policy-engine.js";
+import { createToolCallTracker, evaluateToolCallGuard } from "../../../adapters/src/loop-guards.js";
+import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
+import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
 import {
-  SubagentExecutor,
-  SUBAGENT_TOKEN_BUDGET_CEILING,
-} from "../../../adapters/src/subagent-inheritance.js";
-import {
-  computeSessionAffinityKey,
   assemble4BlockCachePrompt,
+  computeSessionAffinityKey,
 } from "../../../adapters/src/prefix-caching.js";
 import {
-  compactToolResult,
-  safelyTruncateJson,
-} from "../../../adapters/src/tool-compacting.js";
-import {
-  createToolCallTracker,
-  evaluateToolCallGuard,
-} from "../../../adapters/src/loop-guards.js";
-import {
-  recordPromptExecutionLogAsync,
-} from "../../../db/src/telemetry.js";
+  SUBAGENT_TOKEN_BUDGET_CEILING,
+  SubagentExecutor,
+} from "../../../adapters/src/subagent-inheritance.js";
+import { compactToolResult, safelyTruncateJson } from "../../../adapters/src/tool-compacting.js";
 import type { PrismaClient } from "../../../db/src/client.js";
-import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
-import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
+import { recordPromptExecutionLogAsync } from "../../../db/src/telemetry.js";
 
 describe("Tier 5: White-Box Adversarial Edge Cases & Concurrency Stress Testing", () => {
   let mockServer: MockOmniRouteServer;
@@ -225,7 +217,9 @@ describe("Tier 5: White-Box Adversarial Edge Cases & Concurrency Stress Testing"
   // ADV-11: Deeply Nested Prototype Pollution in Tool Arguments
   // ============================================================================
   it("Adv-11: Deeply Nested Prototype Pollution in Tool Arguments does not pollute Object prototype", () => {
-    const maliciousArgs = JSON.parse('{"__proto__": {"polluted": true}, "constructor": {"prototype": {"admin": true}}}');
+    const maliciousArgs = JSON.parse(
+      '{"__proto__": {"polluted": true}, "constructor": {"prototype": {"admin": true}}}',
+    );
     const safeStr = safelyTruncateJson(maliciousArgs);
     expect(safeStr).toBeDefined();
     expect((Object.prototype as unknown as { polluted?: boolean }).polluted).toBeUndefined();

@@ -4,12 +4,13 @@
 > **Target**: Coolify PaaS Application 21 (`qmusbfbjcz0ohip348rv8fgc`) on VPS `62.164.214.145`  
 > **Service**: Sovereign OmniRoute Free Intelligence Gateway & Reverse Proxy  
 > **Public Domain**: `https://omniroute.workspacegroupefloteuil.eu`  
+> **Internal Port**: `20128` | **Docker Network**: `coolify` | **Volume**: `qmusbfbjcz0ohip348rv8fgc_data:/app/data`  
 
 ---
 
 ## 1. Overview & Architecture
 
-OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolify PaaS (Ubuntu 22.04 LTS VPS, Traefik v3.6 reverse proxy with automated Let's Encrypt TLS).
+OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolify PaaS (Ubuntu 22.04 LTS VPS `62.164.214.145`, Traefik v3.6 reverse proxy with automated Let's Encrypt TLS).
 
 ### Key Architectural Characteristics
 - **Multi-Stage Container Build**: Dockerfile target `runner-base` from `floteuil/OmniRoute` pinned to commit `38e2616464fac4681c1f7a4e05dc9974e99e1dde` (`release/v3.8.51`).
@@ -17,8 +18,10 @@ OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolif
 - **Internal Service Port**: Port `20128` (serves both management Web UI and `/v1/*` proxy routes via internal Next.js rewrites).
 - **Public Domain**: `https://omniroute.workspacegroupefloteuil.eu` routed via Traefik v3 with Let's Encrypt HTTP-01 automated certificates.
 - **Persistent Volume**: Named Docker volume `qmusbfbjcz0ohip348rv8fgc_data` mounted to `/app/data` (persists `storage.sqlite` and `server.env`).
+- **3-Tier Decoupling & Dynamic Routing**: Receives capability contract routes (`combo/rakazo-coding`, `combo/rakazo-reasoning`, `combo/rakazo-fast`, `combo/rakazo-writing`, `combo/rakazo-analysis`) and resolves them dynamically per turn to live healthy upstream models (Mistral, DeepSeek, Groq, Qwen).
+- **Header Propagation Contract**: Returns real execution headers (`x-omniroute-provider`, `x-omniroute-model`, `x-omniroute-latency-ms`, `x-omniroute-session-id`, `x-omniroute-version`, and canonical `x-omniroute-response-cost: 0.000000`).
 - **Zero-Provider Invariant**: OmniRoute is deployed in initial unconfigured state (`PENDING PROVIDER CREDENTIALS`). Free requests trigger a clean fail-closed error (*« Capacité gratuite temporairement indisponible »*) with strictly $0.0000 cost.
-- **Strict Non-Interference**: OmniRoute runs on isolated Docker networks and dedicated storage volumes without impacting any co-located VPS workloads.
+- **Strict Non-Interference**: OmniRoute runs on the isolated `coolify` Docker network and dedicated storage volumes without impacting any of the 15 co-located VPS workloads.
 
 ---
 
@@ -34,6 +37,7 @@ OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolif
 | **Build Pack** | `dockerfile` | Multi-stage Dockerfile build |
 | **Build Target** | `runner-base` | Minimal production image (~500MB, no heavy browser sidecars) |
 | **Internal Port** | `20128` | Standard OmniRoute listening port |
+| **Docker Network** | `coolify` | Internal Coolify Docker bridge network |
 | **Public FQDN** | `https://omniroute.workspacegroupefloteuil.eu` | Public HTTPS domain routed via Traefik |
 | **Persistent Volume** | `/app/data` (`qmusbfbjcz0ohip348rv8fgc_data:/app/data`) | SQLite database (`storage.sqlite`) and encryption keys |
 
@@ -75,13 +79,14 @@ Ensure Application 21 settings are applied in Coolify:
 - `git_commit_sha = '38e2616464fac4681c1f7a4e05dc9974e99e1dde'`
 - `ports_exposes = '20128'`
 - `fqdn = 'https://omniroute.workspacegroupefloteuil.eu'`
-- Persistent volume mount: `/app/data`
+- Persistent volume mount: `/app/data` (`qmusbfbjcz0ohip348rv8fgc_data`)
 
 ### Step 3: Trigger Deployment
 Trigger deployment via Coolify API or UI dashboard:
 ```bash
 # Coolify API deployment trigger
-curl -s -X POST "http://localhost:8000/api/v1/deploy?uuid=qmusbfbjcz0ohip348rv8fgc&force=false"   -H "Authorization: Bearer <COOLIFY_API_TOKEN>"
+curl -s -X POST "http://localhost:8000/api/v1/deploy?uuid=qmusbfbjcz0ohip348rv8fgc&force=false" \
+  -H "Authorization: Bearer <COOLIFY_API_TOKEN>"
 ```
 
 ### Step 4: Monitor Build & Startup
@@ -121,12 +126,16 @@ Expected: `SSL certificate verify ok`, HTTP `200 OK` or `307 Temporary Redirect`
 
 ### 3. Models Catalog Endpoint (`GET /v1/models`)
 ```bash
-curl -s -H "Authorization: Bearer <OMNIROUTE_API_KEY>"   https://omniroute.workspacegroupefloteuil.eu/v1/models
+curl -s -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
+  https://omniroute.workspacegroupefloteuil.eu/v1/models
 ```
 
 ### 4. Zero-Provider Fail-Closed Invariant
 ```bash
-curl -s -X POST https://omniroute.workspacegroupefloteuil.eu/v1/chat/completions   -H "Authorization: Bearer <OMNIROUTE_API_KEY>"   -H "Content-Type: application/json"   -d '{"model":"meta-llama/llama-3.3-70b-instruct:free","messages":[{"role":"user","content":"Ping"}]}'
+curl -s -X POST https://omniroute.workspacegroupefloteuil.eu/v1/chat/completions \
+  -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
+  -H "Content-Type: application/json" \
+  -d '{"model":"combo/rakazo-coding","messages":[{"role":"user","content":"Ping"}]}'
 ```
 Expected: HTTP 401 / Error response (*« Capacité gratuite temporairement indisponible »*) indicating zero active provider credentials with $0.00 cost.
 
@@ -145,7 +154,7 @@ OmniRoute adheres strictly to the **Zero-Interference VPS Invariant**:
 1. **Network Isolation**: Attached exclusively to the `coolify` Docker network and internal bridge; no host port conflicts.
 2. **Volume Isolation**: Uses dedicated named volume `qmusbfbjcz0ohip348rv8fgc_data`; no host mount collisions.
 3. **Process Isolation**: Unprivileged non-root execution (`node`, UID 1000); no Docker socket access.
-4. **Co-Located Workloads**: Zero modification, restart, or resource contention with other services on the VPS (HubtoWrite, Veinart, Open-Design, Postiz, DocuSeal, n8n, Flowise, Odoo, SearXNG, Minio, Beszel, Scraperr, Rakazo).
+4. **Co-Located Workloads**: Zero modification, restart, or resource contention with other services on the VPS (HubtoWrite, Veinart, Open-Design, Postiz, DocuSeal, n8n, Flowise, Odoo, SearXNG, Minio, Beszel, Scraperr, Rakazo Stack).
 
 ---
 
@@ -234,7 +243,7 @@ curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer <OMNIROUTE_API_
 ## 11. Live Combos & Related Architectural References
 
 OmniRoute supports specialized high-availability combo routes for Rakazo autonomous agents:
-- `combo/rakazo-coding` (Qwen 2.5 Coder 32B Free)
+- `combo/rakazo-coding` (Qwen 2.5 Coder 32B / Codestral Free)
 - `combo/rakazo-reasoning` (DeepSeek R1 Free)
 - `combo/rakazo-fast` (LLaMA 3.2 3B Free)
 - `combo/rakazo-writing` (Mistral Small 24B Free)
@@ -243,9 +252,9 @@ OmniRoute supports specialized high-availability combo routes for Rakazo autonom
 Requests carry the `x-session-id` header (32-bit FNV-1a session hash) to maximize upstream KV prefix cache hits across multi-turn agent turns.
 
 ### Related Documentation
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md): Master architectural production certification artifact.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md): Master architectural passation & certification artifact.
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](../RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master platform architectural specification.
 - [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
-
-
+- [`docs/ENVIRONMENT_SETUP.md`](ENVIRONMENT_SETUP.md): Comprehensive developer setup and environment taxonomy.
+- [`TEST_INFRA.md`](../TEST_INFRA.md): 4-Tier test infrastructure & methodology.
+- [`TEST_READY.md`](../TEST_READY.md): Master test certification report.

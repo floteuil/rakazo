@@ -1,4 +1,3 @@
-import { describe, expect, it, vi } from "vitest";
 import type { AgentRunRequest, AgentRuntimeEvent, ConnectorTool } from "@rakazo/adapter-kit";
 import {
   PromptCacheTelemetrySchema,
@@ -7,17 +6,15 @@ import {
   PromptCompileOutputSchema,
   verifyMcpImmutabilityAtContractLevel,
 } from "@rakazo/contracts";
-import {
-  builtinAgentTools,
-  DELEGATION_TOOL_NAMES,
-} from "../../../adapters/src/builtin-tools.js";
+import { describe, expect, it, vi } from "vitest";
+import { builtinAgentTools, DELEGATION_TOOL_NAMES } from "../../../adapters/src/builtin-tools.js";
 import { createToolCallTracker } from "../../../adapters/src/loop-guards.js";
 import {
   buildSubagentPrompt,
-  executeSubagent,
-  toAgentTools,
   type EventQueue,
+  executeSubagent,
   type ToolHost,
+  toAgentTools,
 } from "../../../adapters/src/pi-runtime.js";
 import { compilePromptLevel1Deterministic } from "../../../adapters/src/prompt-compiler.js";
 
@@ -133,7 +130,9 @@ describe("Requirement R1: Subagent Level 1 Prompt Compilation & Execution E2E", 
       const compiled = buildSubagentPrompt("financial-extractor", task, extra);
       expect(compiled.compiledInstruction).toContain("## Operational Rules & Constraints");
       expect(compiled.compiledInstruction).toContain("Always verify decimal precision");
-      expect(compiled.compiledInstruction).toContain("Never disclose unverified internal estimations");
+      expect(compiled.compiledInstruction).toContain(
+        "Never disclose unverified internal estimations",
+      );
       expect(compiled.compiledInstruction).toContain("## Output Format & Deliverables");
       expect(compiled.compiledInstruction).toContain("JSON table with columns");
       expect(compiled.compiledInstruction).toContain("## Error Handling & Edge Cases");
@@ -274,14 +273,17 @@ describe("Requirement R1: Subagent Level 1 Prompt Compilation & Execution E2E", 
         },
       });
 
-      const output = PromptCompileOutputSchema.parse(buildSubagentPrompt("sub-analyst", input.rawInstruction));
+      const output = PromptCompileOutputSchema.parse(
+        buildSubagentPrompt("sub-analyst", input.rawInstruction),
+      );
       const check = verifyMcpImmutabilityAtContractLevel(input, output);
       expect(check.isMcpUntouched).toBe(true);
       expect(check.mcpFieldsInOutput).toHaveLength(0);
     });
 
     it("2.7 Sanitizes and bounds subagent name length cleanly", () => {
-      const overlyLongName = "subagent-with-an-extremely-long-name-that-exceeds-standard-limits-and-must-be-safely-handled";
+      const overlyLongName =
+        "subagent-with-an-extremely-long-name-that-exceeds-standard-limits-and-must-be-safely-handled";
       const compiled = buildSubagentPrompt(overlyLongName, "Task");
       expect(compiled.compiledInstruction).toContain(overlyLongName);
     });

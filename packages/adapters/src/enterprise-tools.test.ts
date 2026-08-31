@@ -139,7 +139,9 @@ describe("Enterprise MCP Connectors", () => {
     it("scrubs each token prefix individually with underscores, hyphens, and mixed casing", () => {
       // GitHub
       expect(sanitizeToolError("Token: ghp_abc123_DEF456")).toBe("Token: ghp_[redacted]");
-      expect(sanitizeToolError("Token: github_pat_11AB22CD33_445566")).toBe("Token: github_pat_[redacted]");
+      expect(sanitizeToolError("Token: github_pat_11AB22CD33_445566")).toBe(
+        "Token: github_pat_[redacted]",
+      );
 
       // Notion
       expect(sanitizeToolError("Key: secret_notion_key_abc123")).toBe("Key: secret_[redacted]");
@@ -152,16 +154,26 @@ describe("Enterprise MCP Connectors", () => {
       expect(sanitizeToolError("Auth: nova_secure_ability_token_42")).toBe("Auth: nova_[redacted]");
 
       // n8n
-      expect(sanitizeToolError("Header: n8n_api_key_production_001")).toBe("Header: n8n_api_[redacted]");
+      expect(sanitizeToolError("Header: n8n_api_key_production_001")).toBe(
+        "Header: n8n_api_[redacted]",
+      );
 
       // Cloudflare
       expect(sanitizeToolError("CF: cf_token_abc-123_XYZ-789")).toBe("CF: cf_token_[redacted]");
 
       // Bearer & Basic auth headers (case-insensitive)
-      expect(sanitizeToolError("Authorization: Bearer secret-oauth-token-value")).toBe("Authorization: Bearer [redacted]");
-      expect(sanitizeToolError("authorization: bearer secret-oauth-token-value")).toBe("authorization: Bearer [redacted]");
-      expect(sanitizeToolError("Authorization: Basic dXNlcjpwYXNzd29yZA==")).toBe("Authorization: Basic [redacted]");
-      expect(sanitizeToolError("authorization: basic dXNlcjpwYXNzd29yZA==")).toBe("authorization: Basic [redacted]");
+      expect(sanitizeToolError("Authorization: Bearer secret-oauth-token-value")).toBe(
+        "Authorization: Bearer [redacted]",
+      );
+      expect(sanitizeToolError("authorization: bearer secret-oauth-token-value")).toBe(
+        "authorization: Bearer [redacted]",
+      );
+      expect(sanitizeToolError("Authorization: Basic dXNlcjpwYXNzd29yZA==")).toBe(
+        "Authorization: Basic [redacted]",
+      );
+      expect(sanitizeToolError("authorization: basic dXNlcjpwYXNzd29yZA==")).toBe(
+        "authorization: Basic [redacted]",
+      );
     });
 
     it("handles multiline error stacks and JSON strings containing tokens without leakage", () => {

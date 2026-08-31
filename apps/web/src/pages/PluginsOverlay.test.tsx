@@ -1,6 +1,3 @@
-import React from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
 import {
   ALL_SOVEREIGN_TOOL_NAMES,
   DEFAULT_ENABLED_SOVEREIGN_TOOLS,
@@ -13,6 +10,9 @@ import {
   SOVEREIGN_CATEGORIES,
   SOVEREIGN_MCP_CONNECTORS,
 } from "@rakazo/contracts";
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it } from "vitest";
 import { PluginsOverlay } from "./PluginsOverlay";
 
 describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", () => {
@@ -172,7 +172,9 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
     it("renders graceful pure sovereign explanation when Composio is unconfigured", () => {
       const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} initialCatalog={[]} />);
       expect(html).toContain("Mode Souverain Pur Actif");
-      expect(html).toContain("Les 8 Connecteurs MCP Souverains ci-dessus couvrent 100% des opérations");
+      expect(html).toContain(
+        "Les 8 Connecteurs MCP Souverains ci-dessus couvrent 100% des opérations",
+      );
     });
 
     it("includes responsive bottom-sheet / modal layout styles", () => {

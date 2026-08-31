@@ -1,8 +1,5 @@
+import { type PromptCompileInput, verifyMcpImmutabilityAtContractLevel } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
-import {
-  type PromptCompileInput,
-  verifyMcpImmutabilityAtContractLevel,
-} from "@rakazo/contracts";
 import {
   compilePromptLevel1Deterministic,
   createPromptCompilerService,
@@ -12,7 +9,8 @@ import {
 describe("PromptCompilerService (@rakazo/adapters)", () => {
   describe("extractThoughtTrace", () => {
     it("extracts thought tokens and returns clean content", () => {
-      const raw = "<thought>\nAnalyzing user request...\nFocus on customer satisfaction.\n</thought>\n# Role & Identity\nYou are a support agent.";
+      const raw =
+        "<thought>\nAnalyzing user request...\nFocus on customer satisfaction.\n</thought>\n# Role & Identity\nYou are a support agent.";
       const { cleanContent, thoughtTrace } = extractThoughtTrace(raw);
 
       expect(thoughtTrace).toBe("Analyzing user request...\nFocus on customer satisfaction.");
@@ -79,16 +77,23 @@ describe("PromptCompilerService (@rakazo/adapters)", () => {
       const result = compilePromptLevel1Deterministic(input);
 
       expect(result.compiledInstruction).toContain("Senior Python Architect");
-      expect(result.compiledInstruction).toContain("Review PRs and suggest performance improvements");
+      expect(result.compiledInstruction).toContain(
+        "Review PRs and suggest performance improvements",
+      );
       expect(result.compiledInstruction).toContain("Always verify typing with mypy strict");
-      expect(result.compiledInstruction).toContain("Never approve code with SQL injection vulnerabilities");
+      expect(result.compiledInstruction).toContain(
+        "Never approve code with SQL injection vulnerabilities",
+      );
       expect(result.compiledInstruction).toContain("Output code diffs in unified diff format");
-      expect(result.compiledInstruction).toContain("If missing requirements, ask for clarifying specifications");
+      expect(result.compiledInstruction).toContain(
+        "If missing requirements, ask for clarifying specifications",
+      );
     });
 
     it("handles French instructions and formats cleanly", () => {
       const input: PromptCompileInput = {
-        rawInstruction: "Tu es un expert comptable. Analyse les factures et ne jamais divulguer les données bancaires.",
+        rawInstruction:
+          "Tu es un expert comptable. Analyse les factures et ne jamais divulguer les données bancaires.",
         botName: "expert-comptable",
       };
 
@@ -142,7 +147,8 @@ describe("PromptCompilerService (@rakazo/adapters)", () => {
       });
 
       const input: PromptCompileInput = {
-        rawInstruction: "You are a customer support agent for our store. Help users track their packages.",
+        rawInstruction:
+          "You are a customer support agent for our store. Help users track their packages.",
         botName: "support-bot",
         botTitle: "E-Commerce Support",
         level: "level2_llm",
@@ -259,7 +265,8 @@ describe("PromptCompilerService (@rakazo/adapters)", () => {
           choices: [
             {
               message: {
-                content: "# Role & Identity\nYou are an enterprise code reviewer.\n\n## Core Mission\nAudit code for security.",
+                content:
+                  "# Role & Identity\nYou are an enterprise code reviewer.\n\n## Core Mission\nAudit code for security.",
               },
             },
           ],
@@ -290,7 +297,8 @@ describe("PromptCompilerService (@rakazo/adapters)", () => {
       });
 
       const input: PromptCompileInput = {
-        rawInstruction: "A very long detailed instruction that would normally trigger Level 2 LLM routing because it exceeds one hundred and twenty characters in length.",
+        rawInstruction:
+          "A very long detailed instruction that would normally trigger Level 2 LLM routing because it exceeds one hundred and twenty characters in length.",
         level: "level1_deterministic",
       };
 
@@ -329,11 +337,9 @@ describe("PromptCompilerService (@rakazo/adapters)", () => {
       expect(outputKeys).not.toContain("tools");
 
       // Verify existingMetadata was not mutated
-      expect((inputWithMcp.existingMetadata?.mcp as Record<string, unknown>).activeMcpTools).toEqual([
-        "web_search",
-        "web_scrape",
-        "github_search",
-      ]);
+      expect(
+        (inputWithMcp.existingMetadata?.mcp as Record<string, unknown>).activeMcpTools,
+      ).toEqual(["web_search", "web_scrape", "github_search"]);
     });
   });
 });

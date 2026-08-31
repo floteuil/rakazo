@@ -80,7 +80,7 @@ describe("RakazoFreePolicyEngine & Zero-Cost Barrier Test Suite (Tiers 1, 2, 3)"
 
     it("resolves deterministic priority when multiple tags are passed regardless of order", async () => {
       const engine = await getPolicyEngine();
-      
+
       // coding (80) > fast (20)
       const route1 = engine.resolveRoute(["coding", "fast"]);
       expect(route1.category).toBe("coding");

@@ -1,38 +1,38 @@
+import type { AdapterContext, AgentRunRequest } from "@rakazo/adapter-kit";
+import type { InferenceUsageTag } from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
-import type { AgentRunRequest, AdapterContext } from "@rakazo/adapter-kit";
 import {
-  RakazoFreePolicyEngine,
-  resolveDeterministicTag,
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
   APPROVED_FREE_PROVIDERS,
   AVOIDED_PROVIDERS,
+  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+  RakazoFreePolicyEngine,
+  resolveDeterministicTag,
   TAG_PRIORITY_WEIGHTS,
   VALID_TAGS,
 } from "./free-policy-engine.js";
+import type {
+  InferenceTransport,
+  InferenceTransportChunk,
+  InferenceTransportRequest,
+} from "./inference-transport.js";
 import {
-  SubagentExecutor,
-  SUBAGENT_MAX_DEPTH,
-  SUBAGENT_TOKEN_BUDGET_CEILING,
-  DELEGATION_NAMES_SET,
-  type BotContext,
-  type SubagentSpawnRequest,
-} from "./subagent-inheritance.js";
-import {
-  CanonicalAgentRuntime,
-} from "./pi-runtime.js";
-import {
-  OmniRouteInferenceTransport,
-} from "./omniroute-transport.js";
-import {
+  computeToolCallSignature,
   createToolCallTracker,
   evaluateToolCallGuard,
-  computeToolCallSignature,
-  MAX_TOOL_ITERATIONS_PER_TURN,
   MAX_CONSECUTIVE_REDUNDANT_CALLS,
+  MAX_TOOL_ITERATIONS_PER_TURN,
 } from "./loop-guards.js";
+import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
+import { CanonicalAgentRuntime } from "./pi-runtime.js";
+import {
+  type BotContext,
+  DELEGATION_NAMES_SET,
+  SUBAGENT_MAX_DEPTH,
+  SUBAGENT_TOKEN_BUDGET_CEILING,
+  SubagentExecutor,
+  type SubagentSpawnRequest,
+} from "./subagent-inheritance.js";
 import { compactToolResult } from "./tool-compacting.js";
-import type { InferenceTransport, InferenceTransportChunk, InferenceTransportRequest } from "./inference-transport.js";
-import type { InferenceUsageTag } from "@rakazo/contracts";
 
 function createMockContext(overrides: Partial<AdapterContext> = {}): AdapterContext {
   return {
@@ -62,7 +62,6 @@ function createMockRequest(overrides: Partial<AgentRunRequest> = {}): AgentRunRe
 }
 
 describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", () => {
-
   // =========================================================================
   // REQUIREMENT 3 (R3): Live combo/rakazo-* routing & Cognitive Priority Matrix
   // =========================================================================
@@ -78,7 +77,10 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
         analysis: "combo/rakazo-analysis",
       };
 
-      for (const [tag, expectedModel] of Object.entries(intentMap) as [InferenceUsageTag, string][]) {
+      for (const [tag, expectedModel] of Object.entries(intentMap) as [
+        InferenceUsageTag,
+        string,
+      ][]) {
         const decision = engine.resolveRoute([tag]);
         expect(decision.model).toBe(expectedModel);
         expect(decision.provider).toBe("omniroute");
@@ -149,10 +151,16 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
     });
 
     it("R3.4: Fail-closed on invalid tags or non-array inputs", () => {
-      expect(() => engine.resolveRoute(["invalid-tag" as any])).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.resolveRoute(["gpt-4" as any])).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.resolveRoute(["invalid-tag" as any])).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => engine.resolveRoute(["gpt-4" as any])).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
       expect(() => engine.resolveRoute(null as any)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => engine.resolveRoute("coding" as any)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.resolveRoute("coding" as any)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
     });
   });
 
@@ -160,7 +168,6 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
   // REQUIREMENT 4 (R4): Shared Canonical Turn Loop, Tool Execution, Compaction & Circuit Breakers
   // =========================================================================
   describe("R4: Shared Canonical Agentic Turn Loop & Loop Guards", () => {
-
     it("R4.1: CanonicalAgentRuntime correctly streams text and usage events from transport", async () => {
       const mockTransport: InferenceTransport = {
         id: "mock",
@@ -351,7 +358,9 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
       expect(mockExecute).toHaveBeenCalledTimes(2);
 
       const doneEvent = events.find((e) => e.type === "done");
-      expect(doneEvent?.text).toContain("Loop detected: Tool 'read_file' called 3 consecutive times with identical arguments");
+      expect(doneEvent?.text).toContain(
+        "Loop detected: Tool 'read_file' called 3 consecutive times with identical arguments",
+      );
     });
 
     it("R4.5: Argument canonicalization handles key order permutations in redundancy detection", () => {
@@ -391,10 +400,23 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
 
       // 3. github_search_repos -> compacts items
       const repos = [
-        { full_name: "rakazo/repo1", stargazers_count: 42, language: "TypeScript", description: "First repo" },
-        { full_name: "rakazo/repo2", stargazers_count: 100, language: "Rust", description: "Second repo" },
+        {
+          full_name: "rakazo/repo1",
+          stargazers_count: 42,
+          language: "TypeScript",
+          description: "First repo",
+        },
+        {
+          full_name: "rakazo/repo2",
+          stargazers_count: 100,
+          language: "Rust",
+          description: "Second repo",
+        },
       ];
-      const compactedRepos = compactToolResult("github_search_repos", { items: repos, total_count: 2 });
+      const compactedRepos = compactToolResult("github_search_repos", {
+        items: repos,
+        total_count: 2,
+      });
       expect(compactedRepos).toContain("rakazo/repo1 (42⭐, TypeScript) - First repo");
       expect(compactedRepos).toContain("rakazo/repo2 (100⭐, Rust) - Second repo");
 
@@ -534,7 +556,9 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
       ];
 
       for (const model of forbiddenModels) {
-        expect(() => policyEngine.vetoPaidFallback(model)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+        expect(() => policyEngine.vetoPaidFallback(model)).toThrow(
+          FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+        );
       }
 
       // Approved free models and combos succeed
@@ -557,16 +581,28 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
 
     it("R5.5: Double Fail-Closed Barrier 2 (Post-response Cost & Provider Verification)", () => {
       // 1. Non-zero cost throws fail-closed
-      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", 0.0001)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", 1.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", -0.01)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", NaN)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", 0.0001)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", 1.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", -0.01)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
+      expect(() => policyEngine.assertZeroCostAndAllowed("omniroute", NaN)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
 
       // 2. Unapproved or avoided providers throw fail-closed
       for (const avoided of AVOIDED_PROVIDERS) {
-        expect(() => policyEngine.assertZeroCostAndAllowed(avoided, 0.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+        expect(() => policyEngine.assertZeroCostAndAllowed(avoided, 0.0)).toThrow(
+          FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+        );
       }
-      expect(() => policyEngine.assertZeroCostAndAllowed("random_unapproved_vendor", 0.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => policyEngine.assertZeroCostAndAllowed("random_unapproved_vendor", 0.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
 
       // 3. Approved providers with $0.00 cost pass
       for (const approved of APPROVED_FREE_PROVIDERS) {
@@ -603,12 +639,9 @@ describe("Empirical Challenger Suite - Milestone 3 (R3, R4, R5 Verification)", (
             chunks.push(chunk);
           }
         }).rejects.toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-
       } finally {
         globalThis.fetch = originalFetch;
       }
     });
-
   });
-
 });

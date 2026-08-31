@@ -5,10 +5,7 @@ import * as z from "zod";
  * - `level1_deterministic`: Rule-based semantic restructuring for fast micro-agents and offline fallback.
  * - `level2_llm`: Calibrated LLM compilation (gpt-oss-120b) with XML tags, thought extraction, and prefix caching.
  */
-export const PromptCompilationLevelSchema = z.enum([
-  "level1_deterministic",
-  "level2_llm",
-]);
+export const PromptCompilationLevelSchema = z.enum(["level1_deterministic", "level2_llm"]);
 export type PromptCompilationLevel = z.infer<typeof PromptCompilationLevelSchema>;
 
 /**

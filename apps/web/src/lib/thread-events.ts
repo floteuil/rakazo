@@ -77,7 +77,17 @@ export function reduceThreadSnapshot(
       blocks: [{ kind: "progress", text }],
       runId: event.runId,
       createdAt: event.createdAt,
-    };
+      ...(event.payload?.metadata
+        ? { metadata: event.payload.metadata as Record<string, unknown> }
+        : {}),
+      ...(event.payload?.resolvedModel
+        ? { resolvedModel: String(event.payload.resolvedModel) }
+        : {}),
+      ...(event.payload?.resolvedProvider
+        ? { resolvedProvider: String(event.payload.resolvedProvider) }
+        : {}),
+      ...(event.payload?.isFree !== undefined ? { isFree: Boolean(event.payload.isFree) } : {}),
+    } as ThreadMessage;
     const without = prev.messages.filter((message) => !message.id.startsWith("progress:"));
     return { ...prev, cursor: event.seq, messages: [...without, streaming] };
   }
@@ -109,7 +119,17 @@ export function reduceThreadSnapshot(
       blocks,
       runId: event.runId,
       createdAt: event.createdAt,
-    };
+      ...(event.payload?.metadata
+        ? { metadata: event.payload.metadata as Record<string, unknown> }
+        : {}),
+      ...(event.payload?.resolvedModel
+        ? { resolvedModel: String(event.payload.resolvedModel) }
+        : {}),
+      ...(event.payload?.resolvedProvider
+        ? { resolvedProvider: String(event.payload.resolvedProvider) }
+        : {}),
+      ...(event.payload?.isFree !== undefined ? { isFree: Boolean(event.payload.isFree) } : {}),
+    } as ThreadMessage;
     const replacedSubagentIds = new Set(
       blocks.filter((block) => block.kind === "subagent").map((block) => block.agentId),
     );

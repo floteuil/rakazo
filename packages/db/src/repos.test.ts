@@ -1,5 +1,5 @@
-import { describe, expect, it, vi } from "vitest";
 import type { Actor } from "@rakazo/contracts";
+import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
 import { createRepos } from "./repos.js";
 import { IsolationError } from "./scope.js";

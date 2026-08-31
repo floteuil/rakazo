@@ -132,13 +132,17 @@ export async function toggleBotSkill(
 export function createSkillRepos(prisma: PrismaClient) {
   return {
     listSkills: (workspaceId: string) => listSkills(prisma, workspaceId),
-    getSkillById: (workspaceId: string, skillId: string) => getSkillById(prisma, workspaceId, skillId),
-    getSkillBySlug: (workspaceId: string, slug: string) => getSkillBySlug(prisma, workspaceId, slug),
+    getSkillById: (workspaceId: string, skillId: string) =>
+      getSkillById(prisma, workspaceId, skillId),
+    getSkillBySlug: (workspaceId: string, slug: string) =>
+      getSkillBySlug(prisma, workspaceId, slug),
     createSkill: (data: CreateSkillInput) => createSkill(prisma, data),
     updateSkill: (workspaceId: string, skillId: string, data: UpdateSkillInput) =>
       updateSkill(prisma, workspaceId, skillId, data),
-    deleteSkill: (workspaceId: string, skillId: string) => deleteSkill(prisma, workspaceId, skillId),
-    listBotSkills: (workspaceId: string, botId: string) => listBotSkills(prisma, workspaceId, botId),
+    deleteSkill: (workspaceId: string, skillId: string) =>
+      deleteSkill(prisma, workspaceId, skillId),
+    listBotSkills: (workspaceId: string, botId: string) =>
+      listBotSkills(prisma, workspaceId, botId),
     assignSkillsToBot: (workspaceId: string, botId: string, skillIds: string[]) =>
       assignSkillsToBot(prisma, workspaceId, botId, skillIds),
     toggleBotSkill: (workspaceId: string, botId: string, skillId: string, enabled: boolean) =>

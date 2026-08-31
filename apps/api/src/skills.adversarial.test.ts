@@ -1,19 +1,19 @@
-import { describe, it, expect, beforeEach } from "vitest";
-import {
-  createSkillsService,
-  listSkills,
-  getSkill,
-  createSkill,
-  updateSkill,
-  deleteSkill,
-  uploadSkillMarkdown,
-  assignSkillsToBot,
-  getBotSkills,
-  type SkillsDeps,
-} from "./skills.js";
-import { type Actor } from "@rakazo/contracts";
-import { IsolationError, Prisma, type PrismaClient } from "@rakazo/db";
 import { ORPCError } from "@orpc/server";
+import type { Actor } from "@rakazo/contracts";
+import { IsolationError, type Prisma, type PrismaClient } from "@rakazo/db";
+import { beforeEach, describe, expect, it } from "vitest";
+import {
+  assignSkillsToBot,
+  createSkill,
+  createSkillsService,
+  deleteSkill,
+  getBotSkills,
+  getSkill,
+  listSkills,
+  type SkillsDeps,
+  updateSkill,
+  uploadSkillMarkdown,
+} from "./skills.js";
 
 // ============================================================================
 // STRICT IN-MEMORY PRISMA MOCK IMPLEMENTING REAL POSTGRESQL PRISMA SEMANTICS
@@ -55,11 +55,7 @@ class MockPrismaClient {
   public botSkills: Map<string, BotSkillDbRow> = new Map();
 
   public skill = {
-    findMany: async (args?: {
-      where?: any;
-      orderBy?: any;
-      select?: any;
-    }) => {
+    findMany: async (args?: { where?: any; orderBy?: any; select?: any }) => {
       let list = Array.from(this.skills.values());
       if (args?.where) {
         list = list.filter((item) => {
@@ -81,7 +77,9 @@ class MockPrismaClient {
                 return item.name.toLowerCase().includes(condition.name.contains.toLowerCase());
               }
               if (condition.description?.contains) {
-                return item.description.toLowerCase().includes(condition.description.contains.toLowerCase());
+                return item.description
+                  .toLowerCase()
+                  .includes(condition.description.contains.toLowerCase());
               }
               if (condition.slug?.contains) {
                 return item.slug.toLowerCase().includes(condition.slug.contains.toLowerCase());
@@ -106,7 +104,7 @@ class MockPrismaClient {
       if (args.where.workspaceId_slug) {
         const { workspaceId, slug } = args.where.workspaceId_slug;
         const found = Array.from(this.skills.values()).find(
-          (s) => s.workspaceId === workspaceId && s.slug === slug
+          (s) => s.workspaceId === workspaceId && s.slug === slug,
         );
         return found || null;
       }
@@ -120,7 +118,7 @@ class MockPrismaClient {
 
     create: async (args: { data: any }) => {
       const existing = Array.from(this.skills.values()).find(
-        (s) => s.workspaceId === args.data.workspaceId && s.slug === args.data.slug
+        (s) => s.workspaceId === args.data.workspaceId && s.slug === args.data.slug,
       );
       if (existing) {
         const err = new Error("Unique constraint failed on the fields: (`workspaceId`,`slug`)");
@@ -154,7 +152,10 @@ class MockPrismaClient {
       }
       if (args.data.slug && args.data.slug !== existing.slug) {
         const dup = Array.from(this.skills.values()).find(
-          (s) => s.workspaceId === existing.workspaceId && s.slug === args.data.slug && s.id !== existing.id
+          (s) =>
+            s.workspaceId === existing.workspaceId &&
+            s.slug === args.data.slug &&
+            s.id !== existing.id,
         );
         if (dup) {
           const err = new Error("Unique constraint failed on the fields: (`workspaceId`,`slug`)");
@@ -166,7 +167,8 @@ class MockPrismaClient {
         ...existing,
         name: args.data.name !== undefined ? args.data.name : existing.name,
         slug: args.data.slug !== undefined ? args.data.slug : existing.slug,
-        description: args.data.description !== undefined ? args.data.description : existing.description,
+        description:
+          args.data.description !== undefined ? args.data.description : existing.description,
         content: args.data.content !== undefined ? args.data.content : existing.content,
         tags: args.data.tags !== undefined ? args.data.tags : existing.tags,
         metadata: args.data.metadata !== undefined ? args.data.metadata : existing.metadata,
@@ -202,7 +204,7 @@ class MockPrismaClient {
 
   public botSkill = {
     findMany: async (args: { where: any; include?: any; orderBy?: any }) => {
-      let list = Array.from(this.botSkills.values()).filter((bs) => {
+      const list = Array.from(this.botSkills.values()).filter((bs) => {
         if (args.where.botId && bs.botId !== args.where.botId) return false;
         if (args.where.workspaceId && bs.workspaceId !== args.where.workspaceId) return false;
         if (args.where.enabled !== undefined && bs.enabled !== args.where.enabled) return false;
@@ -232,7 +234,9 @@ class MockPrismaClient {
       return { count };
     },
 
-    createMany: async (args: { data: Array<{ workspaceId: string; botId: string; skillId: string; enabled: boolean }> }) => {
+    createMany: async (args: {
+      data: Array<{ workspaceId: string; botId: string; skillId: string; enabled: boolean }>;
+    }) => {
       for (const item of args.data) {
         const id = `bs-${item.botId}-${item.skillId}`;
         this.botSkills.set(id, {
@@ -320,9 +324,9 @@ describe("Adversarial Multi-Tenancy & Isolation Suite for skills.ts", () => {
         content: "Paris Content",
       });
 
-      await expect(
-        service.get(actorLyon, { slug: "paris-unique-slug" }),
-      ).rejects.toThrow(ORPCError);
+      await expect(service.get(actorLyon, { slug: "paris-unique-slug" })).rejects.toThrow(
+        ORPCError,
+      );
     });
 
     it("1.4 updateSkill throws IsolationError and preserves original data", async () => {
@@ -348,9 +352,9 @@ describe("Adversarial Multi-Tenancy & Isolation Suite for skills.ts", () => {
         content: "Original Content",
       });
 
-      await expect(
-        service.delete(actorLyon, { skillId: parisSkill.id }),
-      ).rejects.toThrow(IsolationError);
+      await expect(service.delete(actorLyon, { skillId: parisSkill.id })).rejects.toThrow(
+        IsolationError,
+      );
 
       const verified = await service.get(actorParis, { skillId: parisSkill.id });
       expect(verified.id).toBe(parisSkill.id);
@@ -473,9 +477,9 @@ describe("Adversarial Multi-Tenancy & Isolation Suite for skills.ts", () => {
     });
 
     it("3.5 getBotSkills throws IsolationError when actor queries bot from another workspace", async () => {
-      await expect(
-        service.getBotSkills(actorLyon, { botId: "bot-paris-1" }),
-      ).rejects.toThrow(IsolationError);
+      await expect(service.getBotSkills(actorLyon, { botId: "bot-paris-1" })).rejects.toThrow(
+        IsolationError,
+      );
     });
 
     it("3.6 cascade: deleting skill automatically removes bot-skill association", async () => {

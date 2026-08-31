@@ -1,26 +1,19 @@
-import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from "vitest";
-import {
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
-} from "@rakazo/contracts";
+import { FREE_INFERENCE_UNAVAILABLE_MESSAGE } from "@rakazo/contracts";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { RakazoFreePolicyEngine } from "../../../adapters/src/free-policy-engine.js";
-import { SubagentExecutor } from "../../../adapters/src/subagent-inheritance.js";
+import { createToolCallTracker, evaluateToolCallGuard } from "../../../adapters/src/loop-guards.js";
+import { McpEmulator } from "../../../adapters/src/mcp-emulator.js";
+import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
+import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
 import {
   assemble4BlockCachePrompt,
   computeSessionAffinityKey,
   extractCacheTelemetry,
 } from "../../../adapters/src/prefix-caching.js";
+import { SubagentExecutor } from "../../../adapters/src/subagent-inheritance.js";
 import { compactToolResult } from "../../../adapters/src/tool-compacting.js";
-import {
-  createToolCallTracker,
-  evaluateToolCallGuard,
-} from "../../../adapters/src/loop-guards.js";
-import {
-  recordPromptExecutionLogAsync,
-} from "../../../db/src/telemetry.js";
 import type { PrismaClient } from "../../../db/src/client.js";
-import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
-import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
-import { McpEmulator } from "../../../adapters/src/mcp-emulator.js";
+import { recordPromptExecutionLogAsync } from "../../../db/src/telemetry.js";
 
 describe("Tier 4: Real-World Workload Scenarios E2E Suite (R1-R6 per TEST_INFRA.md)", () => {
   let mockServer: MockOmniRouteServer;
@@ -74,7 +67,11 @@ describe("Tier 4: Real-World Workload Scenarios E2E Suite (R1-R6 per TEST_INFRA.
     const compactedResult = compactToolResult("read_file", fileContent);
 
     // 5. Model Inference via Pluggable Transport
-    const adapter = new FreeOmniRouteAdapter({ baseUrl: serverUrl, apiKey, defaultModel: route.model });
+    const adapter = new FreeOmniRouteAdapter({
+      baseUrl: serverUrl,
+      apiKey,
+      defaultModel: route.model,
+    });
     const response = await adapter.complete({
       messages: [
         { role: "system", content: prompt.fullSystemPrompt },
@@ -156,7 +153,10 @@ describe("Tier 4: Real-World Workload Scenarios E2E Suite (R1-R6 per TEST_INFRA.
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         method: "tools/call",
-        params: { name: "notes.write", arguments: { path: "audit-report.md", text: "0 high-severity CVEs found" } },
+        params: {
+          name: "notes.write",
+          arguments: { path: "audit-report.md", text: "0 high-severity CVEs found" },
+        },
       }),
     });
     expect(callRes.ok).toBe(true);
@@ -225,7 +225,10 @@ describe("Tier 4: Real-World Workload Scenarios E2E Suite (R1-R6 per TEST_INFRA.
       bot: staticBot,
       currentTurn: { prompt: "Explain quantum computing in one sentence" },
     });
-    const tel1 = extractCacheTelemetry({ prompt_tokens: 600, completion_tokens: 30, cached_tokens: 0 }, 180);
+    const tel1 = extractCacheTelemetry(
+      { prompt_tokens: 600, completion_tokens: 30, cached_tokens: 0 },
+      180,
+    );
     expect(tel1.cacheHitRatio).toBe(0.0);
 
     // Turn 2: Warm cache (Block A + B cached = 500 tokens)
@@ -237,11 +240,17 @@ describe("Tier 4: Real-World Workload Scenarios E2E Suite (R1-R6 per TEST_INFRA.
       ],
       currentTurn: { prompt: "Now explain superposition" },
     });
-    const tel2 = extractCacheTelemetry({ prompt_tokens: 120, completion_tokens: 40, cached_tokens: 580 }, 60);
+    const tel2 = extractCacheTelemetry(
+      { prompt_tokens: 120, completion_tokens: 40, cached_tokens: 580 },
+      60,
+    );
     expect(tel2.cacheHitRatio).toBeGreaterThanOrEqual(0.8);
 
     // Turn 3: Hot cache (Block A + B + Turn 1 History cached = 720 tokens)
-    const tel3 = extractCacheTelemetry({ prompt_tokens: 90, completion_tokens: 50, cached_tokens: 720 }, 40);
+    const tel3 = extractCacheTelemetry(
+      { prompt_tokens: 90, completion_tokens: 50, cached_tokens: 720 },
+      40,
+    );
     expect(tel3.cacheHitRatio).toBeGreaterThanOrEqual(0.85);
     expect(sessionKey).toMatch(/^sess_[0-9a-f]+$/);
   });
@@ -253,10 +262,14 @@ describe("Tier 4: Real-World Workload Scenarios E2E Suite (R1-R6 per TEST_INFRA.
     const engine = new RakazoFreePolicyEngine();
 
     // 1. Attempt to fallback to paid OpenAI GPT-4
-    expect(() => engine.vetoPaidFallback("openai/gpt-4o")).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+    expect(() => engine.vetoPaidFallback("openai/gpt-4o")).toThrow(
+      FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+    );
 
     // 2. Attempt to fallback to Anthropic Claude 3 Opus
-    expect(() => engine.vetoPaidFallback("anthropic/claude-3-opus")).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+    expect(() => engine.vetoPaidFallback("anthropic/claude-3-opus")).toThrow(
+      FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+    );
 
     // 3. Attempt to route through unapproved commercial proxy
     expect(() => engine.assertZeroCostAndAllowed("unapproved_commercial_proxy", 0.0)).toThrow(
@@ -367,7 +380,8 @@ describe("Tier 4: Real-World Workload Scenarios E2E Suite (R1-R6 per TEST_INFRA.
   // SCENARIO 9: Voice Dictation & Rapid Restructuring through Canonical Tool Dispatch
   // ============================================================================
   it("Scenario 9: Voice Dictation & Rapid Restructuring through Canonical Tool Dispatch (F1, F9, F14)", async () => {
-    const rawVoiceTranscript = "euh bonjour en fait je voudrais créer un script de déploiement automatique sur Coolify";
+    const rawVoiceTranscript =
+      "euh bonjour en fait je voudrais créer un script de déploiement automatique sur Coolify";
     const prompt = assemble4BlockCachePrompt({
       bot: { botName: "DevOps Voice Assistant", instructions: "Generate clean shell scripts" },
       currentTurn: { prompt: rawVoiceTranscript },

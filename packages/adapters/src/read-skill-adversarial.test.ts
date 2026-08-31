@@ -1,19 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "@rakazo/db";
+import { describe, expect, it, vi } from "vitest";
 import { createRunExecutor } from "./executor.js";
 import { FakeSandboxProvider } from "./fake-sandbox.js";
 
 // Helper to create a fully wired Executor test harness
-function createExecutorTestHarness(initialSkills: Array<{
-  id: string;
-  workspaceId: string;
-  name: string;
-  slug: string;
-  description: string | null;
-  content: string;
-  tags: unknown;
-  metadata?: Record<string, unknown>;
-}> = []) {
+function createExecutorTestHarness(
+  initialSkills: Array<{
+    id: string;
+    workspaceId: string;
+    name: string;
+    slug: string;
+    description: string | null;
+    content: string;
+    tags: unknown;
+    metadata?: Record<string, unknown>;
+  }> = [],
+) {
   const skillsStore = [...initialSkills];
 
   // In-memory Prisma mock for testing executor
@@ -125,41 +127,56 @@ function createExecutorTestHarness(initialSkills: Array<{
       findMany: vi.fn(async () => []),
     },
     skill: {
-      findFirst: vi.fn(async ({ where }: {
-        where: {
-          workspaceId: string;
-          OR: Array<{ slug?: string; name?: { equals: string; mode?: string }; id?: string }>;
-        };
-      }) => {
-        return skillsStore.find((skill) => {
-          if (skill.workspaceId !== where.workspaceId) return false;
-          return where.OR.some((clause) => {
-            if (clause.slug !== undefined && skill.slug.toLowerCase() === clause.slug.toLowerCase()) {
-              return true;
-            }
-            if (clause.name?.equals !== undefined) {
-              if (clause.name.mode === "insensitive") {
-                return skill.name.toLowerCase() === clause.name.equals.toLowerCase();
-              }
-              return skill.name === clause.name.equals;
-            }
-            if (clause.id !== undefined && skill.id === clause.id) {
-              return true;
-            }
-            return false;
-          });
-        }) ?? null;
-      }),
+      findFirst: vi.fn(
+        async ({
+          where,
+        }: {
+          where: {
+            workspaceId: string;
+            OR: Array<{ slug?: string; name?: { equals: string; mode?: string }; id?: string }>;
+          };
+        }) => {
+          return (
+            skillsStore.find((skill) => {
+              if (skill.workspaceId !== where.workspaceId) return false;
+              return where.OR.some((clause) => {
+                if (
+                  clause.slug !== undefined &&
+                  skill.slug.toLowerCase() === clause.slug.toLowerCase()
+                ) {
+                  return true;
+                }
+                if (clause.name?.equals !== undefined) {
+                  if (clause.name.mode === "insensitive") {
+                    return skill.name.toLowerCase() === clause.name.equals.toLowerCase();
+                  }
+                  return skill.name === clause.name.equals;
+                }
+                if (clause.id !== undefined && skill.id === clause.id) {
+                  return true;
+                }
+                return false;
+              });
+            }) ?? null
+          );
+        },
+      ),
     },
     $transaction: vi.fn(async (cb: (tx: unknown) => unknown) => cb(mockPrisma)),
   } as unknown as PrismaClient;
 
-  let capturedApplyTool: ((name: string, args: Record<string, unknown>, executionId: string) => Promise<unknown>) | null = null;
+  let capturedApplyTool:
+    | ((name: string, args: Record<string, unknown>, executionId: string) => Promise<unknown>)
+    | null = null;
 
   const mockRuntime = {
     describe: () => ({ capabilities: { scripted: false } }),
     run: async function* (options: {
-      executeTool?: (name: string, args: Record<string, unknown>, executionId: string) => Promise<unknown>;
+      executeTool?: (
+        name: string,
+        args: Record<string, unknown>,
+        executionId: string,
+      ) => Promise<unknown>;
     }) {
       if (options.executeTool) {
         capturedApplyTool = options.executeTool;
@@ -212,7 +229,9 @@ function createExecutorTestHarness(initialSkills: Array<{
         await executor.continueRun(runId, "worker-1");
       } catch (err: any) {
         const errors = spy.mock.calls.map((c) => c.join(" ")).join("\n");
-        throw new Error(`getApplyTool failed during continueRun: ${err?.message}\nCaptured console.errors:\n${errors}`);
+        throw new Error(
+          `getApplyTool failed during continueRun: ${err?.message}\nCaptured console.errors:\n${errors}`,
+        );
       }
       if (!capturedApplyTool) {
         throw new Error("Failed to capture applyTool from executor run");
@@ -340,11 +359,10 @@ describe("Adversarial Challenge: read_skill Tool Execution in applyTool (executo
       const { getApplyTool } = createExecutorTestHarness(seedSkills);
       const applyToolA = await getApplyTool("run-tenant-a-1");
 
-      const attempt = (await applyToolA(
-        "read_skill",
-        { name: "sk-tenant-b-999" },
-        "exec-9",
-      )) as { error?: string; content?: string };
+      const attempt = (await applyToolA("read_skill", { name: "sk-tenant-b-999" }, "exec-9")) as {
+        error?: string;
+        content?: string;
+      };
 
       expect(attempt.error).toBe("Skill 'sk-tenant-b-999' not found in workspace.");
       expect(attempt.content).toBeUndefined();
@@ -418,11 +436,10 @@ describe("Adversarial Challenge: read_skill Tool Execution in applyTool (executo
       const { getApplyTool } = createExecutorTestHarness(seedSkills);
       const applyTool = await getApplyTool("run-tenant-a-1");
 
-      const res = (await applyTool(
-        "read_skill",
-        { name: "sk-dock-100" },
-        "exec-15",
-      )) as { name?: string; slug?: string };
+      const res = (await applyTool("read_skill", { name: "sk-dock-100" }, "exec-15")) as {
+        name?: string;
+        slug?: string;
+      };
       expect(res.name).toBe("Docker Container Hardening");
       expect(res.slug).toBe("docker-container-hardening");
     });
@@ -480,11 +497,9 @@ describe("Adversarial Challenge: read_skill Tool Execution in applyTool (executo
 
       for (let i = 0; i < adversarialInputs.length; i++) {
         const input = adversarialInputs[i]!;
-        const res = (await applyTool(
-          "read_skill",
-          { name: input },
-          `exec-adv-${i}`,
-        )) as { error?: string };
+        const res = (await applyTool("read_skill", { name: input }, `exec-adv-${i}`)) as {
+          error?: string;
+        };
 
         expect(res).toBeDefined();
         expect(res.error).toBe(`Skill '${input.trim()}' not found in workspace.`);
@@ -496,19 +511,15 @@ describe("Adversarial Challenge: read_skill Tool Execution in applyTool (executo
       const applyTool = await getApplyTool("run-tenant-a-1");
 
       // Array tags
-      const resArray = (await applyTool(
-        "read_skill",
-        { name: "sk-dock-100" },
-        "exec-19",
-      )) as { tags?: string[] };
+      const resArray = (await applyTool("read_skill", { name: "sk-dock-100" }, "exec-19")) as {
+        tags?: string[];
+      };
       expect(resArray.tags).toEqual(["docker", "security", "devops"]);
 
       // String tags
-      const resString = (await applyTool(
-        "read_skill",
-        { name: "sk-hds-200" },
-        "exec-20",
-      )) as { tags?: string[] };
+      const resString = (await applyTool("read_skill", { name: "sk-hds-200" }, "exec-20")) as {
+        tags?: string[];
+      };
       expect(resString.tags).toEqual(["securite, hds, sante"]);
     });
   });
@@ -573,7 +584,9 @@ describe("Adversarial Challenge: read_skill Tool Execution in applyTool (executo
 
       // Workspace A unauthorized cross-tenant calls fail cleanly
       for (const res of resultsAttackA) {
-        expect((res as any).error).toBe("Skill 'confidential-finance-formulas' not found in workspace.");
+        expect((res as any).error).toBe(
+          "Skill 'confidential-finance-formulas' not found in workspace.",
+        );
       }
 
       // Workspace B legit calls succeed

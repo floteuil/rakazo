@@ -1,5 +1,5 @@
+import type { AgentRunRequest, AgentToolExecutionResult, ConnectorTool } from "@rakazo/adapter-kit";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import type { AgentRunRequest, ConnectorTool, AgentToolExecutionResult } from "@rakazo/adapter-kit";
 import { compactToolResult } from "./tool-compacting.js";
 
 const capturedToolsState = vi.hoisted(() => ({
@@ -55,7 +55,11 @@ describe("Empirical Challenger M1: PiRuntime & Tool Compacting Integration", () 
 
   async function setupRuntimeWithTools(
     tools: ConnectorTool[],
-    executeTool?: (name: string, args: Record<string, unknown>, executionId: string) => Promise<unknown>,
+    executeTool?: (
+      name: string,
+      args: Record<string, unknown>,
+      executionId: string,
+    ) => Promise<unknown>,
   ) {
     const runtime = new PiAgentRuntime();
     const request: AgentRunRequest = {
@@ -192,7 +196,8 @@ describe("Empirical Challenger M1: PiRuntime & Tool Compacting Integration", () 
   // ==========================================================================
   describe("2. Semantic Compactor Tool-by-Tool Empirical Verification", () => {
     it("compacts shell execution: preserves head and tail with truncation marker for >4000 chars", async () => {
-      const longOutput = "LOG_START\n" + "A".repeat(3000) + "\nMIDDLE_DATA\n" + "Z".repeat(3000) + "\nLOG_END";
+      const longOutput =
+        "LOG_START\n" + "A".repeat(3000) + "\nMIDDLE_DATA\n" + "Z".repeat(3000) + "\nLOG_END";
       const executeTool = vi.fn(async () => longOutput);
 
       const tools = await setupRuntimeWithTools([makeTool("shell")], executeTool);
@@ -210,8 +215,18 @@ describe("Empirical Challenger M1: PiRuntime & Tool Compacting Integration", () 
       const ghRepos = {
         total_count: 2,
         items: [
-          { full_name: "rakazo/core", stars: 100, language: "TypeScript", description: "Core engine" },
-          { full_name: "rakazo/ui", stargazers_count: 50, language: "React", description: "Frontend UI" },
+          {
+            full_name: "rakazo/core",
+            stars: 100,
+            language: "TypeScript",
+            description: "Core engine",
+          },
+          {
+            full_name: "rakazo/ui",
+            stargazers_count: 50,
+            language: "React",
+            description: "Frontend UI",
+          },
         ],
       };
       const executeTool = vi.fn(async () => ghRepos);
@@ -260,7 +275,10 @@ describe("Empirical Challenger M1: PiRuntime & Tool Compacting Integration", () 
             properties: {
               Name: { type: "title", title: [{ plain_text: "Task 1" }] },
               Priority: { type: "number", number: 1 },
-              Tags: { type: "multi_select", multi_select: [{ name: "frontend" }, { name: "urgent" }] },
+              Tags: {
+                type: "multi_select",
+                multi_select: [{ name: "frontend" }, { name: "urgent" }],
+              },
               Done: { type: "checkbox", checkbox: true },
             },
           },
@@ -288,13 +306,22 @@ describe("Empirical Challenger M1: PiRuntime & Tool Compacting Integration", () 
     it("compacts cloudflare_list_dns_records: converts to tabular array [type, name, content, proxied]", async () => {
       const dnsResult = {
         records: [
-          { type: "A", name: "rakazo.com", content: "1.2.3.4", proxied: true, extraMeta: "ignored" },
+          {
+            type: "A",
+            name: "rakazo.com",
+            content: "1.2.3.4",
+            proxied: true,
+            extraMeta: "ignored",
+          },
           { type: "CNAME", name: "app.rakazo.com", content: "rakazo.com", proxied: false },
         ],
       };
       const executeTool = vi.fn(async () => dnsResult);
 
-      const tools = await setupRuntimeWithTools([makeTool("cloudflare_list_dns_records")], executeTool);
+      const tools = await setupRuntimeWithTools(
+        [makeTool("cloudflare_list_dns_records")],
+        executeTool,
+      );
       const dnsTool = tools.find((t) => t.name === "cloudflare_list_dns_records");
 
       const result = await dnsTool!.execute("call-205", { zone_id: "zone-123" });

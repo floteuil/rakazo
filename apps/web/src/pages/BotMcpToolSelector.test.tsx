@@ -1,7 +1,4 @@
-import {
-  type BotMcpConfig,
-  SOVEREIGN_MCP_CONNECTORS,
-} from "@rakazo/contracts";
+import { type BotMcpConfig, SOVEREIGN_MCP_CONNECTORS } from "@rakazo/contracts";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";

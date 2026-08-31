@@ -1,13 +1,13 @@
-import { describe, expect, it, vi } from "vitest";
 import type { AgentRunRequest, AgentRuntimeEvent, ConnectorTool } from "@rakazo/adapter-kit";
+import { describe, expect, it, vi } from "vitest";
 import { builtinAgentTools, DELEGATION_TOOL_NAMES } from "../builtin-tools.js";
 import { createToolCallTracker } from "../loop-guards.js";
 import {
   buildSubagentPrompt,
-  executeSubagent,
-  toAgentTools,
   type EventQueue,
+  executeSubagent,
   type ToolHost,
+  toAgentTools,
 } from "../pi-runtime.js";
 import { compilePromptLevel1Deterministic } from "../prompt-compiler.js";
 
@@ -189,9 +189,7 @@ describe("Requirement R1: Subagent Level 1 Prompt Compilation & Invariants", () 
 
     it("filters out all delegation tools from builtin tools", () => {
       const availableTools = builtinAgentTools;
-      const childDefs = availableTools.filter(
-        (tool) => !DELEGATION_TOOL_NAMES.has(tool.name),
-      );
+      const childDefs = availableTools.filter((tool) => !DELEGATION_TOOL_NAMES.has(tool.name));
 
       const childNames = childDefs.map((t) => t.name);
       expect(childNames).not.toContain("run_subagent");
@@ -208,11 +206,19 @@ describe("Requirement R1: Subagent Level 1 Prompt Compilation & Invariants", () 
 
     it("filters delegation tools from custom tool suites", () => {
       const customTools: ConnectorTool[] = [
-        { name: "github_search_repos", description: "Search repos", inputSchema: { type: "object" } },
+        {
+          name: "github_search_repos",
+          description: "Search repos",
+          inputSchema: { type: "object" },
+        },
         { name: "run_subagent", description: "Delegation tool", inputSchema: { type: "object" } },
         { name: "notion_get_page", description: "Get page", inputSchema: { type: "object" } },
         { name: "spawn_bot", description: "Spawn bot", inputSchema: { type: "object" } },
-        { name: "cloudflare_purge_cache", description: "Purge cache", inputSchema: { type: "object" } },
+        {
+          name: "cloudflare_purge_cache",
+          description: "Purge cache",
+          inputSchema: { type: "object" },
+        },
         { name: "archive_bot", description: "Archive bot", inputSchema: { type: "object" } },
         { name: "delete_bot", description: "Delete bot", inputSchema: { type: "object" } },
       ];
@@ -229,9 +235,7 @@ describe("Requirement R1: Subagent Level 1 Prompt Compilation & Invariants", () 
 
     it("converts filtered tool definitions into executable AgentTools without delegation tools", () => {
       const { host } = createMockHost();
-      const childDefs = builtinAgentTools.filter(
-        (tool) => !DELEGATION_TOOL_NAMES.has(tool.name),
-      );
+      const childDefs = builtinAgentTools.filter((tool) => !DELEGATION_TOOL_NAMES.has(tool.name));
       const agentTools = toAgentTools(childDefs, host);
 
       const toolLabels = agentTools.map((t) => t.label);

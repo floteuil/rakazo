@@ -25,8 +25,8 @@ import {
   Shield,
   ShieldAlert,
   ShieldCheck,
-  Sparkles,
   SlidersHorizontal,
+  Sparkles,
   Workflow,
   X,
 } from "lucide-react";
@@ -174,11 +174,7 @@ function TriStateSwitch({
         onChange(!checked || indeterminate);
       }}
       className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:ring-offset-2 focus:ring-offset-[#17171A] ${
-        indeterminate
-          ? "bg-amber-500/80"
-          : checked
-            ? "bg-emerald-500"
-            : "bg-[#2A2A2E]"
+        indeterminate ? "bg-amber-500/80" : checked ? "bg-emerald-500" : "bg-[#2A2A2E]"
       } ${disabled ? "opacity-50 cursor-not-allowed" : ""}`}
     >
       <span
@@ -210,11 +206,7 @@ export interface BotMcpToolSelectorProps {
   className?: string;
 }
 
-export function BotMcpToolSelector({
-  value,
-  onChange,
-  className = "",
-}: BotMcpToolSelectorProps) {
+export function BotMcpToolSelector({ value, onChange, className = "" }: BotMcpToolSelectorProps) {
   const [expandedConnectors, setExpandedConnectors] = useState<Record<string, boolean>>({});
   const [searchQuery, setSearchQuery] = useState("");
 
@@ -361,7 +353,8 @@ export function BotMcpToolSelector({
             </span>
           </div>
           <p className="mt-0.5 text-[12px] text-[#85858A]">
-            Activez ou restreignez les connecteurs et outils autorisés pour cet agent ({activeTotalToolCount} / {totalToolCount} outils actifs).
+            Activez ou restreignez les connecteurs et outils autorisés pour cet agent (
+            {activeTotalToolCount} / {totalToolCount} outils actifs).
           </p>
         </div>
 
@@ -613,4 +606,3 @@ export function BotMcpToolSelector({
     </div>
   );
 }
-

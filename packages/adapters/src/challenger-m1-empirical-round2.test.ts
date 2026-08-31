@@ -1,21 +1,21 @@
-import { describe, expect, it, vi } from "vitest";
 import crypto from "crypto";
+import { describe, expect, it, vi } from "vitest";
+import type { SkillItemLike } from "./executor.js";
+import { buildSubagentPrompt } from "./pi-runtime.js";
 import {
   assemble4BlockCachePrompt,
-  computeSessionAffinityKey,
-  extractCacheTelemetry,
-  STATIC_PLATFORM_GUARDRAILS_BLOC_A,
   type BotPromptConfig,
   type ConversationTurn,
+  computeSessionAffinityKey,
   type EphemeralUserTurn,
+  extractCacheTelemetry,
+  STATIC_PLATFORM_GUARDRAILS_BLOC_A,
 } from "./prefix-caching.js";
 import {
   compilePromptLevel1Deterministic,
   createPromptCompilerService,
   extractThoughtTrace,
 } from "./prompt-compiler.js";
-import { buildSubagentPrompt } from "./pi-runtime.js";
-import { type SkillItemLike } from "./executor.js";
 
 function sha256(str: string): string {
   return crypto.createHash("sha256").update(str, "utf8").digest("hex");
@@ -73,7 +73,10 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
             content: `Execution results for turn ${turn}`,
             toolResults: [
               { toolName: "shell", result: `Output log data #${turn}: success` },
-              { toolName: "list_files", result: [`/src/file_${turn}.ts`, `/src/config_${turn}.json`] },
+              {
+                toolName: "list_files",
+                result: [`/src/file_${turn}.ts`, `/src/config_${turn}.json`],
+              },
             ],
           });
         } else if (turn % 2 === 0) {
@@ -116,14 +119,62 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
 
     it("1.2 guarantees Bloc B is byte-identical across 100 random permutations of skills array", () => {
       const rawSkills: SkillItemLike[] = [
-        { name: "Kubernetes Operator", slug: "k8s", description: "K8s cluster management", content: "kubectl apply -f", enabled: true },
-        { name: "AWS CDK", slug: "aws-cdk", description: "Infrastructure as Code", content: "cdk deploy --all", enabled: true },
-        { name: "Terraform HCL", slug: "terraform", description: "Cloud provisioning", content: "terraform plan -out", enabled: true },
-        { name: "Prometheus Monitoring", slug: "prometheus", description: "Metrics collection", content: "rate(http_requests_total[5m])", enabled: true },
-        { name: "Grafana Dashboards", slug: "grafana", description: "Visualizations", content: "Create PromQL query panels", enabled: true },
-        { name: "GitOps ArgoCD", slug: "argocd", description: "Continuous delivery", content: "argocd app sync my-app", enabled: true },
-        { name: "Disabled Skill 1", slug: "dis-1", description: "Disabled", content: "No-op", enabled: false },
-        { name: "Disabled Skill 2", slug: "dis-2", description: "Disabled", content: "No-op", enabled: false },
+        {
+          name: "Kubernetes Operator",
+          slug: "k8s",
+          description: "K8s cluster management",
+          content: "kubectl apply -f",
+          enabled: true,
+        },
+        {
+          name: "AWS CDK",
+          slug: "aws-cdk",
+          description: "Infrastructure as Code",
+          content: "cdk deploy --all",
+          enabled: true,
+        },
+        {
+          name: "Terraform HCL",
+          slug: "terraform",
+          description: "Cloud provisioning",
+          content: "terraform plan -out",
+          enabled: true,
+        },
+        {
+          name: "Prometheus Monitoring",
+          slug: "prometheus",
+          description: "Metrics collection",
+          content: "rate(http_requests_total[5m])",
+          enabled: true,
+        },
+        {
+          name: "Grafana Dashboards",
+          slug: "grafana",
+          description: "Visualizations",
+          content: "Create PromQL query panels",
+          enabled: true,
+        },
+        {
+          name: "GitOps ArgoCD",
+          slug: "argocd",
+          description: "Continuous delivery",
+          content: "argocd app sync my-app",
+          enabled: true,
+        },
+        {
+          name: "Disabled Skill 1",
+          slug: "dis-1",
+          description: "Disabled",
+          content: "No-op",
+          enabled: false,
+        },
+        {
+          name: "Disabled Skill 2",
+          slug: "dis-2",
+          description: "Disabled",
+          content: "No-op",
+          enabled: false,
+        },
       ];
 
       const baselineConfig: BotPromptConfig = {
@@ -169,8 +220,20 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
       const hugeSkillContent = "RÈGLE DÉTAILLÉE :\n" + "X".repeat(10_000);
       const smallSkillContent = "PETITE RÈGLE : concision et clarté.";
 
-      const skillA: SkillItemLike = { name: "Direct Skill", slug: "direct-skill", description: "Small skill", content: smallSkillContent, enabled: true };
-      const skillB: SkillItemLike = { name: "Indexed Huge Skill", slug: "huge-skill", description: "Big manual", content: hugeSkillContent, enabled: true };
+      const skillA: SkillItemLike = {
+        name: "Direct Skill",
+        slug: "direct-skill",
+        description: "Small skill",
+        content: smallSkillContent,
+        enabled: true,
+      };
+      const skillB: SkillItemLike = {
+        name: "Indexed Huge Skill",
+        slug: "huge-skill",
+        description: "Big manual",
+        content: hugeSkillContent,
+        enabled: true,
+      };
       const skills: SkillItemLike[] = [skillA, skillB];
 
       const prompt1 = assemble4BlockCachePrompt({
@@ -179,14 +242,18 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
       });
 
       const prompt2 = assemble4BlockCachePrompt({
-        bot: { botName: "hybrid-bot", instructions: "Instructions", activeSkills: [skillB, skillA] },
+        bot: {
+          botName: "hybrid-bot",
+          instructions: "Instructions",
+          activeSkills: [skillB, skillA],
+        },
         currentTurn: { prompt: "Test 2" },
       });
 
       expect(sha256(prompt1.blocB)).toBe(sha256(prompt2.blocB));
       expect(prompt1.blocB).toContain("### Compétence active : Direct Skill");
       expect(prompt1.blocB).toContain("### Compétence indexée : Indexed Huge Skill");
-      expect(prompt1.blocB).toContain("read_skill(name: \"huge-skill\")");
+      expect(prompt1.blocB).toContain('read_skill(name: "huge-skill")');
     });
   });
 
@@ -230,7 +297,9 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
         const duration = Date.now() - startTime;
 
         expect(output.levelUsed).toBe("level1_deterministic");
-        expect(output.explanation).toContain("Gracefully fell back to Level 1 deterministic compilation");
+        expect(output.explanation).toContain(
+          "Gracefully fell back to Level 1 deterministic compilation",
+        );
         expect(output.compiledInstruction).toContain("# Role & Identity");
         expect(output.compiledInstruction).toContain("## Core Mission");
         expect(output.compiledInstruction).toContain("## Operational Rules & Constraints");
@@ -243,7 +312,9 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
         const mockFetch = vi.fn().mockImplementation((_url, init) => {
           return new Promise((_resolve, reject) => {
             init.signal?.addEventListener("abort", () => {
-              const abortErr = new Error("AbortError: Request timed out after 15000ms with token sk-or-v1-secret");
+              const abortErr = new Error(
+                "AbortError: Request timed out after 15000ms with token sk-or-v1-secret",
+              );
               abortErr.name = "AbortError";
               reject(abortErr);
             });
@@ -268,8 +339,7 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
 
     describe("8,192 Token Ceiling Enforcement", () => {
       it("2.3 bounds subagent token ceiling strictly to [1, 8192] across all possible input values", () => {
-        const clampTokens = (maxTokens?: number) =>
-          Math.min(Math.max(maxTokens ?? 8192, 1), 8192);
+        const clampTokens = (maxTokens?: number) => Math.min(Math.max(maxTokens ?? 8192, 1), 8192);
 
         // Ceiling upper bound caps
         expect(clampTokens(undefined)).toBe(8192);
@@ -296,7 +366,10 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
       it("2.4 handles massive input prompts (>100,000 chars / ~25,000 tokens) deterministically in Level 1 under 100ms without crashing", () => {
         const massiveInstruction = [
           "You are an enterprise big data analyst.",
-          ...Array.from({ length: 1500 }, (_, i) => `Rule ${i}: Must validate schema partition #${i} strictly before ingestion.`),
+          ...Array.from(
+            { length: 1500 },
+            (_, i) => `Rule ${i}: Must validate schema partition #${i} strictly before ingestion.`,
+          ),
           "Format: Deliver partitioned parquet files.",
           "If error: Log to S3 dead-letter queue.",
         ].join("\n");
@@ -323,7 +396,11 @@ describe("Empirical Challenger 2 M1: Byte-Stability & Prompt Compiler Service Li
       });
 
       it("2.5 subagent prompt builder (buildSubagentPrompt) produces deterministic Level 1 prompt with 5 sections", () => {
-        const subPrompt = buildSubagentPrompt("tester-subagent", "Run unit tests", "Report pass/fail counts");
+        const subPrompt = buildSubagentPrompt(
+          "tester-subagent",
+          "Run unit tests",
+          "Report pass/fail counts",
+        );
         expect(subPrompt.levelUsed).toBe("level1_deterministic");
         expect(subPrompt.compiledInstruction).toContain("# Role & Identity");
         expect(subPrompt.compiledInstruction).toContain("## Core Mission");

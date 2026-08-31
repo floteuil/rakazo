@@ -1,8 +1,8 @@
+import type { BotMcpConfig } from "@rakazo/contracts";
+import { SOVEREIGN_MCP_CONNECTORS } from "@rakazo/contracts";
 import React, { useState } from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import type { BotMcpConfig } from "@rakazo/contracts";
-import { SOVEREIGN_MCP_CONNECTORS } from "@rakazo/contracts";
 import { PromptCompilerModal } from "./PromptCompilerModal";
 
 // ============================================================================
@@ -69,7 +69,9 @@ export function PromptCompilerModalHarness({
   const [level, setLevel] = useState<"level1_deterministic" | "level2_llm">("level2_llm");
   const [compiledText, setCompiledText] = useState(initialCompiled);
   const [isCompiling, setIsCompiling] = useState(isCompilingInitial);
-  const [error, setError] = useState<string | null>(initialError ? sanitizeToolError(initialError) : null);
+  const [error, setError] = useState<string | null>(
+    initialError ? sanitizeToolError(initialError) : null,
+  );
   const [telemetry, setTelemetry] = useState<{
     cachedTokens?: number;
     durationMs?: number;
@@ -173,15 +175,17 @@ export function PromptCompilerModalHarness({
           </div>
 
           {telemetry && (
-            <div data-testid="compiler-telemetry-badge" className="flex items-center gap-3 text-[11px] text-[#A1A1AA]">
+            <div
+              data-testid="compiler-telemetry-badge"
+              className="flex items-center gap-3 text-[11px] text-[#A1A1AA]"
+            >
               {telemetry.cachedTokens !== undefined && (
                 <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-400">
-                  {telemetry.cachedTokens} tokens en cache ({((telemetry.cacheHitRatio ?? 0) * 100).toFixed(0)}%)
+                  {telemetry.cachedTokens} tokens en cache (
+                  {((telemetry.cacheHitRatio ?? 0) * 100).toFixed(0)}%)
                 </span>
               )}
-              {telemetry.durationMs !== undefined && (
-                <span>{telemetry.durationMs} ms</span>
-              )}
+              {telemetry.durationMs !== undefined && <span>{telemetry.durationMs} ms</span>}
             </div>
           )}
         </div>
@@ -237,8 +241,12 @@ export function PromptCompilerModalHarness({
                 className="flex flex-1 flex-col items-center justify-center rounded-xl border border-[#26262A] bg-[#0E0E10] p-6 text-center text-[#85858A]"
               >
                 <div className="h-7 w-7 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent mb-3" />
-                <p className="text-xs font-medium text-[#ECECEE]">Structuration par gpt-oss-120b en cours…</p>
-                <p className="mt-1 text-[11px] text-[#71717A]">Application du format hiérarchique et des garde-fous</p>
+                <p className="text-xs font-medium text-[#ECECEE]">
+                  Structuration par gpt-oss-120b en cours…
+                </p>
+                <p className="mt-1 text-[11px] text-[#71717A]">
+                  Application du format hiérarchique et des garde-fous
+                </p>
               </div>
             ) : (
               <textarea
@@ -290,7 +298,12 @@ export function ResponsiveBotCreationFormHarness({
   viewportWidth?: number;
   initialInstructions?: string;
   initialMcpConfig?: BotMcpConfig;
-  onSave?: (data: { name: string; title: string; instructions: string; mcpConfig: BotMcpConfig }) => void;
+  onSave?: (data: {
+    name: string;
+    title: string;
+    instructions: string;
+    mcpConfig: BotMcpConfig;
+  }) => void;
 }) {
   const isMobile = viewportWidth < 768;
 
@@ -355,7 +368,9 @@ export function ResponsiveBotCreationFormHarness({
 
       <div>
         <div className="mb-1.5 flex items-center justify-between">
-          <label className="text-xs font-medium text-[#A1A1AA]">Instructions système de l'agent</label>
+          <label className="text-xs font-medium text-[#A1A1AA]">
+            Instructions système de l'agent
+          </label>
           <button
             type="button"
             data-testid="rendre-pro-btn"
@@ -377,7 +392,10 @@ export function ResponsiveBotCreationFormHarness({
         />
       </div>
 
-      <div data-testid="form-mcp-section" className="rounded-xl border border-[#26262A] bg-[#121215] p-4">
+      <div
+        data-testid="form-mcp-section"
+        className="rounded-xl border border-[#26262A] bg-[#121215] p-4"
+      >
         <h4 className="text-xs font-semibold uppercase text-[#71717A]">Connecteurs MCP Actifs</h4>
         <div className="mt-2.5 flex flex-wrap gap-2">
           {SOVEREIGN_MCP_CONNECTORS.slice(0, 3).map((conn) => {
@@ -550,17 +568,13 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
 
     describe("Feature 8: Multi-Device Responsive Ergonomics", () => {
       it("1.8.1 enforces w-[98%] max-w-[98%] on mobile viewports (<768px)", () => {
-        const html = renderToStaticMarkup(
-          <ResponsiveBotCreationFormHarness viewportWidth={375} />,
-        );
+        const html = renderToStaticMarkup(<ResponsiveBotCreationFormHarness viewportWidth={375} />);
         expect(html).toContain("w-[98%]");
         expect(html).toContain("max-w-[98%]");
       });
 
       it("1.8.2 prevents iOS Safari auto-zoom with text-[16px] on mobile inputs and textareas", () => {
-        const html = renderToStaticMarkup(
-          <ResponsiveBotCreationFormHarness viewportWidth={390} />,
-        );
+        const html = renderToStaticMarkup(<ResponsiveBotCreationFormHarness viewportWidth={390} />);
         expect(html).toContain("text-[16px]");
       });
 
@@ -617,7 +631,14 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
       });
 
       it("1.9.5 ensures zero global stylesheet pollution by using scoped Tailwind utility classes", () => {
-        const html = renderToStaticMarkup(<PromptCompilerModalHarness isOpen={true} rawDraft="Test" onClose={() => {}} onApply={() => {}} />);
+        const html = renderToStaticMarkup(
+          <PromptCompilerModalHarness
+            isOpen={true}
+            rawDraft="Test"
+            onClose={() => {}}
+            onApply={() => {}}
+          />,
+        );
         expect(html).toContain("fixed inset-0 z-50");
       });
     });
@@ -697,7 +718,7 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
         const html = renderToStaticMarkup(
           <ResponsiveBotCreationFormHarness initialInstructions="   " />,
         );
-        expect(html).toContain("disabled=\"\"");
+        expect(html).toContain('disabled=""');
       });
 
       it("2.7.2 handles large prompt (5,000 words) inside scrollable modal pane without layout overflow", () => {
@@ -726,7 +747,7 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
           />,
         );
         expect(html).toContain("compiler-apply-btn");
-        expect(html).toContain("disabled=\"\"");
+        expect(html).toContain('disabled=""');
       });
 
       it("2.7.4 hides telemetry badge when telemetry is undefined", () => {
@@ -889,7 +910,7 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
       it("2.9.1 verifies MCP toggle states in parent form remain completely unchanged during compiler lifecycle", () => {
         const initialMcp: BotMcpConfig = {
           connectors: { searxng: true, scraperr: true, github: false },
-          tools: { "github_create_issue": false },
+          tools: { github_create_issue: false },
         };
 
         const html = renderToStaticMarkup(
@@ -969,10 +990,7 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
     it("3.1 Mobile creation flow (<768px) + Prompt compilation + Draft preservation buffer", () => {
       const initialDraft = "Mon intention initiale de bot de support.";
       const formHtml = renderToStaticMarkup(
-        <ResponsiveBotCreationFormHarness
-          viewportWidth={375}
-          initialInstructions={initialDraft}
-        />,
+        <ResponsiveBotCreationFormHarness viewportWidth={375} initialInstructions={initialDraft} />,
       );
 
       expect(formHtml).toContain("w-[98%]");
@@ -1017,9 +1035,7 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
     });
 
     it("3.4 Mobile chat composer with keyboard safe-area and send action integration", () => {
-      const html = renderToStaticMarkup(
-        <MobileComposerHarness onSendMessage={() => {}} />,
-      );
+      const html = renderToStaticMarkup(<MobileComposerHarness onSendMessage={() => {}} />);
       expect(html).toContain("mobile-composer-bar");
       expect(html).toContain("mobile-chat-textarea");
       expect(html).toContain("mobile-chat-send-btn");
@@ -1062,9 +1078,7 @@ describe("Prompt Compiler WebUI & Multi-Device Responsive (Master 4-Tier E2E)", 
     });
 
     it("4.2 Real-World: Mobile Onboarding & Bot Creation on Touch Device (<768px) with Keyboard & Safe Areas", () => {
-      const composerHtml = renderToStaticMarkup(
-        <MobileComposerHarness onSendMessage={() => {}} />,
-      );
+      const composerHtml = renderToStaticMarkup(<MobileComposerHarness onSendMessage={() => {}} />);
 
       expect(composerHtml).toContain("pb-[max(12px,env(safe-area-inset-bottom))]");
       expect(composerHtml).toContain("min-w-0");

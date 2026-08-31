@@ -1,32 +1,26 @@
-import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from "vitest";
+import { FREE_INFERENCE_UNAVAILABLE_MESSAGE, type InferenceUsageTag } from "@rakazo/contracts";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
+import { DestinationEmulator } from "../../../adapters/src/destination-emulator.js";
 import {
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
-  type InferenceUsageTag,
-} from "@rakazo/contracts";
-import {
-  RakazoFreePolicyEngine,
   APPROVED_FREE_PROVIDERS,
+  RakazoFreePolicyEngine,
 } from "../../../adapters/src/free-policy-engine.js";
-import { SubagentExecutor } from "../../../adapters/src/subagent-inheritance.js";
+import { createToolCallTracker, evaluateToolCallGuard } from "../../../adapters/src/loop-guards.js";
+import { McpEmulator } from "../../../adapters/src/mcp-emulator.js";
+import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
+import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
 import {
   assemble4BlockCachePrompt,
   computeSessionAffinityKey,
   extractCacheTelemetry,
 } from "../../../adapters/src/prefix-caching.js";
+import { SubagentExecutor } from "../../../adapters/src/subagent-inheritance.js";
 import { compactToolResult } from "../../../adapters/src/tool-compacting.js";
-import {
-  createToolCallTracker,
-  evaluateToolCallGuard,
-} from "../../../adapters/src/loop-guards.js";
-import {
-  recordPromptExecutionLogAsync,
-  type PromptExecutionLogInput,
-} from "../../../db/src/telemetry.js";
 import type { PrismaClient } from "../../../db/src/client.js";
-import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
-import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
-import { McpEmulator } from "../../../adapters/src/mcp-emulator.js";
-import { DestinationEmulator } from "../../../adapters/src/destination-emulator.js";
+import {
+  type PromptExecutionLogInput,
+  recordPromptExecutionLogAsync,
+} from "../../../db/src/telemetry.js";
 
 describe("Tier 3: Cross-Feature Interactions & Pairwise Combinations (R1-R6 per TEST_INFRA.md)", () => {
   let mockServer: MockOmniRouteServer;
@@ -65,7 +59,10 @@ describe("Tier 3: Cross-Feature Interactions & Pairwise Combinations (R1-R6 per 
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         method: "tools/call",
-        params: { name: "notes.write", arguments: { path: "disk.log", text: "Disk usage: 42% healthy" } },
+        params: {
+          name: "notes.write",
+          arguments: { path: "disk.log", text: "Disk usage: 42% healthy" },
+        },
       }),
     });
     expect(mcpResponse.ok).toBe(true);
@@ -525,7 +522,7 @@ describe("Tier 3: Cross-Feature Interactions & Pairwise Combinations (R1-R6 per 
 
     const serialized = JSON.stringify(payloadWithSecret);
     const redacted = serialized
-      .replace(/sk-or-v1-[a-zA-Z0-9_\-]+/g, "[REDACTED_OR]")
+      .replace(/sk-or-v1-[a-zA-Z0-9_-]+/g, "[REDACTED_OR]")
       .replace(/ghp_[a-zA-Z0-9]{36}/g, "[REDACTED_GH]");
 
     expect(redacted).not.toContain("sk-or-v1-super-secret");

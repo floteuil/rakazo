@@ -81,7 +81,9 @@ Master TypeScript with advanced types, generics, and strict safety.
 `;
         const result = parseSkillMarkdown(markdown);
         expect(result.name).toBe("TypeScript Expert");
-        expect(result.description).toBe("Master TypeScript with advanced types, generics, and strict safety.");
+        expect(result.description).toBe(
+          "Master TypeScript with advanced types, generics, and strict safety.",
+        );
       });
 
       it("1.4 parses comma-separated string tags in frontmatter", () => {

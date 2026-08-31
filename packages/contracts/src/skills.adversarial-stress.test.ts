@@ -172,7 +172,8 @@ Some content.
   // ==========================================================================
   describe("3. Security Sanitization & Injection Matrix", () => {
     it("3.1 strips mixed-casing script tags (<sCrIpT>)", () => {
-      const raw = 'Normal text <sCrIpT type="text/javascript">steal(document.cookie)</ScRiPt> Safe text';
+      const raw =
+        'Normal text <sCrIpT type="text/javascript">steal(document.cookie)</ScRiPt> Safe text';
       const clean = sanitizeMarkdownContent(raw);
       expect(clean).not.toMatch(/<script/i);
       expect(clean).not.toContain("steal");
@@ -201,7 +202,8 @@ Some content.
     });
 
     it("3.4 removes diverse on* event handler attributes", () => {
-      const raw = '<img src=x onload="alert(1)" onerror=alert(2) onmouseover=\'alert(3)\' onfocus=alert(4)>';
+      const raw =
+        "<img src=x onload=\"alert(1)\" onerror=alert(2) onmouseover='alert(3)' onfocus=alert(4)>";
       const clean = sanitizeMarkdownContent(raw);
       expect(clean).not.toContain("onload=");
       expect(clean).not.toContain("onerror=");
@@ -273,7 +275,9 @@ Some content.
     });
 
     it("5.2 enforces tag array limits in CreateSkillInput (max 20 tags, max 50 chars each)", () => {
-      const validTags = Array.from({ length: 20 }, (_, i) => `tag-${i}-${"x".repeat(40)}`.slice(0, 50));
+      const validTags = Array.from({ length: 20 }, (_, i) =>
+        `tag-${i}-${"x".repeat(40)}`.slice(0, 50),
+      );
       expect(() =>
         CreateSkillInput.parse({
           name: "Tagged Skill",
@@ -355,7 +359,12 @@ Some content.
   // ==========================================================================
   describe("6. Zod Contracts Invariants", () => {
     it("6.1 rejects invalid slug formats in CreateSkillInput and UpdateSkillInput", () => {
-      const invalidSlugs = ["Uppercase-Slug", "slug_with_underscore", "slug with spaces", "slug@special!"];
+      const invalidSlugs = [
+        "Uppercase-Slug",
+        "slug_with_underscore",
+        "slug with spaces",
+        "slug@special!",
+      ];
 
       for (const badSlug of invalidSlugs) {
         expect(() =>

@@ -1,5 +1,11 @@
+import type {
+  Actor,
+  Bot,
+  BotInferenceConfig,
+  BotMcpConfig,
+  InferenceUsageTag,
+} from "@rakazo/contracts";
 import { describe, expect, it, vi } from "vitest";
-import type { Actor, Bot, BotInferenceConfig, BotMcpConfig, InferenceUsageTag } from "@rakazo/contracts";
 import type { PrismaClient } from "./client.js";
 import { createRepos } from "./repos.js";
 import { IsolationError } from "./scope.js";
@@ -876,7 +882,7 @@ describe("Milestone 1 Challenger 2: Metadata Coexistence & Concurrency Integrity
       });
 
       // Verify Object prototype is NOT polluted
-      expect((({} as any).polluted)).toBeUndefined();
+      expect(({} as any).polluted).toBeUndefined();
     });
 
     it("4.5 High-contention 20-operation concurrency simulation maintains data integrity", async () => {
@@ -905,7 +911,9 @@ describe("Milestone 1 Challenger 2: Metadata Coexistence & Concurrency Integrity
             state = {
               ...current,
               ...data,
-              metadata: data.metadata ? JSON.parse(JSON.stringify(data.metadata)) : current.metadata,
+              metadata: data.metadata
+                ? JSON.parse(JSON.stringify(data.metadata))
+                : current.metadata,
               createdAt: current.createdAt,
               updatedAt: new Date(),
             };
@@ -981,5 +989,3 @@ describe("Milestone 1 Challenger 2: Metadata Coexistence & Concurrency Integrity
     });
   });
 });
-
-

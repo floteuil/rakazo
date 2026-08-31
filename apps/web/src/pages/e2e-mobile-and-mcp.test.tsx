@@ -1,7 +1,3 @@
-import React, { useMemo, useState } from "react";
-import { renderToStaticMarkup } from "react-dom/server";
-import { MemoryRouter } from "react-router-dom";
-import { describe, expect, it } from "vitest";
 import {
   ALL_SOVEREIGN_TOOL_NAMES,
   type BotMcpConfig,
@@ -18,15 +14,15 @@ import {
   type SovereignCategory,
   type SovereignMcpConnector,
 } from "@rakazo/contracts";
-import {
-  containsSecret,
-  createStreamingRedactor,
-  redactSecrets,
-} from "@rakazo/core";
-import { SkillLibraryOverlay } from "./SkillLibraryOverlay";
-import { ModelSettingsOverlay } from "./ModelSettingsOverlay";
-import { VoiceSettingsOverlay } from "./VoiceSettingsOverlay";
+import { containsSecret, createStreamingRedactor, redactSecrets } from "@rakazo/core";
+import React, { useMemo, useState } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { MemoryRouter } from "react-router-dom";
+import { describe, expect, it } from "vitest";
 import { AuthPage } from "./Auth";
+import { ModelSettingsOverlay } from "./ModelSettingsOverlay";
+import { SkillLibraryOverlay } from "./SkillLibraryOverlay";
+import { VoiceSettingsOverlay } from "./VoiceSettingsOverlay";
 
 function sanitizeToolError(message: string): string {
   return message
@@ -84,7 +80,12 @@ export function MobileShellNavHarness({
         >
           <span className="sr-only">Menu</span>
           <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={2}
+              d="M4 6h16M4 12h16M4 18h16"
+            />
           </svg>
         </button>
 
@@ -136,13 +137,22 @@ export function MobileShellNavHarness({
           </div>
           <div className="flex-1 overflow-y-auto p-3">
             <nav className="space-y-1">
-              <a href="#agents" className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-[15px] text-[#ECECEE] hover:bg-[#1E1E22]">
+              <a
+                href="#agents"
+                className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-[15px] text-[#ECECEE] hover:bg-[#1E1E22]"
+              >
                 Mes Agents
               </a>
-              <a href="#skills" className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-[15px] text-[#ECECEE] hover:bg-[#1E1E22]">
+              <a
+                href="#skills"
+                className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-[15px] text-[#ECECEE] hover:bg-[#1E1E22]"
+              >
                 Bibliothèque de Compétences
               </a>
-              <a href="#connectors" className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-[15px] text-[#ECECEE] hover:bg-[#1E1E22]">
+              <a
+                href="#connectors"
+                className="flex min-h-[44px] items-center rounded-lg px-3 py-2.5 text-[15px] text-[#ECECEE] hover:bg-[#1E1E22]"
+              >
                 Connecteurs MCP
               </a>
             </nav>
@@ -221,7 +231,9 @@ export function McpShowcaseHarness({
         (c) =>
           c.name.toLowerCase().includes(q) ||
           c.description.toLowerCase().includes(q) ||
-          c.tools.some((t) => t.name.toLowerCase().includes(q) || t.label.toLowerCase().includes(q)),
+          c.tools.some(
+            (t) => t.name.toLowerCase().includes(q) || t.label.toLowerCase().includes(q),
+          ),
       );
     }
     return list;
@@ -295,7 +307,9 @@ export function McpShowcaseHarness({
           <div
             data-testid="mcp-connector-list"
             className={`rk-scroll flex-1 overflow-y-auto p-4 sm:p-6 ${
-              activeConnector ? "hidden md:block md:w-1/2 md:border-r md:border-[#26262A]" : "w-full"
+              activeConnector
+                ? "hidden md:block md:w-1/2 md:border-r md:border-[#26262A]"
+                : "w-full"
             }`}
           >
             {filteredConnectors.length === 0 ? (
@@ -324,7 +338,9 @@ export function McpShowcaseHarness({
                           {connector.name[0]}
                         </div>
                         <div>
-                          <div className="text-[15px] font-medium text-[#F1F1F2]">{connector.name}</div>
+                          <div className="text-[15px] font-medium text-[#F1F1F2]">
+                            {connector.name}
+                          </div>
                           <div className="text-xs text-[#71717A]">{connector.categoryLabel}</div>
                         </div>
                       </div>
@@ -457,10 +473,7 @@ interface BotMcpToolSelectorHarnessProps {
   onChange: (next: BotMcpConfig) => void;
 }
 
-export function BotMcpToolSelectorHarness({
-  value,
-  onChange,
-}: BotMcpToolSelectorHarnessProps) {
+export function BotMcpToolSelectorHarness({ value, onChange }: BotMcpToolSelectorHarnessProps) {
   const [expandedConnector, setExpandedConnector] = useState<string | null>(null);
 
   const connectors = SOVEREIGN_MCP_CONNECTORS;
@@ -630,10 +643,7 @@ export function filterToolsForBot(
       : getConnectorForTool(tool.name);
 
     if (connector) {
-      if (
-        mcpConfig.connectors &&
-        typeof mcpConfig.connectors[connector.id] === "boolean"
-      ) {
+      if (mcpConfig.connectors && typeof mcpConfig.connectors[connector.id] === "boolean") {
         return mcpConfig.connectors[connector.id];
       }
     }
@@ -934,9 +944,7 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
     // Feature 6: Adaptive Overlays & Modals
     describe("F6: Adaptive Overlays & Modals", () => {
       it("6.1 renders SkillLibraryOverlay with adaptive padding (p-4 sm:p-10)", () => {
-        const html = renderToStaticMarkup(
-          <SkillLibraryOverlay skills={[]} onClose={() => {}} />,
-        );
+        const html = renderToStaticMarkup(<SkillLibraryOverlay skills={[]} onClose={() => {}} />);
         expect(html).toContain("Bibliothèque de Compétences");
         expect(html).toContain("bg-[#141416]");
       });
@@ -950,7 +958,7 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
       it("6.3 renders VoiceSettingsOverlay with responsive container tokens", () => {
         const html = renderToStaticMarkup(<VoiceSettingsOverlay onClose={() => {}} />);
         expect(html).toContain("Synthèse vocale");
-        expect(html).toContain("data-testid=\"voice-settings\"");
+        expect(html).toContain('data-testid="voice-settings"');
       });
 
       it("6.4 renders adaptive modal backdrop with semi-transparent elevation", () => {
@@ -1294,10 +1302,7 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
       });
 
       it("13.5 resolves connector by tool lookup if connectorId is not explicitly provided on tool object", () => {
-        const toolsWithoutConnId = [
-          { name: "web_search" },
-          { name: "notion_search" },
-        ];
+        const toolsWithoutConnId = [{ name: "web_search" }, { name: "notion_search" }];
         const config: BotMcpConfig = {
           connectors: { notion: false },
         };
@@ -1497,7 +1502,10 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
         const result1 = filterToolsForBot([{ name: "test" }], null);
         const result2 = filterToolsForBot([{ name: "test" }], undefined);
         const result3 = filterToolsForBot([{ name: "test" }], {} as any);
-        const result4 = filterToolsForBot([{ name: "test" }], { connectors: null, tools: null } as any);
+        const result4 = filterToolsForBot([{ name: "test" }], {
+          connectors: null,
+          tools: null,
+        } as any);
         expect(result1).toHaveLength(1);
         expect(result2).toHaveLength(1);
         expect(result3).toHaveLength(1);

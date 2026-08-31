@@ -141,8 +141,10 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
 
         const prompt = formatSkillsPrompt([largeSkill]);
         expect(prompt).toBeDefined();
-        expect(prompt).toContain("### Compétence indexée : Docling Document Parser (docling-document-parser)");
-        expect(prompt).toContain("read_skill(name: \"docling-document-parser\")");
+        expect(prompt).toContain(
+          "### Compétence indexée : Docling Document Parser (docling-document-parser)",
+        );
+        expect(prompt).toContain('read_skill(name: "docling-document-parser")');
         expect(prompt).not.toContain("```markdown\nAAAA"); // Large content omitted from prompt
       });
 
@@ -200,7 +202,9 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
       it("1.6 prepares arguments from either 'name' or 'skill' parameter keys", () => {
         expect(prepareReadSkillArgs({ name: "docker-expert" })).toEqual({ name: "docker-expert" });
         expect(prepareReadSkillArgs({ skill: "docker-expert" })).toEqual({ name: "docker-expert" });
-        expect(prepareReadSkillArgs({ target: "docker-expert" })).toEqual({ name: "docker-expert" });
+        expect(prepareReadSkillArgs({ target: "docker-expert" })).toEqual({
+          name: "docker-expert",
+        });
       });
 
       it("1.7 executes read_skill and returns full content and metadata by slug", async () => {
@@ -251,11 +255,7 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
         expect(byName.slug).toBe("kubernetes-operator");
 
         // Search by exact ID
-        const byId = await executeReadSkillTool(
-          workspaceId,
-          { name: "cuid-skill-999" },
-          store,
-        );
+        const byId = await executeReadSkillTool(workspaceId, { name: "cuid-skill-999" }, store);
         expect(byId.slug).toBe("kubernetes-operator");
       });
 
@@ -289,11 +289,7 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
   describe("Tier 2: Boundary & Corner Cases", () => {
     it("2.1 handles non-existent skill in read_skill gracefully with structured error", async () => {
       const store: SkillItem[] = [];
-      const result = await executeReadSkillTool(
-        workspaceId,
-        { name: "non-existent-skill" },
-        store,
-      );
+      const result = await executeReadSkillTool(workspaceId, { name: "non-existent-skill" }, store);
 
       expect(result.error).toBe("Skill 'non-existent-skill' not found in workspace.");
       expect(result.content).toBeUndefined();
@@ -327,7 +323,10 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
     });
 
     it("2.3 preserves secret redaction on skill outputs containing API tokens", () => {
-      const redactor = createStreamingRedactor(["sk-ant-api03-topsecretkey12345", "ghp_supertoken9876"]);
+      const redactor = createStreamingRedactor([
+        "sk-ant-api03-topsecretkey12345",
+        "ghp_supertoken9876",
+      ]);
 
       const chunk1 = "# Deployment Helper\nRun command with token: sk-ant-api03-top";
       const chunk2 = "secretkey12345\nGitHub token: ghp_supertoken9876\n";
@@ -372,7 +371,7 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
       expect(prompt).toContain("### Compétence active : TypeScript Coding Standards");
       expect(prompt).toContain("Always use strict typing.");
       expect(prompt).toContain("### Compétence indexée : IBM Docling Comprehensive Manual");
-      expect(prompt).toContain("read_skill(name: \"docling-comprehensive-manual\")");
+      expect(prompt).toContain('read_skill(name: "docling-comprehensive-manual")');
 
       // Step 2: Simulate agent invoking read_skill for the indexed skill
       const toolResult = await executeReadSkillTool(
@@ -409,7 +408,9 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
 
       const prompt = formatSkillsPrompt([hdsSkill]);
       expect(prompt).toContain("## Compétences & Connaissances Spécialisées de l'Agent");
-      expect(prompt).toContain("### Compétence active : HDS Healthcare Security (hds-healthcare-security)");
+      expect(prompt).toContain(
+        "### Compétence active : HDS Healthcare Security (hds-healthcare-security)",
+      );
       expect(prompt).toContain("Normes HDS / RGPD Santé France");
       expect(prompt).toContain("Sécurité des Données de Santé");
 
@@ -419,7 +420,9 @@ describe("Pi-Runtime Hybrid Injection & read_skill Tool (4-Tier Suite)", () => {
         [hdsSkill],
       );
       expect(toolResult.name).toBe("HDS Healthcare Security");
-      expect(toolResult.content).toContain("Tout flux transitant sur le réseau interne doit être chiffré.");
+      expect(toolResult.content).toContain(
+        "Tout flux transitant sur le réseau interne doit être chiffré.",
+      );
     });
   });
 });

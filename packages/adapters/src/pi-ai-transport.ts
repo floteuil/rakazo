@@ -23,23 +23,20 @@ export class PiAiInferenceTransport implements InferenceTransport {
   constructor(options: PiAiTransportOptions = {}) {
     this.apiKey = options.apiKey ?? process.env.OPENROUTER_API_KEY;
     this.defaultModel =
-      options.defaultModel ??
-      (process.env.PI_DEFAULT_MODEL || "openai/gpt-oss-120b");
+      options.defaultModel ?? (process.env.PI_DEFAULT_MODEL || "openai/gpt-oss-120b");
     this.models = options.models ?? builtinModels();
   }
 
-  public async *stream(
-    request: InferenceTransportRequest,
-  ): AsyncIterable<InferenceTransportChunk> {
-    const provider = request.provider === "scripted" ? "openrouter" : request.provider ?? "openrouter";
+  public async *stream(request: InferenceTransportRequest): AsyncIterable<InferenceTransportChunk> {
+    const provider =
+      request.provider === "scripted" ? "openrouter" : (request.provider ?? "openrouter");
     const modelId =
       request.model === "scripted"
         ? (process.env.PI_DEFAULT_MODEL ?? "openai/gpt-oss-120b")
         : request.model || this.defaultModel;
 
     const model =
-      this.models.getModel(provider as any, modelId) ??
-      this.models.getModel("openrouter", modelId);
+      this.models.getModel(provider as any, modelId) ?? this.models.getModel("openrouter", modelId);
 
     if (!model) {
       throw new Error(`Unknown model ${provider}/${modelId}`);
@@ -54,7 +51,7 @@ export class PiAiInferenceTransport implements InferenceTransport {
       if (msg.role === "system") {
         systemPrompt = systemPrompt
           ? `${systemPrompt}\n\n${msg.content ?? ""}`
-          : msg.content ?? "";
+          : (msg.content ?? "");
       } else if (msg.role === "user") {
         messages.push({
           role: "user",
@@ -114,11 +111,13 @@ export class PiAiInferenceTransport implements InferenceTransport {
     const context: Context = {
       systemPrompt,
       messages,
-      tools: (request.tools || []).map((t): Tool => ({
-        name: t.name,
-        description: t.description || "",
-        parameters: (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
-      })),
+      tools: (request.tools || []).map(
+        (t): Tool => ({
+          name: t.name,
+          description: t.description || "",
+          parameters: (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
+        }),
+      ),
     };
 
     const stream = await this.models.streamSimple(model, context, {
@@ -143,7 +142,10 @@ export class PiAiInferenceTransport implements InferenceTransport {
               id: tc.id,
               index: tc.index,
               name: tc.name,
-              arguments: typeof tc.arguments === "string" ? tc.arguments : JSON.stringify(tc.arguments ?? {}),
+              arguments:
+                typeof tc.arguments === "string"
+                  ? tc.arguments
+                  : JSON.stringify(tc.arguments ?? {}),
             },
           };
         }
@@ -160,7 +162,10 @@ export class PiAiInferenceTransport implements InferenceTransport {
               toolCall: {
                 id: block.id,
                 name: block.name,
-                arguments: typeof block.arguments === "string" ? block.arguments : JSON.stringify(block.arguments ?? {}),
+                arguments:
+                  typeof block.arguments === "string"
+                    ? block.arguments
+                    : JSON.stringify(block.arguments ?? {}),
               },
             };
           }

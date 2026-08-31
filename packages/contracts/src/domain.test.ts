@@ -211,12 +211,8 @@ describe("Domain Contracts — Free Intelligence Gateway (OmniRoute)", () => {
     });
 
     it("exposes structured error codes", () => {
-      expect(FREE_INFERENCE_ERROR_CODES.CAPACITY_UNAVAILABLE).toBe(
-        "FREE_CAPACITY_UNAVAILABLE",
-      );
-      expect(FREE_INFERENCE_ERROR_CODES.POLICY_VIOLATION).toBe(
-        "FREE_POLICY_VIOLATION",
-      );
+      expect(FREE_INFERENCE_ERROR_CODES.CAPACITY_UNAVAILABLE).toBe("FREE_CAPACITY_UNAVAILABLE");
+      expect(FREE_INFERENCE_ERROR_CODES.POLICY_VIOLATION).toBe("FREE_POLICY_VIOLATION");
       expect(FREE_INFERENCE_ERROR_CODES.TIMEOUT).toBe("FREE_TIMEOUT");
     });
   });

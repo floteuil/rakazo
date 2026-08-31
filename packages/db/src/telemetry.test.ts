@@ -2,8 +2,8 @@ import { describe, expect, it, vi } from "vitest";
 import type { PrismaClient } from "./client.js";
 import {
   listPromptExecutionLogs,
-  recordPromptExecutionLogAsync,
   type PromptExecutionLogInput,
+  recordPromptExecutionLogAsync,
 } from "./telemetry.js";
 
 describe("Prompt Execution Telemetry", () => {

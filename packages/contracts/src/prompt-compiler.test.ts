@@ -11,7 +11,9 @@ import {
 describe("Prompt Compiler Contracts", () => {
   describe("PromptCompilationLevelSchema", () => {
     it("accepts valid compilation levels", () => {
-      expect(PromptCompilationLevelSchema.parse("level1_deterministic")).toBe("level1_deterministic");
+      expect(PromptCompilationLevelSchema.parse("level1_deterministic")).toBe(
+        "level1_deterministic",
+      );
       expect(PromptCompilationLevelSchema.parse("level2_llm")).toBe("level2_llm");
     });
 
@@ -61,7 +63,9 @@ describe("Prompt Compiler Contracts", () => {
       const parsed = PromptCompileInputSchema.parse({
         rawInstruction: "You are a customer support agent. Help users with billing issues.",
       });
-      expect(parsed.rawInstruction).toBe("You are a customer support agent. Help users with billing issues.");
+      expect(parsed.rawInstruction).toBe(
+        "You are a customer support agent. Help users with billing issues.",
+      );
       expect(parsed.botName).toBeUndefined();
       expect(parsed.level).toBeUndefined();
     });
@@ -89,23 +93,32 @@ describe("Prompt Compiler Contracts", () => {
 
     it("enforces character length limits", () => {
       const maxInstruction = "a".repeat(20000);
-      expect(PromptCompileInputSchema.parse({ rawInstruction: maxInstruction }).rawInstruction).toHaveLength(20000);
+      expect(
+        PromptCompileInputSchema.parse({ rawInstruction: maxInstruction }).rawInstruction,
+      ).toHaveLength(20000);
 
       const overflowInstruction = "a".repeat(20001);
-      expect(() => PromptCompileInputSchema.parse({ rawInstruction: overflowInstruction })).toThrow();
+      expect(() =>
+        PromptCompileInputSchema.parse({ rawInstruction: overflowInstruction }),
+      ).toThrow();
 
       const overflowName = "b".repeat(81);
-      expect(() => PromptCompileInputSchema.parse({ rawInstruction: "test", botName: overflowName })).toThrow();
+      expect(() =>
+        PromptCompileInputSchema.parse({ rawInstruction: "test", botName: overflowName }),
+      ).toThrow();
 
       const overflowTitle = "c".repeat(161);
-      expect(() => PromptCompileInputSchema.parse({ rawInstruction: "test", botTitle: overflowTitle })).toThrow();
+      expect(() =>
+        PromptCompileInputSchema.parse({ rawInstruction: "test", botTitle: overflowTitle }),
+      ).toThrow();
     });
   });
 
   describe("PromptCompileOutputSchema", () => {
     it("parses valid compile output", () => {
       const parsed = PromptCompileOutputSchema.parse({
-        compiledInstruction: "# Role & Identity\nYou are a professional assistant.\n\n## Core Mission\nAssist users.",
+        compiledInstruction:
+          "# Role & Identity\nYou are a professional assistant.\n\n## Core Mission\nAssist users.",
         levelUsed: "level1_deterministic",
         explanation: "Compiled using Level 1 deterministic rule-based restructuring.",
         telemetry: {

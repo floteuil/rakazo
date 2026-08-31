@@ -50,16 +50,17 @@ function mapBot(
   }
 
   const rawInference = (meta as any)?.inference ?? (bot as any)?.inference;
-  let inference: BotInferenceConfig | undefined = undefined;
+  let inference: BotInferenceConfig | undefined;
   if (rawInference && typeof rawInference === "object") {
     const inf = rawInference as Record<string, unknown>;
     inference = {
       mode: inf.mode === "free" ? "free" : "premium",
       tags: Array.isArray(inf.tags)
         ? inf.tags
-            .filter((t): t is InferenceUsageTag =>
-              typeof t === "string" &&
-              ["coding", "writing", "reasoning", "fast", "analysis"].includes(t as any),
+            .filter(
+              (t): t is InferenceUsageTag =>
+                typeof t === "string" &&
+                ["coding", "writing", "reasoning", "fast", "analysis"].includes(t as any),
             )
             .slice(0, 3)
         : [],

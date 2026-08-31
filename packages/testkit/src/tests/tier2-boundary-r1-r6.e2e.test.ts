@@ -1,41 +1,35 @@
-import { describe, expect, it, vi, beforeAll, afterAll, beforeEach } from "vitest";
+import { existsSync, readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { FREE_INFERENCE_UNAVAILABLE_MESSAGE, type InferenceUsageTag } from "@rakazo/contracts";
+import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import {
-  FREE_INFERENCE_UNAVAILABLE_MESSAGE,
-  type InferenceUsageTag,
-} from "@rakazo/contracts";
-import {
-  RakazoFreePolicyEngine,
   APPROVED_FREE_PROVIDERS,
   AVOIDED_PROVIDERS,
+  RakazoFreePolicyEngine,
 } from "../../../adapters/src/free-policy-engine.js";
 import {
-  SubagentExecutor,
-  SUBAGENT_TOKEN_BUDGET_CEILING,
-  SUBAGENT_MAX_DEPTH,
-} from "../../../adapters/src/subagent-inheritance.js";
+  computeToolCallSignature,
+  createToolCallTracker,
+  evaluateToolCallGuard,
+} from "../../../adapters/src/loop-guards.js";
+import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
+import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
 import {
   assemble4BlockCachePrompt,
   computeSessionAffinityKey,
   extractCacheTelemetry,
 } from "../../../adapters/src/prefix-caching.js";
 import {
-  compactToolResult,
-  safelyTruncateJson,
-} from "../../../adapters/src/tool-compacting.js";
-import {
-  createToolCallTracker,
-  computeToolCallSignature,
-  evaluateToolCallGuard,
-} from "../../../adapters/src/loop-guards.js";
-import {
-  recordPromptExecutionLogAsync,
-  listPromptExecutionLogs,
-} from "../../../db/src/telemetry.js";
+  SUBAGENT_MAX_DEPTH,
+  SUBAGENT_TOKEN_BUDGET_CEILING,
+  SubagentExecutor,
+} from "../../../adapters/src/subagent-inheritance.js";
+import { compactToolResult, safelyTruncateJson } from "../../../adapters/src/tool-compacting.js";
 import type { PrismaClient } from "../../../db/src/client.js";
-import { MockOmniRouteServer } from "../../../adapters/src/omniroute-mock.js";
-import { FreeOmniRouteAdapter } from "../../../adapters/src/omniroute-adapter.js";
-import { readFileSync, existsSync } from "node:fs";
-import { resolve } from "node:path";
+import {
+  listPromptExecutionLogs,
+  recordPromptExecutionLogAsync,
+} from "../../../db/src/telemetry.js";
 
 function getRepoRoot(): string {
   let dir = import.meta.dirname ?? process.cwd();
@@ -80,7 +74,10 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
     });
 
     it("F1-B2: Rejects invalid or unreachable gateway URL fail-closed", async () => {
-      const brokenAdapter = new FreeOmniRouteAdapter({ baseUrl: "http://127.0.0.1:59999/v1", apiKey });
+      const brokenAdapter = new FreeOmniRouteAdapter({
+        baseUrl: "http://127.0.0.1:59999/v1",
+        apiKey,
+      });
       await expect(
         brokenAdapter.complete({ messages: [{ role: "user", content: "Test unreachable" }] }),
       ).rejects.toThrow();
@@ -195,7 +192,8 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
     });
 
     it("F3-B5: Handles Unicode and multilingual content in tool result compaction", () => {
-      const frenchChineseOutput = "Compte rendu d'exécution : 成功 - 100% terminé.\n" + "éàçüö".repeat(50);
+      const frenchChineseOutput =
+        "Compte rendu d'exécution : 成功 - 100% terminé.\n" + "éàçüö".repeat(50);
       const compacted = compactToolResult("shell", frenchChineseOutput);
       expect(compacted).toContain("Compte rendu d'exécution");
       expect(compacted).toContain("成功");
@@ -468,7 +466,10 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
     });
 
     it("F9-B5: Cache hit ratio handles 0 total prompt tokens without dividing by zero", () => {
-      const telemetry = extractCacheTelemetry({ prompt_tokens: 0, completion_tokens: 0, cached_tokens: 0 }, 10);
+      const telemetry = extractCacheTelemetry(
+        { prompt_tokens: 0, completion_tokens: 0, cached_tokens: 0 },
+        10,
+      );
       expect(telemetry.cacheHitRatio).toBe(0);
     });
   });
@@ -501,8 +502,16 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
     });
 
     it("F10-B4: Changing a single character in workspaceId produces different session key", () => {
-      const keyA = computeSessionAffinityKey({ workspaceId: "workspace_a", botId: "bot1", threadId: "t1" });
-      const keyB = computeSessionAffinityKey({ workspaceId: "workspace_b", botId: "bot1", threadId: "t1" });
+      const keyA = computeSessionAffinityKey({
+        workspaceId: "workspace_a",
+        botId: "bot1",
+        threadId: "t1",
+      });
+      const keyB = computeSessionAffinityKey({
+        workspaceId: "workspace_b",
+        botId: "bot1",
+        threadId: "t1",
+      });
       expect(keyA).not.toBe(keyB);
     });
 
@@ -526,7 +535,9 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
     const engine = new RakazoFreePolicyEngine();
 
     it("F11-B1: Handles null or empty provider string with fail-closed rejection", () => {
-      expect(() => engine.assertZeroCostAndAllowed("", 0.0)).toThrow(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+      expect(() => engine.assertZeroCostAndAllowed("", 0.0)).toThrow(
+        FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+      );
       expect(() => engine.assertZeroCostAndAllowed(null as unknown as string, 0.0)).toThrow(
         FREE_INFERENCE_UNAVAILABLE_MESSAGE,
       );
@@ -643,7 +654,7 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
   describe("Feature 13 Boundaries: Secrets Hygiene & Token Redaction", () => {
     it("F13-B1: Redacts Bearer token from authorization header in logs", () => {
       const authHeader = "Bearer sk-omniroute-secret-1234567890abcdef";
-      const sanitized = authHeader.replace(/Bearer\s+[a-zA-Z0-9_\-]+/i, "Bearer [REDACTED]");
+      const sanitized = authHeader.replace(/Bearer\s+[a-zA-Z0-9_-]+/i, "Bearer [REDACTED]");
       expect(sanitized).toBe("Bearer [REDACTED]");
     });
 
@@ -661,13 +672,15 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
 
     it("F13-B4: Redacts GitHub classic and fine-grained PAT formats", () => {
       const classic = "ghp_123456789012345678901234567890123456";
-      const fineGrained = "github_pat_11ABCDEFG01234567890_abcdefghijklmnopqrstuvwxyz012345678901234567890123456789";
+      const fineGrained =
+        "github_pat_11ABCDEFG01234567890_abcdefghijklmnopqrstuvwxyz012345678901234567890123456789";
       expect(classic.replace(/ghp_[a-zA-Z0-9]{36}/, "[REDACTED]")).toBe("[REDACTED]");
       expect(fineGrained.replace(/github_pat_[a-zA-Z0-9_]{50,}/, "[REDACTED]")).toBe("[REDACTED]");
     });
 
     it("F13-B5: Redacts credentials from URL query parameters (api_key=xxx)", () => {
-      const urlWithKey = "https://gateway.internal/v1/models?api_key=sk-omniroute-key-12345&format=json";
+      const urlWithKey =
+        "https://gateway.internal/v1/models?api_key=sk-omniroute-key-12345&format=json";
       const sanitized = urlWithKey.replace(/([?&]api_key=)[^&]+/i, "$1[REDACTED]");
       expect(sanitized).toBe("https://gateway.internal/v1/models?api_key=[REDACTED]&format=json");
     });
@@ -710,7 +723,9 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
       const htmlPath = resolve(rootDir, "apps/web/index.html");
       if (existsSync(htmlPath)) {
         const content = readFileSync(htmlPath, "utf-8");
-        expect(content).toMatch(/<meta\s+name=["']viewport["']\s+content=["'].*width=device-width.*["']/i);
+        expect(content).toMatch(
+          /<meta\s+name=["']viewport["']\s+content=["'].*width=device-width.*["']/i,
+        );
       }
     });
   });

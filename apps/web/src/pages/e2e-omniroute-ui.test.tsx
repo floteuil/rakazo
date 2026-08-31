@@ -29,16 +29,36 @@ const USAGE_TAG_OPTIONS: {
   description: string;
   badge: string;
 }[] = [
-  { id: "coding", label: "Code & Scripting", description: "DeepSeek / Qwen Coder", badge: "Dev" },
+  {
+    id: "coding",
+    label: "Code & Scripting",
+    description: "Optimisé pour la génération et revue de code",
+    badge: "Dev",
+  },
   {
     id: "writing",
     label: "Rédaction & Synthèse",
-    description: "Mistral Small 24B",
+    description: "Rédaction fluide et synthèse",
     badge: "Prose",
   },
-  { id: "reasoning", label: "Raisonnement & Logique", description: "DeepSeek R1", badge: "Logic" },
-  { id: "fast", label: "Ultra Rapide & Triage", description: "LLaMA 3.2 3B", badge: "Fast" },
-  { id: "analysis", label: "Analyse & Données", description: "Qwen 2.5 72B", badge: "Data" },
+  {
+    id: "reasoning",
+    label: "Raisonnement & Logique",
+    description: "Optimisé pour le raisonnement logique et complexe",
+    badge: "Logic",
+  },
+  {
+    id: "fast",
+    label: "Ultra Rapide & Triage",
+    description: "Ultra-rapide pour requêtes courtes",
+    badge: "Fast",
+  },
+  {
+    id: "analysis",
+    label: "Analyse & Données",
+    description: "Analyse documentaire et extraction",
+    badge: "Data",
+  },
 ];
 
 function IntelligenceSelectorHarness({
@@ -65,7 +85,7 @@ function IntelligenceSelectorHarness({
             Moteur d'Intelligence
             {inferenceMode === "free" && (
               <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-xs font-medium text-emerald-400 border border-emerald-500/20">
-                100% Gratuit & Zéro-Coût
+                100% Gratuit &amp; Zéro-Coût
               </span>
             )}
           </h3>
@@ -115,6 +135,25 @@ function IntelligenceSelectorHarness({
           <span>Gratuit (OmniRoute Free)</span>
         </button>
       </div>
+
+      {/* Stable Intent Presentation */}
+      {inferenceMode === "free" && (
+        <div
+          data-testid="omniroute-stable-intent"
+          className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 text-xs text-emerald-300 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="font-medium">
+              Gratuit via OmniRoute · Profil :{" "}
+              {usageTags.length > 0
+                ? usageTags.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(", ")
+                : "Général"}
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400/80 uppercase">Zéro-Coût</span>
+        </div>
+      )}
 
       {/* Usage Tags Section (Active only when Free mode is selected) */}
       {inferenceMode === "free" && (

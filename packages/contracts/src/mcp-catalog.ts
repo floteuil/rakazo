@@ -19,14 +19,34 @@ export interface CategoryInfo {
 export const SOVEREIGN_CATEGORIES: CategoryInfo[] = [
   { id: "all", label: "Tous", description: "Tous les connecteurs et outils disponibles" },
   { id: "connected", label: "Connectés", description: "Connecteurs actuellement opérationnels" },
-  { id: "search", label: "Recherche", description: "Recherche web privée & extraction sans traçage" },
+  {
+    id: "search",
+    label: "Recherche",
+    description: "Recherche web privée & extraction sans traçage",
+  },
   { id: "code", label: "Ingénierie", description: "Gestion de dépôts Git, code, PR & tickets" },
-  { id: "workspace", label: "Workspace", description: "Bases de connaissances, pages & documentation" },
+  {
+    id: "workspace",
+    label: "Workspace",
+    description: "Bases de connaissances, pages & documentation",
+  },
   { id: "social", label: "Social", description: "Publication & planification multi-réseaux" },
   { id: "cms", label: "CMS", description: "Gestion de contenu WordPress & réseau Novamira" },
-  { id: "automation", label: "Automatisation", description: "Workflows événementiels n8n & webhooks" },
-  { id: "infra", label: "Infrastructure", description: "Réseau de bordure, DNS & cache Cloudflare" },
-  { id: "system", label: "Système", description: "Sandbox, fichiers, shell & coordination multi-agents" },
+  {
+    id: "automation",
+    label: "Automatisation",
+    description: "Workflows événementiels n8n & webhooks",
+  },
+  {
+    id: "infra",
+    label: "Infrastructure",
+    description: "Réseau de bordure, DNS & cache Cloudflare",
+  },
+  {
+    id: "system",
+    label: "Système",
+    description: "Sandbox, fichiers, shell & coordination multi-agents",
+  },
 ];
 
 export interface McpToolParameter {
@@ -271,7 +291,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
           {
             name: "path",
             type: "string",
-            description: "Chemin du fichier au sein du dépôt (ex: 'packages/contracts/src/index.ts').",
+            description:
+              "Chemin du fichier au sein du dépôt (ex: 'packages/contracts/src/index.ts').",
             required: true,
           },
           {
@@ -344,7 +365,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "github_create_issue",
         label: "Création d'Issue GitHub",
-        description: "Création d'un nouveau ticket sur un dépôt GitHub avec titre, corps Markdown et labels.",
+        description:
+          "Création d'un nouveau ticket sur un dépôt GitHub avec titre, corps Markdown et labels.",
         connectorId: "github",
         category: "code",
         isSensitive: true,
@@ -493,7 +515,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "notion_search",
         label: "Recherche Notion",
-        description: "Recherche globale de pages et bases de données dans l'espace de travail Notion connecté.",
+        description:
+          "Recherche globale de pages et bases de données dans l'espace de travail Notion connecté.",
         connectorId: "notion",
         category: "workspace",
         isSensitive: false,
@@ -526,7 +549,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "notion_get_page",
         label: "Lecture de Page Notion",
-        description: "Récupération des propriétés et du contenu en blocs d'une page Notion par son identifiant UUID.",
+        description:
+          "Récupération des propriétés et du contenu en blocs d'une page Notion par son identifiant UUID.",
         connectorId: "notion",
         category: "workspace",
         isSensitive: false,
@@ -674,7 +698,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "postiz_list_integrations",
         label: "Canaux Sociaux Postiz",
-        description: "Liste des canaux et comptes de réseaux sociaux connectés et autorisés sur l'instance Postiz.",
+        description:
+          "Liste des canaux et comptes de réseaux sociaux connectés et autorisés sur l'instance Postiz.",
         connectorId: "postiz",
         category: "social",
         isSensitive: false,
@@ -707,7 +732,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
           {
             name: "scheduledAt",
             type: "string",
-            description: "Horodatage ISO-8601 pour planification différée (ex: '2026-08-22T14:00:00Z').",
+            description:
+              "Horodatage ISO-8601 pour planification différée (ex: '2026-08-22T14:00:00Z').",
             required: false,
           },
           {
@@ -840,7 +866,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "wordpress_get_post",
         label: "Lecture d'Article WordPress",
-        description: "Récupération du contenu HTML complet et des métadonnées d'un article WordPress par son ID.",
+        description:
+          "Récupération du contenu HTML complet et des métadonnées d'un article WordPress par son ID.",
         connectorId: "wordpress_novamira",
         category: "cms",
         isSensitive: false,
@@ -1379,7 +1406,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "list_files",
         label: "Exploration de Fichiers",
-        description: "Lister les fichiers et répertoires dans le dossier home du bot ou dans l'espace partagé.",
+        description:
+          "Lister les fichiers et répertoires dans le dossier home du bot ou dans l'espace partagé.",
         connectorId: "system_platform",
         category: "system",
         isSensitive: false,
@@ -1446,7 +1474,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "attach_file",
         label: "Attachement de Fichier au Thread",
-        description: "Attacher un fichier du workspace à la conversation pour prévisualisation et téléchargement.",
+        description:
+          "Attacher un fichier du workspace à la conversation pour prévisualisation et téléchargement.",
         connectorId: "system_platform",
         category: "system",
         isSensitive: false,
@@ -1492,7 +1521,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "open_path",
         label: "Ouverture Graphique de Fichier / URL",
-        description: "Ouvrir un fichier ou une URL dans l'application graphique par défaut du container.",
+        description:
+          "Ouvrir un fichier ou une URL dans l'application graphique par défaut du container.",
         connectorId: "system_platform",
         category: "system",
         isSensitive: false,
@@ -1539,7 +1569,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "request_takeover",
         label: "Demande de Prise en Main Humaine",
-        description: "Solliciter la prise de contrôle manuelle de l'écran par l'utilisateur pour authentification ou validation.",
+        description:
+          "Solliciter la prise de contrôle manuelle de l'écran par l'utilisateur pour authentification ou validation.",
         connectorId: "system_platform",
         category: "system",
         isSensitive: false,
@@ -1559,7 +1590,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "remember",
         label: "Mémoire Durable du Bot",
-        description: "Enregistrer un fait ou une directive permanente dans la mémoire explicite du bot.",
+        description:
+          "Enregistrer un fait ou une directive permanente dans la mémoire explicite du bot.",
         connectorId: "system_platform",
         category: "system",
         isSensitive: false,
@@ -1585,7 +1617,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "run_subagent",
         label: "Délégation à un Sous-Agent Éphémère",
-        description: "Lancer un assistant auxiliaire éphémère durant ce tour pour une tâche d'exploration ou de révision.",
+        description:
+          "Lancer un assistant auxiliaire éphémère durant ce tour pour une tâche d'exploration ou de révision.",
         connectorId: "system_platform",
         category: "system",
         isSensitive: true,

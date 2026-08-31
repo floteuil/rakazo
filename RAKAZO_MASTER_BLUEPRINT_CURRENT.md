@@ -1,17 +1,17 @@
 # RAKAZO MASTER BLUEPRINT — CURRENT ARCHITECTURE & PLATFORM SPECIFICATION
 
-**Version**: 2.6.0-omniroute-production-certified  
+**Version**: 2.6.0-omniroute-coherence-observability-certified  
 **Repository**: [https://github.com/floteuil/rakazo](https://github.com/floteuil/rakazo) (Turborepo 2 + pnpm Monorepo)  
 **Branch**: `main`  
-**Consolidation**: Free Intelligence Gateway (OmniRoute), Pluggable Transports, Shared Canonical MCP Runtime & Full-Chain Persistence  
+**Consolidation**: Free Intelligence Gateway (OmniRoute), 3-Tier Decoupling, Triple Coherence Observability, Pluggable Transports, Shared Canonical MCP Runtime & Full-Chain Persistence  
 **Verification Date**: 2026-08-31  
-**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 2,658/2,658 tests passed with 100% success rate across 186 test files, 0 Plaintext Secrets)
+**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 2,714/2,714 tests passed with 100% success rate across 190 test files, 0 Plaintext Secrets)
 
 ---
 
 ## 1. System Overview & Monorepo Topology
 
-Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform designed for autonomous execution of complex engineering workflows, containerized tool manipulation via the Model Context Protocol (MCP), secure sandbox environments, high-efficiency prompt compilation with KV prefix caching, and **Dual-Path Autonomous Inference** (Premium GPT-OSS-120B via OpenRouter vs. Strictly Free Sovereign Gateway via OmniRoute).
+Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform designed for autonomous execution of complex engineering workflows, containerized tool manipulation via the Model Context Protocol (MCP), secure sandbox environments, high-efficiency prompt compilation with KV prefix caching, and **Dual-Path Autonomous Inference** (Premium GPT-OSS-120B via OpenRouter vs. Strictly Free Sovereign Gateway via OmniRoute with 3-tier dynamic decoupling and full observability).
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────────────────┐
@@ -38,7 +38,7 @@ Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform 
 
 | Package / Application | Role & Tech Stack | Core Responsibilities & Invariants |
 |---|---|---|
-| `apps/web` | React 18, Vite, Tailwind CSS v4, Lucide Icons | Responsive chat shell, Intelligence Mode Segmented Control (Premium/Free), Usage Tags Selector (max 3), PromptCompilerModal, MCP Tool Selector, Skill Library Overlay. |
+| `apps/web` | React 18, Vite, Tailwind CSS v4, Lucide Icons | Responsive chat shell, Intelligence Mode Segmented Control (Premium/Free), Usage Tags Selector (max 3), PromptCompilerModal, MCP Tool Selector, Skill Library Overlay, Per-Turn Execution Badges (`Modèle utilisé : [Model] · [Provider]`). |
 | `apps/api` | Fastify / Hono, Node.js, oRPC | REST / oRPC API gateway, bot lifecycle procedures (`create`, `update`, `duplicate`), SSE streams, auth gating, internal proxying. |
 | `apps/worker` | Node.js, BullMQ, Redis | Asynchronous background jobs, routine scheduling, sandbox reconciliation, storage cleanup, agent execution worker, secret masking. |
 | `apps/mobile` | React Native, Expo 57 | Mobile-native client, secure session storage, push notifications, voice transcription. |
@@ -58,7 +58,7 @@ Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform 
 
 ---
 
-## 3. Dual-Path Intelligence Architecture & Unified Agentic Runtime
+## 3. Dual-Path Intelligence Architecture & 3-Tier Dynamic Decoupling
 
 Rakazo decouples model inference transport from agent orchestration through a **Pluggable Inference Transport Layer (`InferenceTransport`)** running over a shared **Canonical Agentic Runtime (`CanonicalAgentRuntime`)**:
 
@@ -101,20 +101,16 @@ Rakazo decouples model inference transport from agent orchestration through a **
                                       • inferenceMode: "premium" | "free"
                                       • requestedCategory / resolvedProvider
                                       • resolvedModel / isFree: true | false
+                                      • cacheHitRatio / durationMs
 ```
 
-### 3.1 Path A: Historical Premium Path (`PiAiInferenceTransport`)
-- **Sanctuarized & Unaltered**: 100% backward compatibility for all existing bots and bots created without explicit inference configuration.
-- **Capabilities**: High-reasoning foundation model (`openai/gpt-oss-120b`), 4-block KV prefix caching, Level 2 LLM prompt compilation, enterprise multi-turn workflows.
-- **Telemetry**: Logged as `inferenceMode: "premium"`, `isFree: false`.
+### 3.1 The 3-Tier Decoupling Architecture
+1. **Tier 1 (Stable Product Intent)**: Mode `free` + cognitive profile (`coding`, `reasoning`, `fast`, `writing`, `analysis`) persisted in PostgreSQL `bot.metadata.inference`.
+2. **Tier 2 (Logical Route Contract)**: Canonical route string (`combo/rakazo-coding`, `combo/rakazo-reasoning`, etc.) transmitted to OmniRoute as a capability contract via the Cognitive Priority Matrix.
+3. **Tier 3 (Real Execution Resolution)**: Live provider (`mistral`, `groq`, `qwen`, `deepseek`) and model (`mistralai/codestral-latest`, etc.) dynamically resolved per turn by OmniRoute.
 
-### 3.2 Path B: Sovereign Free Gateway (`OmniRouteInferenceTransport`)
-- **Zero Token Cost**: Routes agent inference to verified open-weights models and high-availability live combos (`combo/rakazo-*`).
-- **Tag-Driven Cognitive Specialization**: Bots declare up to 3 usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`), dynamically resolved to optimal live combos.
-- **Double Zero-Cost Barrier**:
-  1. *Local Policy Engine (`RakazoFreePolicyEngine`)*: Pre-flight assertion of `$0.000000` cost and approved provider allowlist (`omniroute`, `combo`, `meta-llama`, `mistralai`, `qwen`, `deepseek`, `google`).
-  2. *Adapter Response Verification (`OmniRouteInferenceTransport`)*: Real-time inspection of HTTP response headers (`x-omniroute-cost`) and streaming chunks; immediate abort if cost $> \$0.00$.
-- **Strict Fail-Closed (Never-Paid Fallback)**: If free capacity is exhausted or unavailable, returns `"Capacité gratuite temporairement indisponible"` without falling back to paid routes.
+### 3.2 Triple Coherence Formal Invariant
+$$\mathbf{OmniRoute\ Response\ Headers} \equiv \mathbf{PromptExecutionLog\ (SQL)} \equiv \mathbf{WebUI\ Rendered\ Metadata}$$
 
 ---
 
@@ -137,7 +133,7 @@ The `RakazoFreePolicyEngine` deterministically resolves multi-tag requests to li
 | Intent Tag | Priority Weight | Primary Target Route | Provider | Primary Optimization |
 |---|---|---|---|---|
 | `reasoning` | **100** | `combo/rakazo-reasoning` | `omniroute` | DeepSeek R1 Chain-of-Thought & Mathematical Logic |
-| `coding` | **80** | `combo/rakazo-coding` | `omniroute` | Qwen 2.5 Coder 32B Code Generation & Refactoring |
+| `coding` | **80** | `combo/rakazo-coding` | `omniroute` | Qwen 2.5 Coder / Codestral Code Generation & Refactoring |
 | `analysis` | **60** | `combo/rakazo-analysis` | `omniroute` | Qwen 2.5 72B Deep Data Analysis & Synthesis |
 | `writing` | **40** | `combo/rakazo-writing` | `omniroute` | Mistral Small 24B Editorial Prose & Structured Copy |
 | `fast` | **20** | `combo/rakazo-fast` | `omniroute` | LLaMA 3.2 3B Ultra-Low Latency & Intent Triage |
@@ -157,27 +153,23 @@ Multi-tag resolution selects the tag with the highest weight (`resolveDeterminis
 - **Token Ceiling**: Subagent token budget is strictly capped at `8 192` tokens (`SUBAGENT_TOKEN_BUDGET_CEILING = 8192`).
 - **Delegation Tool Stripping**: `run_subagent`, `spawn_subagent`, `delegate_task`, `spawn_bot`, `archive_bot`, `delete_bot` are stripped from subagent tool catalogs.
 
-### 4.5 4-Block KV Prefix Caching & FNV-1a Session Affinity
-Prompts are structured into 4 sequential blocks to preserve prefix caching across OpenRouter and OmniRoute:
-1. **Block A (Static Platform Guardrails)**: System prompt and invariants at Token 0. Byte-identical across all platform bots.
-2. **Block B (Durable Bot Definition & Skills)**: Bot identity, durable instructions, deterministically sorted skills (`${slug}:${name}`).
-3. **Block C (Compacted History)**: Multi-turn messages with compacted tool outputs (`compactToolResult`).
-4. **Block D (Ephemeral Current Turn)**: User query and current turn attachments.
-- **Session Affinity (`x-session-id`)**: Deterministic 32-bit FNV-1a hash header computed via `computeSessionAffinityKey(botId, threadId)` and transmitted to OmniRoute to maximize upstream provider KV cache hits on Blocks A+B while handling failovers seamlessly.
+### 4.5 2-Tier KV Prefix Caching & FNV-1a Session Affinity
+1. **Tier 1 (4-Block Prompt Layout at Token 0)**:
+   - Block A (Static Platform Guardrails): System invariants (~1,000 tokens).
+   - Block B (Durable Bot Definition & Skills): Bot identity and sorted skills (`${slug}:${name}`).
+   - Block C (Compacted History): Conversation history with `compactToolResult`.
+   - Block D (Ephemeral Current Turn): User input and attachments.
+2. **Tier 2 (OmniRoute 32-bit FNV-1a Sticky Session Affinity)**:
+   - Deterministic hash key derived from `workspace:bot:thread`.
+   - Propagated via header `x-session-id: <hash>`.
+   - Provider-independent: Provider rotation during failover never corrupts session identity.
+3. **Strict Mathematical Cache Hit Ratio**:
+   $$\text{cacheHitRatio} = \begin{cases} \frac{\text{cachedTokens}}{\text{promptTokens}} & \text{if } \text{promptTokens} > 0 \\ 0.0 & \text{if } \text{promptTokens} = 0 \end{cases} \in [0.0, 1.0]$$
 
 ### 4.6 Non-Blocking SQL Telemetry (`PromptExecutionLog`)
-- Schema extended via additive migration `0015_free_intelligence_gateway`:
-  - `inference_mode`: `"premium" | "free"`
-  - `requested_category`: `String?`
-  - `resolved_provider`: `String?`
-  - `resolved_model`: `String?`
-  - `is_free`: `Boolean`
-- Ingested asynchronously via `recordPromptExecutionLogAsync` with fire-and-forget Promise handling. Database latency never impacts bot turn execution.
-
-### 4.7 Sovereign MCP Tool Catalog & Secret Sanitization
-- **40 Sovereign Tools**: Opt-in enterprise connectors (GitHub, Notion, Postiz, WordPress, Novamira, n8n, Cloudflare, Composio).
-- **Immutability Invariant**: Prompt compilation and runtime execution are strictly prohibited from altering MCP tool activations.
-- **Universal Secret Sanitizer (`sanitizeToolError`)**: Masks 12 sensitive credential families across GitHub PATs, Notion keys, database connection strings, and OAuth tokens without false positives.
+- Recorded asynchronously via `recordPromptExecutionLogAsync(...)` with fire-and-forget Promise handling.
+- Bounded fields: `botId`, `executionId`, `inferenceMode`, `requestedCategory`, `resolvedProvider`, `resolvedModel`, `isFree`, `promptTokens`, `completionTokens`, `cachedTokens`, `cacheHitRatio`, `durationMs`, `costEstimatedUsd`.
+- Fail-open resilience: DB write latencies or timeouts never block user turns.
 
 ---
 
@@ -187,28 +179,28 @@ Prompts are structured into 4 sequential blocks to preserve prefix caching acros
                                   ┌───────────────────────────────┐
                                   │   Internet Ingress (HTTPS)    │
                                   └───────────────┬───────────────┘
-                                                  │
-                                                  ▼
-                                       [ Traefik v3.6 Proxy ]
-                                       (Let's Encrypt Automated TLS)
-                                                  │
-                        ┌─────────────────────────┴─────────────────────────┐
-                        │                                                   │
-                        ▼ (agents.workspacegroupefloteuil.eu)               ▼ (omniroute.workspacegroupefloteuil.eu)
-         ┌──────────────────────────────┐                    ┌──────────────────────────────┐
-         │ Coolify App 20: Rakazo Stack │                    │ Coolify App 21: OmniRoute    │
-         ├──────────────────────────────┤                    ├──────────────────────────────┤
-         │ • apps/web (React 18 / Vite) │                    │ • Image: floteuil/OmniRoute  │
-         │ • apps/api (Fastify / Hono)  │───(Bearer Auth)───►│ • Target: runner-base (Node26)│
-         │ • apps/worker (BullMQ)       │                    │ • Port: 20128                │
-         │ • PostgreSQL 16 (Dedicated)  │                    │ • Volume: /app/data (SQLite) │
-         └──────────────────────────────┘                    │ • Non-Root UID 1000:1000     │
-                                                             └──────────────────────────────┘
+                                                   │
+                                                   ▼
+                                        [ Traefik v3.6 Proxy ]
+                                        (Let's Encrypt Automated TLS)
+                                                   │
+                         ┌─────────────────────────┴─────────────────────────┐
+                         │                                                   │
+                         ▼ (agents.workspacegroupefloteuil.eu)               ▼ (omniroute.workspacegroupefloteuil.eu)
+          ┌──────────────────────────────┐                    ┌──────────────────────────────┐
+          │ Coolify App 20: Rakazo Stack │                    │ Coolify App 21: OmniRoute    │
+          ├──────────────────────────────┤                    ├──────────────────────────────┤
+          │ • apps/web (React 18 / Vite) │                    │ • Image: floteuil/OmniRoute  │
+          │ • apps/api (Fastify / Hono)  │───(Bearer Auth)───►│ • Target: runner-base (Node26)│
+          │ • apps/worker (BullMQ)       │                    │ • Port: 20128                │
+          │ • PostgreSQL 16 (Dedicated)  │                    │ • Volume: /app/data (SQLite) │
+          └──────────────────────────────┘                    │ • Non-Root UID 1000:1000     │
+                                                              └──────────────────────────────┘
 ```
 
 ### VPS Coolify Non-Interference Invariants
-1. **Isolated Namespace**: All containers and resources are strictly scoped to Coolify application UUIDs (`qmusbfbjcz0ohip348rv8fgc` for OmniRoute, `s1253nc0yc4uu89lp6692r1s` for Rakazo).
-2. **Dedicated Volumes**: Storage scoped exclusively to named volumes (`qmusbfbjcz0ohip348rv8fgc_data`, `pgdata`, `appdata`). Zero volume pollution to other VPS applications.
+1. **Isolated Namespace**: Scoped to Coolify application UUIDs (`qmusbfbjcz0ohip348rv8fgc` for OmniRoute, `s1253nc0yc4uu89lp6692r1s` for Rakazo).
+2. **Dedicated Volumes**: Storage scoped exclusively to named volumes (`qmusbfbjcz0ohip348rv8fgc_data`, `pgdata`, `appdata`).
 3. **Zero Docker Socket Exposure**: No container has access to `/var/run/docker.sock`.
 4. **Tenant Non-Interference**: Absolute isolation against all 15 co-located applications on the VPS (HubtoWrite, Veinart, Open-Design, Postiz, DocuSeal, n8n, Flowise, Odoo, SearXNG, Minio, Beszel, Scraperr).
 
@@ -219,30 +211,33 @@ Prompts are structured into 4 sequential blocks to preserve prefix caching acros
 | Verification Target | Requirement | Verified Monorepo Result | Status |
 |---|---|---|---|
 | **TypeScript Typecheck** | 0 diagnostic errors across 19 packages | **0 errors** (`pnpm check`, 19/19 packages) | 🟢 PASS |
-| **Monorepo Test Suite** | 100% test pass rate ($\ge 2\,600$ tests) | **2,658 passed, 0 failed** (186 test files) | 🟢 PASS |
+| **Monorepo Test Suite** | 100% test pass rate ($\ge 2\,700$ tests) | **2,714 passed, 0 failed** (190 test files) | 🟢 PASS |
+| **Triple Coherence E2E** | 15/15 tests across all profiles & failovers | **15 / 15 passed (100%)** | 🟢 PASS |
 | **OmniRoute 5-Tier E2E Suite** | 193/193 tests across Tiers 1–5 | **193 / 193 passed (100%)** | 🟢 PASS |
 | **Persistence Integrity Suite** | Full-chain roundtrip & duplication tests | **100% passed** | 🟢 PASS |
 | **Cognitive Priority Routing** | Live combo resolution & multi-tag weights | **100% passed** | 🟢 PASS |
 | **Canonical MCP Runtime** | Tool execution, circuit breaker, compaction | **100% passed** | 🟢 PASS |
-| **Zero-Cost Invariant** | Cost = $0.000000 on all Free routes | **Verified across adversarial & empirical chaos tests** | 🟢 PASS |
+| **Zero-Cost Invariant** | Cost = $0.000000 on all Free routes | **Verified across adversarial & empirical tests** | 🟢 PASS |
 | **Fail-Closed Barrier** | Zero fallback to paid models on failure | **100% rejected with standard sanitized error** | 🟢 PASS |
-| **Subagent Inheritance** | Free parent strictly spawns Free subagent | **100% inherited, privilege escalation vetoed** | 🟢 PASS |
-| **Subagent Confinement** | Depth = 1 strict, max 8,192 tokens | **100% recursion rejected, tokens clamped** | 🟢 PASS |
+| **Subagent Confinement** | Free parent strictly spawns Free subagent, Depth 1, 8192 tokens | **100% enforced** | 🟢 PASS |
 | **WebUI Ergonomics** | 9 screen resolutions, touch targets $\ge 44$px | **216 / 216 UI tests passed** | 🟢 PASS |
 | **Secret Sanitization** | 12 sensitive token patterns scrubbed | **0 leaks detected across all logs and errors** | 🟢 PASS |
 
 ---
 
-## 7. Operational Runbook & Verification Commands
+## 7. Master Operational Runbook
 
 ```bash
 # 1. Full Monorepo Type Check (19 packages)
 pnpm check
 
-# 2. Full Monorepo Test Suite (2,658+ tests)
+# 2. Full Monorepo Test Suite (2,714 tests)
 pnpm test
 
-# 3. 5-Tier E2E Integration Suite
+# 3. Triple Coherence E2E Test Suite
+pnpm vitest run apps/web/src/pages/e2e-omniroute-triple-coherence.test.tsx
+
+# 4. OmniRoute 5-Tier Testkit
 pnpm vitest run \
   packages/testkit/src/tests/tier1-features-r1-r6.e2e.test.ts \
   packages/testkit/src/tests/tier2-boundary-r1-r6.e2e.test.ts \
@@ -250,22 +245,7 @@ pnpm vitest run \
   packages/testkit/src/tests/tier4-real-world-scenarios.e2e.test.ts \
   packages/testkit/src/tests/tier5-adversarial-stress.e2e.test.ts
 
-# 4. Persistence & API Empirical Tests
-pnpm vitest run \
-  packages/db/src/repos.test.ts \
-  packages/db/src/challenger-m1-persistence-empirical.test.ts \
-  apps/api/src/router-bots-inference.test.ts \
-  apps/api/src/challenger-m1-api-empirical.test.ts
-
-# 5. OmniRoute Policy & Runtime Tests
-pnpm vitest run \
-  packages/contracts/src/omniroute-contracts.test.ts \
-  packages/adapters/src/omniroute-adapter.test.ts \
-  packages/adapters/src/free-policy-engine.test.ts \
-  packages/adapters/src/subagent-inheritance.test.ts \
-  packages/adapters/src/challenger-m3-caching-telemetry-empirical.test.ts
-
-# 6. Biome Lint & Format Check
+# 5. Biome Lint & Format Check
 pnpm lint
 pnpm format
 ```
@@ -274,4 +254,4 @@ pnpm format
 
 ## 8. Architectural Certification & Sign-off
 
-The Rakazo codebase at Version 2.6.0-omniroute-production-certified fulfills 100% of the architectural, persistence, security, performance, ergonomics, container isolation, and QA criteria defined in the Master Project Plan.
+The Rakazo codebase at Version 2.6.0-omniroute-coherence-observability-certified fulfills 100% of the architectural, persistence, security, performance, ergonomics, container isolation, and QA criteria defined in the Master Project Plan.

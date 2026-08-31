@@ -53,9 +53,11 @@ describe("Adversarial Test Suite: Milestone 1 (DB & Prisma)", () => {
         botSkill: { deleteMany, createMany, findMany },
       };
 
-      const $transaction = vi.fn().mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
-        return callback(tx);
-      });
+      const $transaction = vi
+        .fn()
+        .mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
+          return callback(tx);
+        });
 
       const prisma = { $transaction } as unknown as PrismaClient;
 
@@ -86,9 +88,11 @@ describe("Adversarial Test Suite: Milestone 1 (DB & Prisma)", () => {
         botSkill: { deleteMany, createMany, findMany },
       };
 
-      const $transaction = vi.fn().mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
-        return callback(tx);
-      });
+      const $transaction = vi
+        .fn()
+        .mockImplementation(async (callback: (txArg: typeof tx) => Promise<unknown>) => {
+          return callback(tx);
+        });
 
       const prisma = { $transaction } as unknown as PrismaClient;
 
@@ -185,7 +189,9 @@ describe("Adversarial Test Suite: Milestone 1 (DB & Prisma)", () => {
   // --------------------------------------------------------------------------
   describe("3. JSONB Serialization & Defaults", () => {
     it("handles deeply nested JSON metadata and complex tag arrays properly", async () => {
-      const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "sk-json", ...data }));
+      const create = vi
+        .fn()
+        .mockImplementation(({ data }) => Promise.resolve({ id: "sk-json", ...data }));
       const prisma = { skill: { create } } as unknown as PrismaClient;
 
       const complexMetadata = {
@@ -213,7 +219,7 @@ describe("Adversarial Test Suite: Milestone 1 (DB & Prisma)", () => {
         name: "Expert Sécurité HDS",
         slug: "expert-securite-hds",
         description: "Guide complet pour le chiffrement et la sécurité HDS",
-        content: "# HDS Security\n\n```json\n{\"encryption\": \"AES-256-GCM\"}\n```",
+        content: '# HDS Security\n\n```json\n{"encryption": "AES-256-GCM"}\n```',
         tags: complexTags,
         metadata: complexMetadata,
       });
@@ -225,7 +231,7 @@ describe("Adversarial Test Suite: Milestone 1 (DB & Prisma)", () => {
           name: "Expert Sécurité HDS",
           slug: "expert-securite-hds",
           description: "Guide complet pour le chiffrement et la sécurité HDS",
-          content: "# HDS Security\n\n```json\n{\"encryption\": \"AES-256-GCM\"}\n```",
+          content: '# HDS Security\n\n```json\n{"encryption": "AES-256-GCM"}\n```',
           tags: complexTags,
           metadata: complexMetadata,
         },
@@ -233,7 +239,9 @@ describe("Adversarial Test Suite: Milestone 1 (DB & Prisma)", () => {
     });
 
     it("falls back cleanly to empty array and empty object when tags/metadata are undefined", async () => {
-      const create = vi.fn().mockImplementation(({ data }) => Promise.resolve({ id: "sk-defaults", ...data }));
+      const create = vi
+        .fn()
+        .mockImplementation(({ data }) => Promise.resolve({ id: "sk-defaults", ...data }));
       const prisma = { skill: { create } } as unknown as PrismaClient;
 
       await createSkill(prisma, {

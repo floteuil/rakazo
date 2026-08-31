@@ -50,17 +50,23 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
         computer: {
           findUnique: vi.fn().mockResolvedValue({ id: "comp-1", homeKey: botId, state: "stopped" }),
         },
-        run: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        run: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
         artifact: { findMany: vi.fn().mockResolvedValue([]) },
         $transaction: vi.fn(async (callback: (tx: any) => Promise<void>) =>
           callback({
             computerExecutionLease: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-            computer: { updateMany: vi.fn().mockResolvedValue({ count: 0 }), delete: vi.fn().mockResolvedValue({}) },
+            computer: {
+              updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+              delete: vi.fn().mockResolvedValue({}),
+            },
             $executeRaw: vi.fn().mockResolvedValue(1),
             botDeletion: { create: createDeletion },
             bot: { delete: deleteBot },
-          })
+          }),
         ),
       } as unknown as PrismaClient;
 
@@ -88,13 +94,18 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
       const removeArtifact = vi.fn().mockResolvedValue(undefined);
       const prisma = {
         computer: { findUnique: vi.fn().mockResolvedValue(null) },
-        run: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        run: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
         artifact: {
-          findMany: vi.fn().mockResolvedValue([
-            { storageKey: "artifact-key-1" },
-            { storageKey: "artifact-key-2" },
-          ]),
+          findMany: vi
+            .fn()
+            .mockResolvedValue([
+              { storageKey: "artifact-key-1" },
+              { storageKey: "artifact-key-2" },
+            ]),
         },
         $transaction: vi.fn(async (callback: (tx: any) => Promise<void>) =>
           callback({
@@ -103,7 +114,7 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
             $executeRaw: vi.fn().mockResolvedValue(1),
             botDeletion: { create: vi.fn().mockResolvedValue({}) },
             bot: { delete: vi.fn().mockResolvedValue({}) },
-          })
+          }),
         ),
       } as unknown as PrismaClient;
 
@@ -147,7 +158,7 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
             $executeRaw: vi.fn().mockResolvedValue(1),
             botDeletion: { create: vi.fn().mockResolvedValue({}) },
             bot: { delete: vi.fn().mockResolvedValue({}) },
-          })
+          }),
         ),
       } as unknown as PrismaClient;
 
@@ -176,7 +187,10 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
       const executeRaw = vi.fn().mockResolvedValue(3);
       const prisma = {
         computer: { findUnique: vi.fn().mockResolvedValue(null) },
-        run: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        run: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
         artifact: { findMany: vi.fn().mockResolvedValue([]) },
         $transaction: vi.fn(async (callback: (tx: any) => Promise<void>) =>
@@ -186,7 +200,7 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
             $executeRaw: executeRaw,
             botDeletion: { create: vi.fn().mockResolvedValue({}) },
             bot: { delete: vi.fn().mockResolvedValue({}) },
-          })
+          }),
         ),
       } as unknown as PrismaClient;
 
@@ -215,19 +229,27 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
       const botId = "bot-non-existent-dirs";
       const prisma = {
         computer: {
-          findUnique: vi.fn().mockResolvedValue({ id: "comp-missing", homeKey: "missing-key", state: "stopped" }),
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ id: "comp-missing", homeKey: "missing-key", state: "stopped" }),
         },
-        run: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        run: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
         artifact: { findMany: vi.fn().mockResolvedValue([]) },
         $transaction: vi.fn(async (callback: (tx: any) => Promise<void>) =>
           callback({
             computerExecutionLease: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-            computer: { updateMany: vi.fn().mockResolvedValue({ count: 0 }), delete: vi.fn().mockResolvedValue({}) },
+            computer: {
+              updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+              delete: vi.fn().mockResolvedValue({}),
+            },
             $executeRaw: vi.fn().mockResolvedValue(1),
             botDeletion: { create: vi.fn().mockResolvedValue({}) },
             bot: { delete: vi.fn().mockResolvedValue({}) },
-          })
+          }),
         ),
       } as unknown as PrismaClient;
 
@@ -245,7 +267,7 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
           { id: botId, workspaceId: "ws-storage-1", name: "GhostBot", archivedAt: null },
           context,
           { deleteMemories: true },
-        )
+        ),
       ).resolves.not.toThrow();
     });
 
@@ -253,10 +275,15 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
       const botId = "bot-tx-fail";
       const prisma = {
         computer: { findUnique: vi.fn().mockResolvedValue(null) },
-        run: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        run: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
         artifact: { findMany: vi.fn().mockResolvedValue([]) },
-        $transaction: vi.fn().mockRejectedValue(new Error("Prisma foreign key constraint violation")),
+        $transaction: vi
+          .fn()
+          .mockRejectedValue(new Error("Prisma foreign key constraint violation")),
       } as unknown as PrismaClient;
 
       await expect(
@@ -271,7 +298,7 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
           { id: botId, workspaceId: "ws-storage-1", name: "FailBot", archivedAt: null },
           context,
           { deleteMemories: true },
-        )
+        ),
       ).rejects.toThrow("Prisma foreign key constraint violation");
     });
   });
@@ -298,19 +325,27 @@ describe("E2E Zero-Bloat Physical Storage Cleanup & Database Cascades", () => {
       const deleteBot = vi.fn().mockResolvedValue({});
       const prisma = {
         computer: {
-          findUnique: vi.fn().mockResolvedValue({ id: "comp-full", homeKey: botId, state: "stopped" }),
+          findUnique: vi
+            .fn()
+            .mockResolvedValue({ id: "comp-full", homeKey: botId, state: "stopped" }),
         },
-        run: { findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
+        run: {
+          findMany: vi.fn().mockResolvedValue([]),
+          updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+        },
         routine: { findMany: vi.fn().mockResolvedValue([]) },
         artifact: { findMany: vi.fn().mockResolvedValue([]) },
         $transaction: vi.fn(async (callback: (tx: any) => Promise<void>) =>
           callback({
             computerExecutionLease: { deleteMany: vi.fn().mockResolvedValue({ count: 0 }) },
-            computer: { updateMany: vi.fn().mockResolvedValue({ count: 0 }), delete: vi.fn().mockResolvedValue({}) },
+            computer: {
+              updateMany: vi.fn().mockResolvedValue({ count: 0 }),
+              delete: vi.fn().mockResolvedValue({}),
+            },
             $executeRaw: vi.fn().mockResolvedValue(1),
             botDeletion: { create: vi.fn().mockResolvedValue({}) },
             bot: { delete: deleteBot },
-          })
+          }),
         ),
       } as unknown as PrismaClient;
 

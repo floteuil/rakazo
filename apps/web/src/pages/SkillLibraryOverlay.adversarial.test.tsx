@@ -35,9 +35,12 @@ describe("Adversarial Stress Test: SkillLibraryOverlay & Markdown Engine", () =>
       id: "sk-2",
       name: "Docling Document Parser",
       slug: "docling-document-parser",
-      description: "Extraction structurée haute précision pour documents PDF, DOCX et tableaux complexes.",
+      description:
+        "Extraction structurée haute précision pour documents PDF, DOCX et tableaux complexes.",
       tags: ["rag", "parser", "docling", "pdf"],
-      content: "# Docling Parser Guide\n\nDirectives complètes pour documents complexes.\n" + "D".repeat(6000),
+      content:
+        "# Docling Parser Guide\n\nDirectives complètes pour documents complexes.\n" +
+        "D".repeat(6000),
       sizeBytes: 6500,
       createdAt: dummyDate,
       updatedAt: dummyDate,
@@ -274,11 +277,7 @@ describe("Adversarial Stress Test: SkillLibraryOverlay & Markdown Engine", () =>
 
       // Selected tag 'python' + search 'API' -> only sk-t1 matches
       const html = renderToStaticMarkup(
-        <SkillLibraryOverlay
-          skills={multiSkills}
-          selectedTag="python"
-          searchQuery="API"
-        />,
+        <SkillLibraryOverlay skills={multiSkills} selectedTag="python" searchQuery="API" />,
       );
       expect(html).toContain("Python API Fast");
       expect(html).not.toContain("Python Data Science");
@@ -415,9 +414,7 @@ Content body here.`;
       expect(slugify("Docling + IBM & Docker: Fast-Track (v2.0)")).toBe(
         "docling-ibm-docker-fast-track-v2-0",
       );
-      expect(slugify("Français: déjà, vôtre, naïve, Noël")).toBe(
-        "francais-deja-votre-naive-noel",
-      );
+      expect(slugify("Français: déjà, vôtre, naïve, Noël")).toBe("francais-deja-votre-naive-noel");
     });
   });
 
@@ -529,7 +526,7 @@ Texte légitime de la compétence.`;
       expect(html).toContain("Éditer");
       expect(html).toContain("Prévisualiser");
       expect(html).toContain("Supprimer");
-      expect(html).toContain("data-testid=\"skill-card-sk-action-test\"");
+      expect(html).toContain('data-testid="skill-card-sk-action-test"');
     });
 
     it("7.2 handles empty description gracefully with French fallback placeholder", () => {

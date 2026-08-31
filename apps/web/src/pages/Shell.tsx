@@ -2190,6 +2190,66 @@ function latestAnswerableAskMessageId(snapshot: ThreadSnapshot | null): string |
   return null;
 }
 
+function extractTurnExecutionMetadata(message: ThreadMessage): {
+  resolvedModel?: string;
+  resolvedProvider?: string;
+  isFree?: boolean;
+} | null {
+  const m = message as any;
+  const rawMeta = m.metadata || m.executionMetadata || m.execution || m.inference || {};
+  const resolvedModel =
+    rawMeta.resolvedModel ||
+    rawMeta.model ||
+    m.resolvedModel ||
+    m.model ||
+    m.run?.modelId ||
+    m.run?.model ||
+    null;
+  const resolvedProvider =
+    rawMeta.resolvedProvider ||
+    rawMeta.provider ||
+    m.resolvedProvider ||
+    m.provider ||
+    m.run?.modelProvider ||
+    m.run?.provider ||
+    null;
+  const isFree =
+    rawMeta.isFree ??
+    m.isFree ??
+    (rawMeta.mode === "free" ||
+      m.inferenceMode === "free" ||
+      (typeof resolvedModel === "string" &&
+        (resolvedModel.includes(":free") || resolvedModel.includes("free"))));
+
+  if (Array.isArray(message.blocks)) {
+    for (const block of message.blocks) {
+      const b = block as any;
+      if (b.metadata || b.executionMetadata) {
+        const bMeta = b.metadata || b.executionMetadata;
+        const bModel = bMeta.resolvedModel || bMeta.model;
+        const bProvider = bMeta.resolvedProvider || bMeta.provider;
+        if (bModel || bProvider) {
+          return {
+            resolvedModel: bModel || resolvedModel,
+            resolvedProvider: bProvider || resolvedProvider,
+            isFree: bMeta.isFree ?? isFree,
+          };
+        }
+      }
+    }
+  }
+
+  if (resolvedModel || resolvedProvider) {
+    return {
+      resolvedModel: resolvedModel || undefined,
+      resolvedProvider: resolvedProvider || undefined,
+      isFree: Boolean(isFree),
+    };
+  }
+
+  return null;
+}
+
 const MessageView = memo(function MessageView({
   botId,
   canAnswer,
@@ -2213,6 +2273,8 @@ const MessageView = memo(function MessageView({
   speaking: boolean;
   onSpeak: () => void;
 }) {
+  const executionMeta = extractTurnExecutionMetadata(message);
+
   return (
     <>
       {message.blocks.map((block, i) => {
@@ -2420,6 +2482,23 @@ const MessageView = memo(function MessageView({
         }
         return null;
       })}
+      {message.role !== "user" && executionMeta ? (
+        <div className="flex justify-start w-full mt-1 px-1">
+          <div
+            data-testid="turn-execution-metadata"
+            className="inline-flex items-center gap-1.5 rounded-full bg-zinc-900/70 border border-zinc-800/80 px-2.5 py-0.5 text-[11px] text-zinc-400 font-mono"
+          >
+            <span className="h-1.5 w-1.5 rounded-full bg-emerald-400/80" />
+            <span>
+              {executionMeta.resolvedModel && executionMeta.resolvedProvider
+                ? `Modèle utilisé : ${executionMeta.resolvedModel} · ${executionMeta.resolvedProvider}`
+                : executionMeta.resolvedModel
+                  ? `Gratuit via OmniRoute · ${executionMeta.resolvedModel}`
+                  : `Modèle utilisé : ${executionMeta.resolvedProvider}`}
+            </span>
+          </div>
+        </div>
+      ) : null}
     </>
   );
 });
@@ -2563,16 +2642,36 @@ const USAGE_TAG_OPTIONS: {
   description: string;
   badge: string;
 }[] = [
-  { id: "coding", label: "Code & Scripting", description: "DeepSeek / Qwen Coder", badge: "Dev" },
+  {
+    id: "coding",
+    label: "Code & Scripting",
+    description: "Optimisé pour la génération et revue de code",
+    badge: "Dev",
+  },
   {
     id: "writing",
     label: "Rédaction & Synthèse",
-    description: "Mistral Small 24B",
+    description: "Rédaction fluide et synthèse",
     badge: "Prose",
   },
-  { id: "reasoning", label: "Raisonnement & Logique", description: "DeepSeek R1", badge: "Logic" },
-  { id: "fast", label: "Ultra Rapide & Triage", description: "LLaMA 3.2 3B", badge: "Fast" },
-  { id: "analysis", label: "Analyse & Données", description: "Qwen 2.5 72B", badge: "Data" },
+  {
+    id: "reasoning",
+    label: "Raisonnement & Logique",
+    description: "Optimisé pour le raisonnement logique et complexe",
+    badge: "Logic",
+  },
+  {
+    id: "fast",
+    label: "Ultra Rapide & Triage",
+    description: "Ultra-rapide pour requêtes courtes",
+    badge: "Fast",
+  },
+  {
+    id: "analysis",
+    label: "Analyse & Données",
+    description: "Analyse documentaire et extraction",
+    badge: "Data",
+  },
 ];
 
 export function IntelligenceSelector({
@@ -2656,6 +2755,25 @@ export function IntelligenceSelector({
           <span>Gratuit (OmniRoute Free)</span>
         </button>
       </div>
+
+      {/* Stable Intent Presentation */}
+      {inferenceMode === "free" && (
+        <div
+          data-testid="omniroute-stable-intent"
+          className="rounded-lg bg-emerald-500/10 border border-emerald-500/20 px-3.5 py-2 text-xs text-emerald-300 flex items-center justify-between"
+        >
+          <div className="flex items-center gap-2">
+            <span className="h-2 w-2 rounded-full bg-emerald-400" />
+            <span className="font-medium">
+              Gratuit via OmniRoute · Profil :{" "}
+              {usageTags.length > 0
+                ? usageTags.map((t) => t.charAt(0).toUpperCase() + t.slice(1)).join(", ")
+                : "Général"}
+            </span>
+          </div>
+          <span className="text-[10px] font-mono text-emerald-400/80 uppercase">Zéro-Coût</span>
+        </div>
+      )}
 
       {/* Usage Tags Section (Active only when Free mode is selected) */}
       {inferenceMode === "free" && (

@@ -26,10 +26,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
   private policyEngine: RakazoFreePolicyEngine;
 
   constructor(options: OmniRouteTransportOptions = {}) {
-    const rawUrl =
-      options.baseUrl ||
-      process.env.OMNIROUTE_BASE_URL ||
-      "http://127.0.0.1:8080/v1";
+    const rawUrl = options.baseUrl || process.env.OMNIROUTE_BASE_URL || "http://127.0.0.1:8080/v1";
     this.baseUrl = rawUrl.replace(/\/+$/, "");
     this.apiKey = options.apiKey ?? (process.env.OMNIROUTE_API_KEY || "");
     this.defaultModel = options.defaultModel || "combo/rakazo-fast";
@@ -45,9 +42,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
     return this.defaultModel;
   }
 
-  public async *stream(
-    request: InferenceTransportRequest,
-  ): AsyncIterable<InferenceTransportChunk> {
+  public async *stream(request: InferenceTransportRequest): AsyncIterable<InferenceTransportChunk> {
     const targetModel = request.model || this.defaultModel;
     this.policyEngine.vetoPaidFallback(targetModel);
 
@@ -83,9 +78,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
         function: {
           name: t.name,
           description: t.description || "",
-          parameters:
-            (t as any).parameters ??
-            t.inputSchema ?? { type: "object", properties: {} },
+          parameters: (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
         },
       }));
 
@@ -132,9 +125,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
 
       while (true) {
         if (controller.signal.aborted || request.signal?.aborted) {
-          throw new Error(
-            `Request aborted: ${FREE_INFERENCE_UNAVAILABLE_MESSAGE}`,
-          );
+          throw new Error(`Request aborted: ${FREE_INFERENCE_UNAVAILABLE_MESSAGE}`);
         }
 
         const { done, value } = await reader.read();
@@ -146,9 +137,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
 
         for (const line of lines) {
           if (controller.signal.aborted || request.signal?.aborted) {
-            throw new Error(
-              `Request aborted: ${FREE_INFERENCE_UNAVAILABLE_MESSAGE}`,
-            );
+            throw new Error(`Request aborted: ${FREE_INFERENCE_UNAVAILABLE_MESSAGE}`);
           }
           const trimmed = line.trim();
           if (!trimmed || trimmed.startsWith(":")) continue;
@@ -201,9 +190,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
                   parsed.usage.prompt_tokens_details?.cached_tokens ??
                   parsed.usage.cached_tokens ??
                   0;
-                const totalTokens =
-                  parsed.usage.total_tokens ??
-                  promptTokens + completionTokens;
+                const totalTokens = parsed.usage.total_tokens ?? promptTokens + completionTokens;
 
                 yield {
                   type: "usage",
@@ -216,9 +203,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
                 };
               }
             } catch (err: any) {
-              if (
-                err?.message?.includes(FREE_INFERENCE_UNAVAILABLE_MESSAGE)
-              ) {
+              if (err?.message?.includes(FREE_INFERENCE_UNAVAILABLE_MESSAGE)) {
                 throw err;
               }
               // Skip malformed SSE chunks
@@ -228,9 +213,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
       }
     } catch (err: any) {
       if (err?.name === "AbortError") {
-        throw new Error(
-          `Request aborted: ${FREE_INFERENCE_UNAVAILABLE_MESSAGE}`,
-        );
+        throw new Error(`Request aborted: ${FREE_INFERENCE_UNAVAILABLE_MESSAGE}`);
       }
       if (err?.message?.includes(FREE_INFERENCE_UNAVAILABLE_MESSAGE)) {
         throw err;

@@ -1,6 +1,7 @@
 import * as z from "zod";
 import { ThreadMessageSchema } from "./events.js";
 import { Id, MemoryScope, RunStatus, SandboxKind } from "./ids.js";
+
 export type { BotMcpConfig } from "./mcp-catalog.js";
 
 export const ComputerModeSchema = z.enum(["team", "dedicated"]);
@@ -24,8 +25,7 @@ export const BotInferenceConfigSchema = z.object({
 });
 export type BotInferenceConfig = z.infer<typeof BotInferenceConfigSchema>;
 
-export const FREE_INFERENCE_UNAVAILABLE_MESSAGE =
-  "Capacité gratuite temporairement indisponible";
+export const FREE_INFERENCE_UNAVAILABLE_MESSAGE = "Capacité gratuite temporairement indisponible";
 
 export const FREE_INFERENCE_ERROR_CODES = {
   CAPACITY_UNAVAILABLE: "FREE_CAPACITY_UNAVAILABLE",

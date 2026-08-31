@@ -1,5 +1,5 @@
+import { AlertCircle, Check, RefreshCw, Sparkles, X } from "lucide-react";
 import React, { useState } from "react";
-import { Sparkles, X, Check, RefreshCw, AlertCircle } from "lucide-react";
 import { rpc } from "../lib/rpc.js";
 
 // Zero-Secret Invariant Masking Helper
@@ -56,7 +56,9 @@ export function PromptCompilerModal({
   const [level, setLevel] = useState<"level1_deterministic" | "level2_llm">("level2_llm");
   const [compiledText, setCompiledText] = useState(initialCompiled);
   const [isCompiling, setIsCompiling] = useState(isCompilingInitial);
-  const [error, setError] = useState<string | null>(initialError ? sanitizeToolError(initialError) : null);
+  const [error, setError] = useState<string | null>(
+    initialError ? sanitizeToolError(initialError) : null,
+  );
   const [telemetry, setTelemetry] = useState<{
     cachedTokens?: number;
     durationMs?: number;
@@ -85,7 +87,14 @@ export function PromptCompilerModal({
           setCompiledText(res.compiledInstruction);
           if (res.telemetry) setTelemetry(res.telemetry);
         } catch (rpcErr) {
-          const fallback = "## Rôle & Identité\nVous êtes l'agent '" + botName + "' " + (botTitle ? "(" + botTitle + ")" : "") + ".\n\n## Mission Principale\n" + rawDraft.trim() + "\n\n## Directives & Garde-fous Stricts\n- Exécuter avec concision, méthode et précision.\n- N'appeler que les outils strictement nécessaires.\n\n## Format de Sortie\nMarkdown dense et structuré sans préambule superflu.";
+          const fallback =
+            "## Rôle & Identité\nVous êtes l'agent '" +
+            botName +
+            "' " +
+            (botTitle ? "(" + botTitle + ")" : "") +
+            ".\n\n## Mission Principale\n" +
+            rawDraft.trim() +
+            "\n\n## Directives & Garde-fous Stricts\n- Exécuter avec concision, méthode et précision.\n- N'appeler que les outils strictement nécessaires.\n\n## Format de Sortie\nMarkdown dense et structuré sans préambule superflu.";
           setCompiledText(fallback);
         }
       }
@@ -104,12 +113,14 @@ export function PromptCompilerModal({
     >
       <div
         data-testid="prompt-compiler-modal"
-        className={"flex flex-col overflow-hidden rounded-2xl border border-[#2A2A2E] bg-[#141416] text-[#ECECEE] shadow-2xl transition-all " +
+        className={
+          "flex flex-col overflow-hidden rounded-2xl border border-[#2A2A2E] bg-[#141416] text-[#ECECEE] shadow-2xl transition-all " +
           (isMobile
             ? "h-[96vh] w-[98%] max-w-[98%]"
             : isTablet
               ? "h-[85vh] w-[90%] max-w-[90%]"
-              : "h-[800px] w-[1000px] max-w-full")}
+              : "h-[800px] w-[1000px] max-w-full")
+        }
       >
         {/* Header */}
         <div className="flex items-center justify-between border-b border-[#26262A] px-5 py-4 sm:px-6">
@@ -146,10 +157,12 @@ export function PromptCompilerModal({
               data-testid="level-toggle-level1"
               onClick={() => handleTriggerCompile("level1_deterministic")}
               disabled={isCompiling}
-              className={"flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors " +
+              className={
+                "flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors " +
                 (level === "level1_deterministic"
                   ? "bg-[#2C2C30] text-white"
-                  : "text-[#85858A] hover:text-white")}
+                  : "text-[#85858A] hover:text-white")
+              }
             >
               Niveau 1 : Structuré (Rapide)
             </button>
@@ -158,25 +171,29 @@ export function PromptCompilerModal({
               data-testid="level-toggle-level2"
               onClick={() => handleTriggerCompile("level2_llm")}
               disabled={isCompiling}
-              className={"flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors " +
+              className={
+                "flex items-center justify-center rounded-lg px-3 py-1.5 min-h-[38px] sm:min-h-0 text-xs font-medium transition-colors " +
                 (level === "level2_llm"
                   ? "bg-indigo-600/30 text-indigo-300 border border-indigo-500/40"
-                  : "text-[#85858A] hover:text-white")}
+                  : "text-[#85858A] hover:text-white")
+              }
             >
               Niveau 2 : IA gpt-oss-120b
             </button>
           </div>
 
           {telemetry && (
-            <div data-testid="compiler-telemetry-badge" className="flex items-center gap-3 text-[11px] text-[#A1A1AA]">
+            <div
+              data-testid="compiler-telemetry-badge"
+              className="flex items-center gap-3 text-[11px] text-[#A1A1AA]"
+            >
               {telemetry.cachedTokens !== undefined && (
                 <span className="rounded bg-emerald-500/10 px-2 py-0.5 text-emerald-400">
-                  {telemetry.cachedTokens} tokens en cache ({((telemetry.cacheHitRatio ?? 0) * 100).toFixed(0)}%)
+                  {telemetry.cachedTokens} tokens en cache (
+                  {((telemetry.cacheHitRatio ?? 0) * 100).toFixed(0)}%)
                 </span>
               )}
-              {telemetry.durationMs !== undefined && (
-                <span>{telemetry.durationMs} ms</span>
-              )}
+              {telemetry.durationMs !== undefined && <span>{telemetry.durationMs} ms</span>}
             </div>
           )}
         </div>
@@ -236,8 +253,12 @@ export function PromptCompilerModal({
                 className="flex flex-1 flex-col items-center justify-center rounded-xl border border-[#26262A] bg-[#0E0E10] p-6 text-center text-[#85858A]"
               >
                 <div className="mb-3 h-7 w-7 animate-spin rounded-full border-2 border-indigo-500 border-t-transparent" />
-                <p className="text-xs font-medium text-[#ECECEE]">Structuration par gpt-oss-120b en cours…</p>
-                <p className="mt-1 text-[11px] text-[#71717A]">Application du format hiérarchique et des garde-fous</p>
+                <p className="text-xs font-medium text-[#ECECEE]">
+                  Structuration par gpt-oss-120b en cours…
+                </p>
+                <p className="mt-1 text-[11px] text-[#71717A]">
+                  Application du format hiérarchique et des garde-fous
+                </p>
               </div>
             ) : (
               <textarea

@@ -38,7 +38,9 @@ export function AuthPage({ mode }: { mode: "in" | "up" }) {
           <span className="h-5 w-[9px] rounded-full bg-[#F7F7F4]" />
           <span className="h-5 w-[9px] rounded-full bg-[#F7F7F4]" />
         </div>
-        <h1 className="mb-[30px] sm:mb-[38px] mt-6 sm:mt-[30px] text-center text-[28px] sm:text-[38px] tracking-[-0.02em]">{title}</h1>
+        <h1 className="mb-[30px] sm:mb-[38px] mt-6 sm:mt-[30px] text-center text-[28px] sm:text-[38px] tracking-[-0.02em]">
+          {title}
+        </h1>
         {mode === "up" ? (
           <label className="mb-4 w-full text-[16px] text-[#6E6E68]">
             Nom complet

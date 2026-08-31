@@ -247,7 +247,10 @@ export async function updateSkill(
     throw new IsolationError("Resource does not belong to the active workspace");
   }
 
-  if (input.content !== undefined && (input.content.length === 0 || input.content.length > 2_000_000)) {
+  if (
+    input.content !== undefined &&
+    (input.content.length === 0 || input.content.length > 2_000_000)
+  ) {
     throw new ORPCError("BAD_REQUEST", {
       message: "Content must be between 1 and 2,000,000 characters",
     });
@@ -271,9 +274,7 @@ export async function updateSkill(
             content: input.content !== undefined ? input.content : undefined,
             tags: input.tags !== undefined ? (input.tags as Prisma.InputJsonValue) : undefined,
             metadata:
-              input.metadata !== undefined
-                ? (input.metadata as Prisma.InputJsonValue)
-                : undefined,
+              input.metadata !== undefined ? (input.metadata as Prisma.InputJsonValue) : undefined,
           },
         });
       },
@@ -453,7 +454,6 @@ export function createSkillsService(deps: SkillsDeps) {
       uploadSkillMarkdown(deps, actor, input),
     assignToBot: (actor: Actor, input: AssignSkillsToBotInput) =>
       assignSkillsToBot(deps, actor, input),
-    getBotSkills: (actor: Actor, input: GetBotSkillsInput) =>
-      getBotSkills(deps, actor, input),
+    getBotSkills: (actor: Actor, input: GetBotSkillsInput) => getBotSkills(deps, actor, input),
   };
 }

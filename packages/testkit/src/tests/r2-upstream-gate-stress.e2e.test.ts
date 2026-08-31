@@ -1,8 +1,8 @@
-import { describe, expect, it, beforeEach, afterEach } from "vitest";
-import { mkdtempSync, rmSync, writeFileSync, mkdirSync } from "node:fs";
+import { execSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { execSync } from "node:child_process";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 
 describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", () => {
   let tempBaseDir: string;
@@ -42,7 +42,9 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
     // 4. Clone origin to localClone
     execSync(`git clone "${originRepo}" "${localClone}"`);
     execSync('git config user.name "github-actions[bot]"', { cwd: localClone });
-    execSync('git config user.email "github-actions[bot]@users.noreply.github.com"', { cwd: localClone });
+    execSync('git config user.email "github-actions[bot]@users.noreply.github.com"', {
+      cwd: localClone,
+    });
     execSync(`git remote add upstream "${upstreamRepo}"`, { cwd: localClone });
   });
 
@@ -55,7 +57,10 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
   });
 
   function pushCommitToUpstream(filename: string, content: string, msg: string) {
-    const tempUpstreamWork = join(tempBaseDir, "upstream-work-" + Math.random().toString(36).slice(2));
+    const tempUpstreamWork = join(
+      tempBaseDir,
+      "upstream-work-" + Math.random().toString(36).slice(2),
+    );
     execSync(`git clone "${upstreamRepo}" "${tempUpstreamWork}"`);
     execSync('git config user.name "Upstream Dev"', { cwd: tempUpstreamWork });
     execSync('git config user.email "dev@upstream.com"', { cwd: tempUpstreamWork });
@@ -65,8 +70,13 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
     rmSync(tempUpstreamWork, { recursive: true, force: true });
   }
 
-  function pushMultipleCommitsToUpstream(commits: { filename: string; content: string; msg: string }[]) {
-    const tempUpstreamWork = join(tempBaseDir, "upstream-work-" + Math.random().toString(36).slice(2));
+  function pushMultipleCommitsToUpstream(
+    commits: { filename: string; content: string; msg: string }[],
+  ) {
+    const tempUpstreamWork = join(
+      tempBaseDir,
+      "upstream-work-" + Math.random().toString(36).slice(2),
+    );
     execSync(`git clone "${upstreamRepo}" "${tempUpstreamWork}"`);
     execSync('git config user.name "Upstream Dev"', { cwd: tempUpstreamWork });
     execSync('git config user.email "dev@upstream.com"', { cwd: tempUpstreamWork });
@@ -80,17 +90,26 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
 
   it("Stress 1: Clean Upstream Update + Successful Gate -> Clean Fast Merge Pushed to Origin", () => {
     // Upstream adds a new non-conflicting feature
-    pushCommitToUpstream("UPSTREAM_FEATURE.md", "# New upstream feature\n", "feat: upstream additive doc");
+    pushCommitToUpstream(
+      "UPSTREAM_FEATURE.md",
+      "# New upstream feature\n",
+      "feat: upstream additive doc",
+    );
 
     // Execute sync workflow script logic in localClone
     execSync("git fetch upstream main", { cwd: localClone });
-    const newCommits = execSync("git log --oneline main..upstream/main", { cwd: localClone }).toString().trim();
+    const newCommits = execSync("git log --oneline main..upstream/main", { cwd: localClone })
+      .toString()
+      .trim();
     expect(newCommits.length).toBeGreaterThan(0);
 
     // Merge attempt
-    execSync('git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique avec elie222/rakazo"', {
-      cwd: localClone,
-    });
+    execSync(
+      'git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique avec elie222/rakazo"',
+      {
+        cwd: localClone,
+      },
+    );
 
     // Simulated test gate: PASS
     const gatePassed = true;
@@ -107,14 +126,23 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
 
   it("Stress 2: Upstream Merge Conflict -> Immediate Abort & Zero Pollution on main", () => {
     // Sovereign repo has modified README.md
-    writeFileSync(join(localClone, "README.md"), "# Custom Sovereign Rakazo\nModified by sovereign team.\n");
-    execSync("git add README.md && git commit -m 'feat: sovereign custom readme'", { cwd: localClone });
+    writeFileSync(
+      join(localClone, "README.md"),
+      "# Custom Sovereign Rakazo\nModified by sovereign team.\n",
+    );
+    execSync("git add README.md && git commit -m 'feat: sovereign custom readme'", {
+      cwd: localClone,
+    });
     execSync("git push origin main", { cwd: localClone });
 
     const mainBeforeCommit = execSync("git rev-parse HEAD", { cwd: localClone }).toString().trim();
 
     // Upstream also modified README.md in conflicting way
-    pushCommitToUpstream("README.md", "# Conflicting Upstream Readme\nOverwritten.\n", "feat: upstream readme change");
+    pushCommitToUpstream(
+      "README.md",
+      "# Conflicting Upstream Readme\nOverwritten.\n",
+      "feat: upstream readme change",
+    );
 
     execSync("git fetch upstream main", { cwd: localClone });
 
@@ -142,21 +170,33 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
     execSync("git push -f origin upstream-sync-conflict", { cwd: localClone });
 
     // Verify upstream-sync-conflict branch exists on origin and points to upstream/main
-    const conflictBranchSha = execSync("git rev-parse origin/upstream-sync-conflict", { cwd: localClone }).toString().trim();
-    const upstreamSha = execSync("git rev-parse upstream/main", { cwd: localClone }).toString().trim();
+    const conflictBranchSha = execSync("git rev-parse origin/upstream-sync-conflict", {
+      cwd: localClone,
+    })
+      .toString()
+      .trim();
+    const upstreamSha = execSync("git rev-parse upstream/main", { cwd: localClone })
+      .toString()
+      .trim();
     expect(conflictBranchSha).toBe(upstreamSha);
   }, 60000);
 
   it("Stress 3: Clean Merge at Git level, but Test Gate FAILS -> Rollback HEAD~1 Restores Pristine main", () => {
     // Upstream adds a breaking code file
-    pushCommitToUpstream("breaking-change.ts", "export const broken = 1;", "feat: breaking upstream change");
+    pushCommitToUpstream(
+      "breaking-change.ts",
+      "export const broken = 1;",
+      "feat: breaking upstream change",
+    );
 
     execSync("git fetch upstream main", { cwd: localClone });
 
     const mainBeforeMerge = execSync("git rev-parse HEAD", { cwd: localClone }).toString().trim();
 
     // Merge succeeds at git tree level
-    execSync('git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique"', { cwd: localClone });
+    execSync('git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique"', {
+      cwd: localClone,
+    });
 
     // Simulated Test Gate: FAILS (e.g. typecheck or vitest failure)
     const testGatePassed = false;
@@ -190,15 +230,22 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
 
     execSync("git fetch upstream main", { cwd: localClone });
 
-    const newCommitsCount = execSync("git rev-list --count main..upstream/main", { cwd: localClone }).toString().trim();
+    const newCommitsCount = execSync("git rev-list --count main..upstream/main", {
+      cwd: localClone,
+    })
+      .toString()
+      .trim();
     expect(parseInt(newCommitsCount, 10)).toBe(5);
 
     const mainBefore = execSync("git rev-parse HEAD", { cwd: localClone }).toString().trim();
 
     // Clean merge
-    execSync('git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique de 5 commits"', {
-      cwd: localClone,
-    });
+    execSync(
+      'git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique de 5 commits"',
+      {
+        cwd: localClone,
+      },
+    );
 
     // Test rollback on test gate failure
     execSync("git reset --hard HEAD~1", { cwd: localClone });
@@ -209,7 +256,9 @@ describe("Adversarial Stress Test: Upstream Sync Gate & Git State Transitions", 
 
   it("Stress 5: Idempotency with No Upstream Commits", () => {
     execSync("git fetch upstream main", { cwd: localClone });
-    const newCommits = execSync("git log --oneline main..upstream/main", { cwd: localClone }).toString().trim();
+    const newCommits = execSync("git log --oneline main..upstream/main", { cwd: localClone })
+      .toString()
+      .trim();
     expect(newCommits).toBe("");
 
     // Gate should determine has_commits = false and do nothing

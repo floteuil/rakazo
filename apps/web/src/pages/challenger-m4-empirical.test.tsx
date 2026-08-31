@@ -9,7 +9,8 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
   // ==========================================================================
   describe("1. PromptCompilerModal: Before/After Comparative UX & Viewport Adaptation", () => {
     const rawInstruction = "You are a senior DevOps engineer managing Coolify containers.";
-    const compiledInstruction = "## Rôle & Identité\nVous êtes l'agent 'DevOps Expert'.\n\n## Mission Principale\nGestion des conteneurs Coolify.";
+    const compiledInstruction =
+      "## Rôle & Identité\nVous êtes l'agent 'DevOps Expert'.\n\n## Mission Principale\nGestion des conteneurs Coolify.";
 
     it("1.1 Mobile Viewports (320px, 360px, 375px, 390px, 430px): Renders stacked layout with full viewport utilization", () => {
       const mobileWidths = [320, 360, 375, 390, 430];
@@ -23,7 +24,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
             viewportWidth={width}
             onClose={() => {}}
             onApply={() => {}}
-          />
+          />,
         );
 
         // Container class must enforce mobile sizing: h-[96vh] w-[98%]
@@ -50,7 +51,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={768}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       // Tablet sizing: h-[85vh] w-[90%]
@@ -67,7 +68,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={1440}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       // Desktop sizing: h-[800px] w-[1000px]
@@ -84,7 +85,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           rawDraft={rawInstruction}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
       expect(html).toBe("");
     });
@@ -103,7 +104,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={375}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       // Close button >= 44px
@@ -131,7 +132,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={390}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       expect(html).toContain("pb-[max(0.875rem,env(safe-area-inset-bottom))]");
@@ -146,7 +147,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={375}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       // text-[16px] ensures Safari iOS does not trigger viewport auto-zoom on focus
@@ -160,7 +161,8 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
   // ==========================================================================
   describe("3. Zero-Secret Invariant & Telemetry Display", () => {
     it("3.1 Sanitizes sensitive tokens in initialError prop (GitHub, Notion, OpenRouter)", () => {
-      const dirtyError = "Failed with ghp_abc123xyz456 and secret_99887766 and sk-or-v1-abcdef012345";
+      const dirtyError =
+        "Failed with ghp_abc123xyz456 and secret_99887766 and sk-or-v1-abcdef012345";
       const html = renderToStaticMarkup(
         <PromptCompilerModal
           isOpen={true}
@@ -169,7 +171,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={1024}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       // Must redact sensitive tokens
@@ -192,7 +194,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={375}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       expect(html).toContain('data-testid="compiler-retry-btn"');
@@ -208,7 +210,7 @@ describe("Milestone M4 Empirical Challenge Suite: Responsive WebUI & Ergonomics"
           viewportWidth={1024}
           onClose={() => {}}
           onApply={() => {}}
-        />
+        />,
       );
 
       expect(html).toContain('data-testid="compiler-loading-spinner"');

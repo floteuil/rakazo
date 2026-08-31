@@ -201,7 +201,9 @@ export function OnboardingPage() {
         {step === "loading" ? <p className="text-[#85858A]">Chargement…</p> : null}
         {step === "model" ? (
           <div>
-            <h1 className="text-[26px] sm:text-[32px] font-medium text-[#F1F1F2]">Connecter un modèle</h1>
+            <h1 className="text-[26px] sm:text-[32px] font-medium text-[#F1F1F2]">
+              Connecter un modèle
+            </h1>
             <p className="mt-2 text-[#85858A]">
               Collez une clé API ou passez cette étape si votre serveur dispose déjà d'une clé
               configurée.
@@ -326,7 +328,9 @@ export function OnboardingPage() {
         ) : null}
         {step === "bot" ? (
           <div>
-            <h1 className="text-[26px] sm:text-[32px] font-medium text-[#F1F1F2]">Créer votre premier agent</h1>
+            <h1 className="text-[26px] sm:text-[32px] font-medium text-[#F1F1F2]">
+              Créer votre premier agent
+            </h1>
             <label className="mt-8 block text-sm text-[#85858A]">
               Nom de l'agent
               <input
