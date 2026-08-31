@@ -51,6 +51,7 @@ import type { Auth } from "@rakazo/auth";
 import {
   type Actor,
   appContract,
+  type BotInferenceConfig,
   type ComputerStatus,
   type Me,
   type ThreadSnapshot,
@@ -323,6 +324,10 @@ export function createRouter(deps: RouterDeps) {
       ),
       duplicate: authed.bots.duplicate.handler(async ({ context, input }) => {
         const source = await repos.getBot(context.actor, input.botId);
+        const sourceMetadata = (source.metadata as Record<string, unknown>) ?? {};
+        const sourceInference =
+          (source as { inference?: BotInferenceConfig }).inference ??
+          (sourceMetadata.inference as BotInferenceConfig | undefined);
         return repos.createBot(context.actor, {
           name: duplicateBotName(source.name),
           title: source.title,
@@ -331,7 +336,8 @@ export function createRouter(deps: RouterDeps) {
           notifyOnFinish: source.notifyOnFinish,
           color: source.color,
           computerMode: source.computer?.scope === "dedicated" ? "dedicated" : "team",
-          metadata: (source.metadata as Record<string, unknown>) ?? {},
+          metadata: sourceMetadata,
+          inference: sourceInference,
         });
       }),
       update: authed.bots.update.handler(async ({ context, input }) => {

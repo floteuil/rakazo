@@ -243,8 +243,9 @@ OmniRoute supports specialized high-availability combo routes for Rakazo autonom
 Requests carry the `x-session-id` header (32-bit FNV-1a session hash) to maximize upstream KV prefix cache hits across multi-turn agent turns.
 
 ### Related Documentation
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md): Master architectural production certification artifact.
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](../RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master platform architectural specification.
 - [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
 
 

@@ -310,9 +310,9 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 ## 5. OmniRoute Free Intelligence Gateway Deployment & Security Architecture
 
-Rakazo integrates **OmniRoute** as a sovereign, self-hosted, unprivileged free inference gateway microservice running alongside `@rakazo/api` and `@rakazo/worker`. This provides users with the option to deploy 100% free autonomous agents powered by open-weights models (such as `meta-llama/llama-3.3-70b-instruct:free`, `qwen/qwen-2.5-coder-32b-instruct:free`, `deepseek/deepseek-r1:free`, and `mistralai/mistral-small-24b-instruct:free`) without incurring API token costs.
+Rakazo integrates **OmniRoute** as a sovereign, self-hosted, unprivileged free inference gateway microservice running alongside `@rakazo/api` and `@rakazo/worker`. This provides users with the option to deploy 100% free autonomous agents powered by live high-availability combo routes (`combo/rakazo-coding`, `combo/rakazo-reasoning`, `combo/rakazo-fast`, `combo/rakazo-writing`, `combo/rakazo-analysis`) without incurring API token costs.
 
-> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md).
+> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md) and [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md).
 
 ### 5.1 Architecture & Network Topologies
 
@@ -521,8 +521,9 @@ docker compose -f infra/compose/docker-compose.yml exec api curl -s \
 
 ## 8. Related Architecture & Governance Documents
 
-- [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_CERTIFICATION.md): Master architectural production certification artifact.
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](../RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master platform architectural specification.
+- [`AGENTS.md`](../AGENTS.md): Authoritative autonomous operating guide & 6 core pillars.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md): Master architectural handoff for RAKAZO Final OmniRoute Integration (R1–R6).
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md): Architectural handoff for OmniRoute Coolify deployment (Milestones M1–M5).
 - [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md): Authoritative Coolify PaaS production runbook for OmniRoute.

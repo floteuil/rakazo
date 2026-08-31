@@ -279,4 +279,422 @@ describe("Bot Repository (repos.ts)", () => {
       });
     });
   });
+
+  describe("inference configuration & inheritance", () => {
+    it("listBots maps bot with explicit Free mode inference and tags", async () => {
+      const freeDbBot = {
+        ...sampleDbBot,
+        id: "bot-free",
+        metadata: {
+          inference: {
+            mode: "free",
+            tags: ["coding", "reasoning"],
+          },
+        },
+      };
+      const findMany = vi.fn().mockResolvedValue([freeDbBot]);
+      const prisma = { bot: { findMany } } as unknown as PrismaClient;
+      const repos = createRepos(prisma);
+
+      const [bot] = await repos.listBots(actor);
+      expect(bot).toBeDefined();
+      expect(bot!.inference).toEqual({
+        mode: "free",
+        tags: ["coding", "reasoning"],
+      });
+    });
+
+    it("listBots returns inference: undefined for legacy bots without inference in metadata", async () => {
+      const legacyDbBot = {
+        ...sampleDbBot,
+        id: "bot-legacy",
+        metadata: {
+          mcp: { connectors: { github: true } },
+        },
+      };
+      const findMany = vi.fn().mockResolvedValue([legacyDbBot]);
+      const prisma = { bot: { findMany } } as unknown as PrismaClient;
+      const repos = createRepos(prisma);
+
+      const [bot] = await repos.listBots(actor);
+      expect(bot).toBeDefined();
+      expect(bot!.inference).toBeUndefined();
+    });
+
+    it("createBot persists explicit Free mode inference in metadata", async () => {
+      const mockCreated = {
+        ...sampleDbBot,
+        id: "bot-created-free",
+        metadata: {
+          mcp: { connectors: { cloudflare: true } },
+          inference: {
+            mode: "free",
+            tags: ["coding", "fast"],
+          },
+        },
+      };
+
+      const tx = {
+        computer: { upsert: vi.fn().mockResolvedValue({ id: "comp-team", scope: "team" }) },
+        bot: {
+          create: vi.fn().mockResolvedValue(mockCreated),
+          findFirstOrThrow: vi.fn().mockResolvedValue(mockCreated),
+        },
+        thread: { create: vi.fn().mockResolvedValue({ id: "thread-new" }) },
+        browserProfile: { create: vi.fn().mockResolvedValue({ id: "bp-1" }) },
+        memoryDocument: { create: vi.fn().mockResolvedValue({ id: "mem-1" }) },
+      };
+
+      const prisma = {
+        bot: { count: vi.fn().mockResolvedValue(0) },
+        deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+        $transaction: vi.fn().mockImplementation(async (cb) => cb(tx)),
+      } as unknown as PrismaClient;
+
+      const repos = createRepos(prisma);
+      const created = await repos.createBot(actor, {
+        name: "Free Bot",
+        title: "Test Free",
+        description: "Desc",
+        instructions: "Inst",
+        notifyOnFinish: true,
+        metadata: { mcp: { connectors: { cloudflare: true } } },
+        inference: {
+          mode: "free",
+          tags: ["coding", "fast"],
+        },
+      });
+
+      expect(tx.bot.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: "Free Bot",
+          metadata: {
+            mcp: { connectors: { cloudflare: true } },
+            inference: {
+              mode: "free",
+              tags: ["coding", "fast"],
+            },
+          },
+        }),
+      });
+      expect(created.inference).toEqual({
+        mode: "free",
+        tags: ["coding", "fast"],
+      });
+    });
+
+    it("createBot without inference creates legacy bot with inference: undefined", async () => {
+      const mockCreated = {
+        ...sampleDbBot,
+        id: "bot-created-legacy",
+        metadata: {},
+      };
+
+      const tx = {
+        computer: { upsert: vi.fn().mockResolvedValue({ id: "comp-team", scope: "team" }) },
+        bot: {
+          create: vi.fn().mockResolvedValue(mockCreated),
+          findFirstOrThrow: vi.fn().mockResolvedValue(mockCreated),
+        },
+        thread: { create: vi.fn().mockResolvedValue({ id: "thread-new" }) },
+        browserProfile: { create: vi.fn().mockResolvedValue({ id: "bp-1" }) },
+        memoryDocument: { create: vi.fn().mockResolvedValue({ id: "mem-1" }) },
+      };
+
+      const prisma = {
+        bot: { count: vi.fn().mockResolvedValue(0) },
+        deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+        $transaction: vi.fn().mockImplementation(async (cb) => cb(tx)),
+      } as unknown as PrismaClient;
+
+      const repos = createRepos(prisma);
+      const created = await repos.createBot(actor, {
+        name: "Legacy Bot",
+        title: "Test Legacy",
+        description: "Desc",
+        instructions: "Inst",
+        notifyOnFinish: true,
+      });
+
+      expect(tx.bot.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          name: "Legacy Bot",
+          metadata: {},
+        }),
+      });
+      expect(created.inference).toBeUndefined();
+    });
+
+    it("createBot inherits Free mode and tags from Free parent bot", async () => {
+      const parentFreeBot = {
+        ...sampleDbBot,
+        id: "parent-free-1",
+        metadata: {
+          inference: {
+            mode: "free",
+            tags: ["reasoning"],
+          },
+        },
+      };
+
+      const mockChildCreated = {
+        ...sampleDbBot,
+        id: "child-free-1",
+        parentBotId: "parent-free-1",
+        metadata: {
+          inference: {
+            mode: "free",
+            tags: ["reasoning"],
+          },
+        },
+      };
+
+      const tx = {
+        computer: { upsert: vi.fn().mockResolvedValue({ id: "comp-team", scope: "team" }) },
+        bot: {
+          create: vi.fn().mockResolvedValue(mockChildCreated),
+          findFirstOrThrow: vi.fn().mockResolvedValue(mockChildCreated),
+        },
+        thread: { create: vi.fn().mockResolvedValue({ id: "thread-new" }) },
+        browserProfile: { create: vi.fn().mockResolvedValue({ id: "bp-1" }) },
+        memoryDocument: { create: vi.fn().mockResolvedValue({ id: "mem-1" }) },
+      };
+
+      const prisma = {
+        bot: {
+          count: vi.fn().mockResolvedValue(0),
+          findFirst: vi.fn().mockResolvedValue(parentFreeBot),
+        },
+        deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+        $transaction: vi.fn().mockImplementation(async (cb) => cb(tx)),
+      } as unknown as PrismaClient;
+
+      const repos = createRepos(prisma);
+      const child = await repos.createBot(actor, {
+        name: "Child Bot",
+        title: "Child",
+        description: "Desc",
+        instructions: "Inst",
+        notifyOnFinish: true,
+        parentBotId: "parent-free-1",
+      });
+
+      expect(prisma.bot.findFirst).toHaveBeenCalledWith({
+        where: {
+          id: "parent-free-1",
+          workspaceId: actor.workspaceId,
+          userId: actor.userId,
+        },
+      });
+
+      expect(tx.bot.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          parentBotId: "parent-free-1",
+          metadata: {
+            inference: {
+              mode: "free",
+              tags: ["reasoning"],
+            },
+          },
+        }),
+      });
+      expect(child.inference).toEqual({
+        mode: "free",
+        tags: ["reasoning"],
+      });
+    });
+
+    it("createBot strictly prevents privilege escalation when child requests premium but parent is Free", async () => {
+      const parentFreeBot = {
+        ...sampleDbBot,
+        id: "parent-free-2",
+        metadata: {
+          inference: {
+            mode: "free",
+            tags: ["reasoning"],
+          },
+        },
+      };
+
+      const mockChildCreated = {
+        ...sampleDbBot,
+        id: "child-free-2",
+        parentBotId: "parent-free-2",
+        metadata: {
+          inference: {
+            mode: "free",
+            tags: ["coding"],
+          },
+        },
+      };
+
+      const tx = {
+        computer: { upsert: vi.fn().mockResolvedValue({ id: "comp-team", scope: "team" }) },
+        bot: {
+          create: vi.fn().mockResolvedValue(mockChildCreated),
+          findFirstOrThrow: vi.fn().mockResolvedValue(mockChildCreated),
+        },
+        thread: { create: vi.fn().mockResolvedValue({ id: "thread-new" }) },
+        browserProfile: { create: vi.fn().mockResolvedValue({ id: "bp-1" }) },
+        memoryDocument: { create: vi.fn().mockResolvedValue({ id: "mem-1" }) },
+      };
+
+      const prisma = {
+        bot: {
+          count: vi.fn().mockResolvedValue(0),
+          findFirst: vi.fn().mockResolvedValue(parentFreeBot),
+        },
+        deploymentSettings: { findUnique: vi.fn().mockResolvedValue(null) },
+        $transaction: vi.fn().mockImplementation(async (cb) => cb(tx)),
+      } as unknown as PrismaClient;
+
+      const repos = createRepos(prisma);
+      const child = await repos.createBot(actor, {
+        name: "Child Bot Attempt Escalation",
+        title: "Child",
+        description: "Desc",
+        instructions: "Inst",
+        notifyOnFinish: true,
+        parentBotId: "parent-free-2",
+        inference: {
+          mode: "premium" as any,
+          tags: ["coding"],
+        },
+      });
+
+      expect(tx.bot.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({
+          parentBotId: "parent-free-2",
+          metadata: {
+            inference: {
+              mode: "free",
+              tags: ["coding"],
+            },
+          },
+        }),
+      });
+      expect(child.inference).toEqual({
+        mode: "free",
+        tags: ["coding"],
+      });
+    });
+
+    it("updateBot updates inference to Free mode while preserving existing MCP metadata", async () => {
+      const existingBot = {
+        ...sampleDbBot,
+        metadata: {
+          mcp: {
+            connectors: { github: true },
+            tools: { github_search_repos: true },
+          },
+        },
+      };
+
+      const updatedDbBot = {
+        ...existingBot,
+        metadata: {
+          mcp: {
+            connectors: { github: true },
+            tools: { github_search_repos: true },
+          },
+          inference: {
+            mode: "free",
+            tags: ["coding", "analysis"],
+          },
+        },
+      };
+
+      const findFirst = vi.fn().mockResolvedValue(existingBot);
+      const update = vi.fn().mockResolvedValue(updatedDbBot);
+      const findMany = vi.fn().mockResolvedValue([updatedDbBot]);
+
+      const prisma = {
+        bot: { findFirst, update, findMany },
+      } as unknown as PrismaClient;
+
+      const repos = createRepos(prisma);
+      const result = await repos.updateBot(actor, {
+        botId: "bot-1",
+        inference: {
+          mode: "free",
+          tags: ["coding", "analysis"],
+        },
+      });
+
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "bot-1" },
+        data: {
+          metadata: {
+            mcp: {
+              connectors: { github: true },
+              tools: { github_search_repos: true },
+            },
+            inference: {
+              mode: "free",
+              tags: ["coding", "analysis"],
+            },
+          },
+        },
+      });
+
+      expect(result.inference).toEqual({
+        mode: "free",
+        tags: ["coding", "analysis"],
+      });
+      expect(result.metadata).toEqual({
+        mcp: {
+          connectors: { github: true },
+          tools: { github_search_repos: true },
+        },
+        inference: {
+          mode: "free",
+          tags: ["coding", "analysis"],
+        },
+      });
+    });
+
+    it("updateBot preserves existing inference when updating only scalar fields (e.g. title)", async () => {
+      const existingBot = {
+        ...sampleDbBot,
+        metadata: {
+          inference: {
+            mode: "free",
+            tags: ["writing"],
+          },
+        },
+      };
+
+      const updatedDbBot = {
+        ...existingBot,
+        title: "Updated Title",
+      };
+
+      const findFirst = vi.fn().mockResolvedValue(existingBot);
+      const update = vi.fn().mockResolvedValue(updatedDbBot);
+      const findMany = vi.fn().mockResolvedValue([updatedDbBot]);
+
+      const prisma = {
+        bot: { findFirst, update, findMany },
+      } as unknown as PrismaClient;
+
+      const repos = createRepos(prisma);
+      const result = await repos.updateBot(actor, {
+        botId: "bot-1",
+        title: "Updated Title",
+      });
+
+      expect(update).toHaveBeenCalledWith({
+        where: { id: "bot-1" },
+        data: {
+          title: "Updated Title",
+        },
+      });
+
+      expect(result.title).toBe("Updated Title");
+      expect(result.inference).toEqual({
+        mode: "free",
+        tags: ["writing"],
+      });
+    });
+  });
 });

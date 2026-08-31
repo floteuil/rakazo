@@ -75,6 +75,8 @@ services:
       DAYTONA_TARGET: ${DAYTONA_TARGET:-}
       BOX_API_KEY: ${BOX_API_KEY:-}
       BOX_API_URL: ${BOX_API_URL:-}
+      OMNIROUTE_BASE_URL: ${OMNIROUTE_BASE_URL:-https://omniroute.workspacegroupefloteuil.eu/v1}
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-}
     expose:
       - "3100"
     volumes:
@@ -140,6 +142,8 @@ services:
       DAYTONA_TARGET: ${DAYTONA_TARGET:-}
       BOX_API_KEY: ${BOX_API_KEY:-}
       BOX_API_URL: ${BOX_API_URL:-}
+      OMNIROUTE_BASE_URL: ${OMNIROUTE_BASE_URL:-https://omniroute.workspacegroupefloteuil.eu/v1}
+      OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-}
     volumes:
       - appdata:/data
     depends_on:

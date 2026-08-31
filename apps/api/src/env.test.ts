@@ -131,4 +131,30 @@ describe("loadEnv", () => {
       cloudflareAccountId: "cf_acc_456",
     });
   });
+
+  it("defaults OmniRoute base URL and optional API key", () => {
+    const env = loadEnv(base);
+    expect(env.omnirouteBaseUrl).toBe("https://omniroute.workspacegroupefloteuil.eu/v1");
+    expect(env.omnirouteApiKey).toBeUndefined();
+  });
+
+  it("loads explicit OmniRoute configuration", () => {
+    const env = loadEnv({
+      ...base,
+      OMNIROUTE_BASE_URL: "https://custom.omniroute.internal/v1",
+      OMNIROUTE_API_KEY: "custom-omniroute-secret-key",
+    });
+    expect(env.omnirouteBaseUrl).toBe("https://custom.omniroute.internal/v1");
+    expect(env.omnirouteApiKey).toBe("custom-omniroute-secret-key");
+  });
+
+  it("trims and handles empty OmniRoute environment variables gracefully", () => {
+    const env = loadEnv({
+      ...base,
+      OMNIROUTE_BASE_URL: "   ",
+      OMNIROUTE_API_KEY: "   ",
+    });
+    expect(env.omnirouteBaseUrl).toBe("https://omniroute.workspacegroupefloteuil.eu/v1");
+    expect(env.omnirouteApiKey).toBeUndefined();
+  });
 });

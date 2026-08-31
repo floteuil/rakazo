@@ -1,4 +1,11 @@
-import { type Actor, BOT_COLORS, type Bot, type MessageBlock } from "@rakazo/contracts";
+import {
+  type Actor,
+  BOT_COLORS,
+  type Bot,
+  type BotInferenceConfig,
+  type InferenceUsageTag,
+  type MessageBlock,
+} from "@rakazo/contracts";
 import type { PrismaClient } from "./client.js";
 import { type ComputerMode, ensureComputerRecord, parseComputerMode } from "./computers.js";
 import { createThreadMessageInTransaction } from "./messages.js";
@@ -31,6 +38,34 @@ function mapBot(
   if (!bot.thread) {
     throw new IsolationError("Bot is missing its thread");
   }
+
+  let meta: Record<string, unknown> = {};
+  if (bot.metadata && typeof bot.metadata === "object") {
+    meta = bot.metadata as Record<string, unknown>;
+  } else if (typeof bot.metadata === "string") {
+    try {
+      const parsed = JSON.parse(bot.metadata);
+      if (parsed && typeof parsed === "object") meta = parsed;
+    } catch {}
+  }
+
+  const rawInference = (meta as any)?.inference ?? (bot as any)?.inference;
+  let inference: BotInferenceConfig | undefined = undefined;
+  if (rawInference && typeof rawInference === "object") {
+    const inf = rawInference as Record<string, unknown>;
+    inference = {
+      mode: inf.mode === "free" ? "free" : "premium",
+      tags: Array.isArray(inf.tags)
+        ? inf.tags
+            .filter((t): t is InferenceUsageTag =>
+              typeof t === "string" &&
+              ["coding", "writing", "reasoning", "fast", "analysis"].includes(t as any),
+            )
+            .slice(0, 3)
+        : [],
+    };
+  }
+
   return {
     id: bot.id,
     workspaceId: bot.workspaceId,
@@ -52,7 +87,8 @@ function mapBot(
     updatedAt: bot.updatedAt.toISOString(),
     voiceId: bot.voiceId ?? null,
     autoSpeak: bot.autoSpeak ?? false,
-    metadata: (bot.metadata as Record<string, unknown>) ?? {},
+    metadata: meta,
+    inference,
   };
 }
 
@@ -119,6 +155,7 @@ export function createRepos(prisma: PrismaClient) {
         computerMode?: ComputerMode;
         spawnKey?: string;
         metadata?: Record<string, unknown>;
+        inference?: BotInferenceConfig;
         initialMessage?: {
           role: "user" | "bot" | "system";
           blocks: MessageBlock[];
@@ -133,6 +170,9 @@ export function createRepos(prisma: PrismaClient) {
         });
         color = BOT_COLORS[count % BOT_COLORS.length] ?? BOT_COLORS[0];
       }
+
+      let resolvedInference: BotInferenceConfig | undefined = input.inference;
+
       if (input.parentBotId) {
         const parent = await prisma.bot.findFirst({
           where: {
@@ -142,7 +182,37 @@ export function createRepos(prisma: PrismaClient) {
           },
         });
         if (!parent) throw new IsolationError();
+
+        let parentMeta: Record<string, unknown> = {};
+        if (parent.metadata && typeof parent.metadata === "object") {
+          parentMeta = parent.metadata as Record<string, unknown>;
+        } else if (typeof parent.metadata === "string") {
+          try {
+            const parsed = JSON.parse(parent.metadata);
+            if (parsed && typeof parsed === "object") parentMeta = parsed;
+          } catch {}
+        }
+
+        const parentInference = (parentMeta.inference ?? (parent as any).inference) as
+          | BotInferenceConfig
+          | undefined;
+        const isParentFree = parentInference?.mode === "free";
+
+        if (isParentFree) {
+          resolvedInference = {
+            mode: "free",
+            tags: input.inference?.tags ?? parentInference?.tags ?? [],
+          };
+        }
       }
+
+      const metadata: Record<string, unknown> = {
+        ...(input.metadata ?? {}),
+      };
+      if (resolvedInference !== undefined) {
+        metadata.inference = resolvedInference;
+      }
+
       const settings = await prisma.deploymentSettings.findUnique({ where: { id: "default" } });
       const envKind = process.env.SANDBOX_PROVIDER ?? "docker";
       const kind =
@@ -167,7 +237,7 @@ export function createRepos(prisma: PrismaClient) {
             parentBotId: input.parentBotId ?? null,
             computerId: teamComputer.id,
             spawnKey: input.spawnKey,
-            metadata: (input.metadata ?? {}) as any,
+            metadata: metadata as any,
           },
         });
         const thread = await tx.thread.create({
@@ -232,9 +302,10 @@ export function createRepos(prisma: PrismaClient) {
         voiceId?: string | null;
         autoSpeak?: boolean;
         metadata?: Record<string, unknown>;
+        inference?: BotInferenceConfig;
       },
     ): Promise<Bot> {
-      await this.getBot(actor, input.botId);
+      const existing = await this.getBot(actor, input.botId);
       const data: Record<string, unknown> = {};
       if (input.name !== undefined) data.name = input.name;
       if (input.title !== undefined) data.title = input.title;
@@ -245,7 +316,27 @@ export function createRepos(prisma: PrismaClient) {
       if (input.pinned !== undefined) data.pinned = input.pinned;
       if (input.voiceId !== undefined) data.voiceId = input.voiceId;
       if (input.autoSpeak !== undefined) data.autoSpeak = input.autoSpeak;
-      if (input.metadata !== undefined) data.metadata = input.metadata as any;
+
+      if (input.metadata !== undefined || input.inference !== undefined) {
+        let currentMeta: Record<string, unknown> = {};
+        if (existing.metadata && typeof existing.metadata === "object") {
+          currentMeta = existing.metadata as Record<string, unknown>;
+        } else if (typeof existing.metadata === "string") {
+          try {
+            const parsed = JSON.parse(existing.metadata);
+            if (parsed && typeof parsed === "object") currentMeta = parsed;
+          } catch {}
+        }
+
+        const nextMetadata: Record<string, unknown> = {
+          ...currentMeta,
+          ...(input.metadata ?? {}),
+        };
+        if (input.inference !== undefined) {
+          nextMetadata.inference = input.inference;
+        }
+        data.metadata = nextMetadata as any;
+      }
 
       await prisma.bot.update({
         where: { id: input.botId },

@@ -69,6 +69,7 @@ async function main() {
     listConnectedPluginSlugs: stack.composio?.listConnectedSlugs.bind(stack.composio),
     secrets: [
       process.env.OPENROUTER_API_KEY ?? "",
+      process.env.OMNIROUTE_API_KEY ?? "",
       process.env.COMPOSIO_API_KEY ?? "",
       process.env.GITHUB_TOKEN ?? "",
       process.env.NOTION_API_KEY ?? "",
