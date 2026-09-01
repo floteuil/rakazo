@@ -221,7 +221,8 @@ $$\mathbf{OmniRoute\ Response\ Headers} \equiv \mathbf{PromptExecutionLog\ (SQL)
 ## 3. Reference Documentation & Guides
 
 For deeper implementation details, consult the canonical documentation in the root and `docs/`:
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md): Master passation & architectural certification artifact.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md): Authoritative Master Passation & Production Excellence Certification Artifact.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md): Baseline architectural passation & certification artifact.
 - [`RAKAZO_MASTER_BLUEPRINT_CURRENT.md`](RAKAZO_MASTER_BLUEPRINT_CURRENT.md): Master architectural specification & platform blueprint.
 - [`docs/OMNIROUTE_DEPLOYMENT.md`](docs/OMNIROUTE_DEPLOYMENT.md): Authoritative production runbook for OmniRoute on Coolify PaaS (App 21).
 - [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md): Comprehensive environment variable taxonomy and onboarding guide.

@@ -48,7 +48,7 @@ export function recordPromptExecutionLogAsync(
         isFree: data.isFree ?? (data.inferenceMode === "free" ? true : false),
       },
     })
-    .catch((err) => {
+    .catch((err: unknown) => {
       console.warn(
         "[Telemetry:PromptExecutionLog] Non-fatal persistence error:",
         err instanceof Error ? err.message : err,
