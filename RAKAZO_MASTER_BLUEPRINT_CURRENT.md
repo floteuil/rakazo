@@ -257,7 +257,8 @@ pnpm format
 The Rakazo codebase at Version 2.6.0-omniroute-coherence-observability-certified fulfills 100% of the architectural, persistence, security, performance, ergonomics, container isolation, and QA criteria defined in the Master Project Plan.
 
 ### Key Canonical Documents
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md): Authoritative Master Passation & Production Excellence Certification Artifact.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md): Authoritative Master Architecture, Forensic Audit & Platform Runtime Truth Certification Artifact.
+- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md): Master Passation & Production Excellence Certification Artifact.
 - [`AGENTS.md`](AGENTS.md): Authoritative Operating Guide & 6 Core Platform Pillars.
 - [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md): Comprehensive Developer Setup & 54+ Environment Variables Taxonomy.
 - [`docs/OMNIROUTE_DEPLOYMENT.md`](docs/OMNIROUTE_DEPLOYMENT.md): Authoritative Coolify PaaS Runbook for OmniRoute Gateway.

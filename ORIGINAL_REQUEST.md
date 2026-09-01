@@ -62,3 +62,62 @@ Integrity mode: development
 - [ ] 0 erreur TypeScript sur les 19 packages et 100 % des tests unitaires/E2E passent avec succès.
 - [ ] Le calcul du ratio de cache KV est strict, sans double comptage ni valeur erronée.
 - [ ] L'artefact maître `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md` est généré et publié.
+
+## Follow-up — 2026-09-01T11:51:16Z
+
+# RAKAZO — Itération d'Excellence Production
+
+> Working directory: /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app  
+> Integrity mode: development  
+
+Itération de consolidation profonde et de certification fondée sur les faits réels : réconciliation totale entre code source, runtime agentique, télémétrie SQL, WebUI, déploiement Coolify et documentation, avec découplage dynamique strict OmniRoute (`combo/rakazo-*`), sanctuarisation de la voie historique OpenRouter Premium (`openai/gpt-oss-120b`) et zéro régression.
+
+Working directory: /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app
+Integrity mode: development
+
+## Requirements
+
+### R1. Audit Médico-Légal de Vérité & Réconciliation Absolue
+- Établir la vérité factuelle intégrale entre : (1) Code source réel, (2) Suites de tests réelles, (3) Comportement d'exécution runtime, (4) Télémétrie SQL PostgreSQL, (5) Interface utilisateur WebUI, (6) Documentation maîtresse.
+- Rejeter toute affirmation documentaire ou verdict "CERTIFIED" non étayé par une exécution de code effective.
+
+### R2. Contrat d'Inférence Pluggable & Découplage Dynamique OmniRoute
+- Maintenir l'abstraction d'exécution générique et typée dans `InferenceTransport` (`packages/adapters/src/inference-transport.ts`) transportant `resolvedProvider`, `resolvedModel`, `responseCostUsd`, et `upstreamLatencyMs` sans fuite des en-têtes HTTP dans le runtime central.
+- Garantir le découplage dynamique à 3 niveaux : Intention produit persistée (`mode: "free"`, tags) $\leftrightarrow$ Route canonique invariable (`combo/rakazo-*`) $\leftrightarrow$ Résolution dynamique par tour (`resolvedProvider`, `resolvedModel`).
+- Garantir qu'aucune table statique, enum rigide ou constante figée de modèles/providers n'est maintenue dans Rakazo : le remplacement de 100 % des modèles gratuits par OmniRoute ne doit nécessiter aucun commit, aucune migration et aucun redéploiement de Rakazo.
+
+### R3. Propagation des En-têtes, Télémétrie SQL & Formule de Cache Strict
+- Valider le flux de données continu : En-têtes de réponse OmniRoute (`x-omniroute-response-cost`, `x-omniroute-provider`, `x-omniroute-model`, `x-omniroute-latency-ms`) $\rightarrow$ `OmniRouteInferenceTransport` $\rightarrow$ `CanonicalAgentRuntime` $\rightarrow$ `PromptExecutionLog` (télémétrie SQL non-bloquante) $\rightarrow$ Événements UI par tour.
+- Valider la formule mathématique rigoureuse du cache hit ($\frac{\text{cachedTokens}}{\text{promptTokens}}$, borné entre 0.0 et 1.0, sans double comptage) et l'affinité de session FNV-1a (`x-session-id`) sans nom de provider.
+
+### R4. Sanctuarisation Intangible : Premium OpenRouter, MCP & Sous-Agents
+- Sanctuariser intégralement la voie historique Premium (`openai/gpt-oss-120b` via OpenRouter) : aucune dépendance à OmniRoute, aucune modification de prompt ou de comportement.
+- Valider le cycle complet de la boucle d'outils MCP souveraine (contrôle des permissions, compactage sémantique `compactToolResult`, 25 tours max, disjoncteurs anti-boucle) et le confinement strict des sous-agents Gratuits (plafond 8 192 tokens, profondeur 1, exclusion des outils de délégation, indépendance de provider avec le parent).
+
+### R5. Cohérence WebUI, Sécurité & Non-Ingérence VPS
+- WebUI : Afficher l'intention stable dans les paramètres du bot (*« Gratuit via OmniRoute · Profil : Coding »*) et le modèle réel résolu par tour dans le transcript du chat (*« Codestral · Mistral AI »*), avec transition fluide lors des basculements de secours (*fallback*).
+- Sécurité : Scan GitLeaks (0 secret dans Git/frontend/logs), sanitisation stricte des en-têtes externes (anti-XSS / anti-log-injection), et double barrière zéro-coût ($0.00 max avec *fail-closed* immédiat sans jamais basculer sur OpenRouter Premium).
+- VPS Coolify : Zéro ingérence et sanctuarisation intégrale des 15 autres applications hébergées sur le serveur `62.164.214.145`.
+
+### R6. Documentation d'Autorité Fondée sur les Preuves & Passation Finale
+- Valider la Triple Cohérence : $\text{En-têtes OmniRoute} \equiv \text{PromptExecutionLog (DB)} \equiv \text{Affichage WebUI}$.
+- Produire le document d'autorité définitif : `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md`.
+- Mettre à jour `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`, `AGENTS.md`, `docs/ENVIRONMENT_SETUP.md`, `docs/OMNIROUTE_DEPLOYMENT.md`.
+
+## Acceptance Criteria
+
+### Exactitude & Découplage
+- [ ] L'intention demandée et le modèle résolu sont strictement séparés à tous les étages de l'architecture.
+- [ ] La disparition ou l'ajout d'un modèle gratuit dans OmniRoute fonctionne de manière transparente sans modification de code Rakazo.
+- [ ] Le header de coût `x-omniroute-response-cost` est validé strictement avec *fail-closed* immédiat en cas d'anomalie.
+
+### Sanctuarisation & Triple Cohérence
+- [ ] La voie Premium OpenRouter fonctionne de manière 100 % autonome et insensible à l'état d'OmniRoute.
+- [ ] La boucle d'outils MCP complète et l'héritage strict des sous-agents Gratuits sont validés.
+- [ ] La triple cohérence (En-têtes $\leftrightarrow$ Base de Données $\leftrightarrow$ WebUI) est vérifiée sur l'ensemble des 5 profils d'intention.
+
+### Qualité, VPS & Documentation
+- [ ] 0 erreur TypeScript sur les 19 packages et 100 % des tests unitaires, d'intégration et E2E passent avec succès.
+- [ ] Zéro secret dans le frontend, zéro ingérence sur les 15 autres applications du VPS.
+- [ ] L'artefact maître `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md` est publié et exempt d'affirmation non vérifiée.
+
