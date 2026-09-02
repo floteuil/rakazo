@@ -142,7 +142,7 @@ describe("sandbox conformance", () => {
     for await (const event of desktop.execute(
       computer,
       {
-        argv: ["bash", "-lc", "(sleep 0.2; printf survived > descendant-survived) & wait"],
+        argv: ["bash", "-lc", "(sleep 0.5; printf survived > descendant-survived) & wait"],
         timeoutMs: 40,
       },
       ctx,
@@ -156,7 +156,7 @@ describe("sandbox conformance", () => {
       type: "stderr",
       data: "command timed out after 40 ms\n",
     });
-    await new Promise((resolve) => setTimeout(resolve, 300));
+    await new Promise((resolve) => setTimeout(resolve, 600));
     expect(() => readFileSync(marker)).toThrow();
 
     await desktop.destroy(computer, ctx);

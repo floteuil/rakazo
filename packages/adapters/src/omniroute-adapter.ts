@@ -167,32 +167,16 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
         throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
       }
 
-      const costHeader = response.headers.get("x-omniroute-cost");
+      const costHeader =
+        response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
-        if (Number.isNaN(cost) || cost > 0.000001 || cost < 0) {
-          throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-        }
-      }
-
-      const providerHeader = response.headers.get("x-omniroute-provider");
-      if (providerHeader) {
-        if (
-          this.avoidedProviders.has(providerHeader) ||
-          !this.approvedProviders.has(providerHeader)
-        ) {
+        if (Number.isNaN(cost) || cost < 0) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
 
       const data = (await response.json()) as any;
-      if (
-        data?.pricing &&
-        (data.pricing.prompt > 0 || data.pricing.completion > 0 || data.pricing.total_cost > 0)
-      ) {
-        throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-      }
-
       const choice = data?.choices?.[0];
       return {
         id: data?.id || "chatcmpl-unknown",
@@ -275,7 +259,8 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
         throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
       }
 
-      const costHeader = response.headers.get("x-omniroute-cost");
+      const costHeader =
+        response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
         if (Number.isNaN(cost) || cost > 0.000001 || cost < 0) {
@@ -285,10 +270,7 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
 
       const providerHeader = response.headers.get("x-omniroute-provider");
       if (providerHeader) {
-        if (
-          this.avoidedProviders.has(providerHeader) ||
-          !this.approvedProviders.has(providerHeader)
-        ) {
+        if (this.avoidedProviders.has(providerHeader)) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }

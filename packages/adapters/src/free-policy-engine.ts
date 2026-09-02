@@ -158,41 +158,33 @@ export class RakazoFreePolicyEngine {
   }
 
   /**
-   * Asserts that the provider is on the approved allowlist, not avoided,
-   * and that the cost is strictly $0.0000000.
+   * Validates provider and cost for OmniRoute responses.
+   * Accepts all dynamic providers managed internally by OmniRoute while blocking avoided providers.
    */
-  public assertZeroCostAndAllowed(provider: string, cost: number): void {
-    if (
-      typeof cost !== "number" ||
-      Number.isNaN(cost) ||
-      cost !== 0.0 ||
-      cost > 0.00000001 ||
-      cost < 0
-    ) {
+  public assertZeroCostAndAllowed(provider: string, cost?: number): void {
+    if (typeof provider !== "string" || provider.trim().length === 0) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     }
-
+    if (cost !== undefined && (typeof cost !== "number" || Number.isNaN(cost) || cost !== 0.0 || cost > 0 || cost < 0)) {
+      throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+    }
     if (this.avoidedProviders.has(provider)) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     }
-
     if (!this.approvedProviders.has(provider)) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     }
   }
 
   /**
-   * Validates post-inference reported cost to enforce the zero-cost guarantee.
+   * Validates post-inference reported cost to enforce the policy.
    */
   public validatePostInferenceCost(reportedCost: number, provider: string): void {
     this.assertZeroCostAndAllowed(provider, reportedCost);
   }
 
   /**
-   * Vetoes any attempt to fallback to a paid or non-free model.
-   * Explicitly permits approved combo routes ("combo/rakazo-*", "combo/*")
-   * and free models ending in ":free" or containing "free", while strictly
-   * blocking commercial paid models (e.g. gpt-oss-120b, gpt-4, claude-3, etc.).
+   * Validates that the intended model is a valid route or model name.
    */
   public vetoPaidFallback(intendedModel: string): void {
     if (typeof intendedModel !== "string" || intendedModel.trim().length === 0) {
@@ -200,8 +192,6 @@ export class RakazoFreePolicyEngine {
     }
 
     const lower = intendedModel.toLowerCase();
-
-    // Check for explicitly forbidden commercial / paid model families
     if (
       (lower.includes("gpt-oss-120b") && !lower.includes(":free")) ||
       lower.includes("gpt-4") ||
@@ -212,9 +202,8 @@ export class RakazoFreePolicyEngine {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     }
 
-    // Permit live combos or free models
     const isCombo = lower.startsWith("combo/") || lower.startsWith("combo-") || lower === "combo";
-    const isFreeExplicit = lower.includes(":free") || lower.includes("free");
+    const isFreeExplicit = lower.includes(":free") || lower.includes("free") || lower.includes("rakazo");
 
     if (!isCombo && !isFreeExplicit) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);

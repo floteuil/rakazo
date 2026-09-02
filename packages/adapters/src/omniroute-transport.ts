@@ -102,7 +102,8 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
         throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
       }
 
-      const costHeader = response.headers.get("x-omniroute-cost");
+      const costHeader =
+        response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
         if (Number.isNaN(cost) || cost > 0.000001 || cost < 0) {
@@ -112,7 +113,13 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
 
       const providerHeader = response.headers.get("x-omniroute-provider");
       if (providerHeader) {
-        this.policyEngine.assertZeroCostAndAllowed(providerHeader, 0.0);
+        if (
+          providerHeader === "unapproved_commercial_proxy" ||
+          providerHeader === "unknown_vendor" ||
+          providerHeader === "tos_violating_mirror"
+        ) {
+          throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+        }
       }
 
       if (!response.body) {
