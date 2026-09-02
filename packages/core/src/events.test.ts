@@ -177,4 +177,31 @@ describe("createStreamingRedactor", () => {
     expect(redactor.push("hello")).toBe("hello");
     expect(redactor.finish()).toBe("");
   });
+
+  it("preserves UTF-16 surrogate pairs split across chunk boundaries without secrets", () => {
+    const redactor = createStreamingRedactor([]);
+    const high = "\uD83D";
+    const low = "\uDE80"; // 🚀
+
+    const p1 = redactor.push(`Ready ${high}`);
+    expect(p1).toBe("Ready "); // high surrogate held in buffer
+
+    const p2 = redactor.push(`${low} blastoff!`);
+    const p3 = redactor.finish();
+
+    expect(p1 + p2 + p3).toBe("Ready 🚀 blastoff!");
+  });
+
+  it("preserves UTF-16 surrogate pairs split across chunk boundaries with active secrets", () => {
+    const redactor = createStreamingRedactor(["SUPER_SECRET"]);
+    const high = "\uD83C";
+    const low = "\uDF89"; // 🎉
+
+    const p1 = redactor.push(`Party ${high}`);
+    const p2 = redactor.push(`${low} with key SUPER_`);
+    const p3 = redactor.push("SECRET!");
+    const p4 = redactor.finish();
+
+    expect(p1 + p2 + p3 + p4).toBe("Party 🎉 with key [redacted]!");
+  });
 });

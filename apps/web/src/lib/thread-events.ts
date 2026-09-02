@@ -43,7 +43,10 @@ export function isThreadSnapshotEvent(event: ProductEvent): boolean {
     event.type === "thread.subagent" ||
     event.type === "thread.message.created" ||
     event.type === "thread.message.updated" ||
-    event.type === "run.waiting_input"
+    event.type === "run.waiting_input" ||
+    event.type === "run.completed" ||
+    event.type === "run.failed" ||
+    event.type === "run.cancelled"
   );
 }
 
@@ -54,6 +57,20 @@ export function reduceThreadSnapshot(
   if (!prev) return prev;
   if (event.type === "thread.cleared") {
     return { ...prev, cursor: event.seq, messages: [], olderCursor: null, run: null };
+  }
+  if (
+    event.type === "run.completed" ||
+    event.type === "run.failed" ||
+    event.type === "run.cancelled"
+  ) {
+    const withoutProgress = prev.messages.filter((message) => !message.id.startsWith("progress:"));
+    const nextRun = prev.run?.id === event.runId ? null : prev.run;
+    return {
+      ...prev,
+      cursor: event.seq,
+      messages: withoutProgress,
+      run: nextRun,
+    };
   }
   if (event.type === "run.waiting_input") {
     const run = prev.run;

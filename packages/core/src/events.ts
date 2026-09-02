@@ -132,6 +132,14 @@ export function containsSecret(value: unknown, secrets: string[]): boolean {
   return secrets.some((secret) => secret.length > 0 && text.includes(secret));
 }
 
+export function isHighSurrogate(code: number): boolean {
+  return code >= 0xd800 && code <= 0xdbff;
+}
+
+export function isLowSurrogate(code: number): boolean {
+  return code >= 0xdc00 && code <= 0xdfff;
+}
+
 export function createStreamingRedactor(secrets: string[]) {
   const values = [...new Set(secrets.filter(Boolean))].sort((a, b) => b.length - a.length);
   const maxLength = values[0]?.length ?? 0;
@@ -139,23 +147,51 @@ export function createStreamingRedactor(secrets: string[]) {
 
   const drain = (final: boolean) => {
     if (values.length === 0) {
+      if (!final && buffer.length > 0 && isHighSurrogate(buffer.charCodeAt(buffer.length - 1))) {
+        const output = buffer.slice(0, -1);
+        buffer = buffer.slice(-1);
+        return output;
+      }
       const output = buffer;
       buffer = "";
       return output;
     }
+
     const safeStartLimit = final ? buffer.length : Math.max(0, buffer.length - maxLength + 1);
     let offset = 0;
     let output = "";
+
     while (offset < safeStartLimit) {
+      // Guard against splitting surrogate pair across safeStartLimit or buffer end
+      if (!final && isHighSurrogate(buffer.charCodeAt(offset))) {
+        if (
+          offset + 1 >= buffer.length ||
+          (offset === safeStartLimit - 1 && isLowSurrogate(buffer.charCodeAt(offset + 1)))
+        ) {
+          break;
+        }
+      }
+
       const secret = values.find((value) => buffer.startsWith(value, offset));
       if (secret) {
         output += "[redacted]";
         offset += secret.length;
       } else {
-        output += buffer[offset];
-        offset += 1;
+        const code = buffer.charCodeAt(offset);
+        if (
+          isHighSurrogate(code) &&
+          offset + 1 < buffer.length &&
+          isLowSurrogate(buffer.charCodeAt(offset + 1))
+        ) {
+          output += buffer.slice(offset, offset + 2);
+          offset += 2;
+        } else {
+          output += buffer[offset];
+          offset += 1;
+        }
       }
     }
+
     buffer = buffer.slice(offset);
     return output;
   };

@@ -3,7 +3,7 @@
 > **Authoritative Technical Runbook and Environment Configuration Reference**  
 > **Repository**: `github.com/floteuil/rakazo`  
 > **Applies to**: Local Development, CI/CD Pipelines, Self-Hosted Deployments, and Autonomous Agents  
-> **Platform Version**: v2.6.0-omniroute-coherence-observability-certified  
+> **Platform Version**: v2.7.0-ui-excellence-and-robustness-certified  
 
 ---
 
@@ -96,8 +96,10 @@ Access the web user interface in your browser at `http://127.0.0.1:5173`.
 ```bash
 # Run strict type checking across all 19 packages (0 errors required)
 pnpm check
+# Or force re-check all targets:
+pnpm turbo check --force
 
-# Execute full Vitest test suite (100% pass required across 2,714 tests)
+# Execute full Vitest test suite (100% pass required)
 pnpm test
 ```
 
@@ -313,7 +315,7 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 Rakazo integrates **OmniRoute** as a sovereign, self-hosted, unprivileged free inference gateway microservice running alongside `@rakazo/api` and `@rakazo/worker`. This provides users with the option to deploy 100% free autonomous agents powered by live high-availability combo routes (`combo/rakazo-coding`, `combo/rakazo-reasoning`, `combo/rakazo-fast`, `combo/rakazo-writing`, `combo/rakazo-analysis`) without incurring API token costs.
 
-> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md) and [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md).
+> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md), [`RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`](../RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md), and [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md).
 
 ### 5.1 Architecture & Network Topologies
 
@@ -453,22 +455,22 @@ docker compose -f infra/compose/docker-compose.yml exec api curl -s \
 |---|---|
 | `pnpm dev` | Starts API (`apps/api`), Web (`apps/web`), Worker (`apps/worker`), and Supervisor (`infra/sandboxes/supervisor`) concurrently via Turborepo. |
 | `pnpm build` | Executes `turbo build` across all 19 workspace packages. |
-| `pnpm check` | Runs TypeScript compiler across all packages (`turbo check`). |
-| `pnpm test` | Runs the full Vitest unit, adversarial, and integration test suite (2,714 tests). |
+| `pnpm check` | Runs TypeScript compiler across all 19 packages (`turbo check`). |
+| `pnpm test` | Runs the full Vitest unit, adversarial, and integration test suite across the monorepo. |
 | `pnpm lint` | Validates code style and rules with Biome. |
 | `pnpm format` | Formats all files in the monorepo with Biome writeback. |
 
-### Specialized Test & Benchmark Suites
+### Specialized Test & Verification Suites
 
-| Command | Harness & Target |
+| Command | Target Scope |
 |---|---|
-| `pnpm test:integration` | Runs Testcontainers PostgreSQL integration test suites against isolated test containers. |
-| `pnpm test:e2e` | Runs Playwright browser E2E test suites against the Web UI. |
+| `pnpm vitest run packages/adapters/src/mcp-complex-schemas.test.ts packages/core/src/utf16-surrogate-sanitization.test.ts packages/ui-tokens/src/tokens-error.test.ts packages/adapters/src/invariant-sanctuary.test.ts apps/web/src/tests/` | **UI/UX Excellence & Robustness 180-Test Suite** (Tiers 1–4, 100% pass rate). |
+| `pnpm --filter @rakazo/web test` | **Web UI Full Suite** (535 tests across 28 test files). |
+| `pnpm vitest run apps/web/src/pages/e2e-omniroute-triple-coherence.test.tsx` | **Triple Coherence E2E Suite** (15/15 tests across all 5 profiles). |
+| `pnpm test:integration` | Testcontainers PostgreSQL integration test suites against isolated test containers. |
 | `pnpm test:topology` | Verifies package boundary integrity and checks for circular dependencies. |
 | `pnpm test:canary` | Runs smoke tests verifying critical runtime paths. |
 | `pnpm test:computer` | Executes tests for computer sandboxes and supervisor screen leases. |
-| `pnpm perf:desktop` | Benchmarks Electron and Web rendering performance. |
-| `pnpm perf:compare` | Compares performance benchmarks across test runs. |
 
 ---
 
@@ -522,6 +524,7 @@ docker compose -f infra/compose/docker-compose.yml exec api curl -s \
 
 ## 8. Related Architecture & Governance Documents
 
+- [`RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`](../RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md): Authoritative Master Architecture, UI/UX Excellence, Robustness Hotfixes & Monorepo Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md): Authoritative Master Architecture, Forensic Audit & Platform Runtime Truth Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md): Master Passation & Production Excellence Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md): Baseline architectural passation & certification artifact.

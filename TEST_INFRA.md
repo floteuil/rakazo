@@ -1,35 +1,44 @@
-# E2E Test Infra: RAKAZO — Itération d'Excellence Production
+# E2E Test Infra: RAKAZO UI/UX Excellence & Robustness
 
 ## Test Philosophy
-- Opaque-box, requirement-driven empirical validation.
-- Methodology: Category-Partition + Boundary Value Analysis + Pairwise Combinatorial + Real-World Workload + White-box Adversarial Coverage Hardening.
+- Opaque-box & unit/integration dual validation, requirement-driven, derived strictly from `ORIGINAL_REQUEST.md`.
+- Methodology: Category-Partition + Boundary Value Analysis (BVA) + Pairwise Combinatorial Testing + Real-World Workload Testing.
 
-## Feature Inventory & Test Coverage
-| # | Feature | Source | Tier 1 (Feature) | Tier 2 (Boundary) | Tier 3 (Pairwise) | Tier 4 (Real-World) | Tier 5 (Adversarial) |
-|---|---------|--------|:----------------:|:-----------------:|:-----------------:|:-------------------:|:--------------------:|
-| F1 | Forensic Baseline Audit | ORIGINAL_REQUEST §R1 | 5 | 5 | ✓ | ✓ | ✓ |
-| F2 | InferenceTransport Decoupling | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ | ✓ | ✓ |
-| F3 | 3-Level Dynamic Decoupling | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ | ✓ | ✓ |
-| F4 | Zero Static Models/Enums | ORIGINAL_REQUEST §R2 | 5 | 5 | ✓ | ✓ | ✓ |
-| F5 | Response Header Propagation | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ | ✓ | ✓ |
-| F6 | Non-blocking SQL Telemetry | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ | ✓ | ✓ |
-| F7 | Strict Cache Hit Ratio & FNV-1a | ORIGINAL_REQUEST §R3 | 5 | 5 | ✓ | ✓ | ✓ |
-| F8 | OpenRouter Premium Sanctuarization | ORIGINAL_REQUEST §R4 | 5 | 5 | ✓ | ✓ | ✓ |
-| F9 | Sovereign MCP Tool Loop | ORIGINAL_REQUEST §R4 | 5 | 5 | ✓ | ✓ | ✓ |
-| F10 | Free Sub-Agent Strict Confinement | ORIGINAL_REQUEST §R4 | 5 | 5 | ✓ | ✓ | ✓ |
-| F11 | WebUI Intent vs Turn Resolution | ORIGINAL_REQUEST §R5 | 5 | 5 | ✓ | ✓ | ✓ |
-| F12 | Security & Zero-Cost Fail-Closed | ORIGINAL_REQUEST §R5 | 5 | 5 | ✓ | ✓ | ✓ |
-| F13 | VPS Coolify Non-Interference | ORIGINAL_REQUEST §R5 | 5 | 5 | ✓ | ✓ | ✓ |
-| F14 | Master Documentation & Passation | ORIGINAL_REQUEST §R6 | 5 | 5 | ✓ | ✓ | ✓ |
+## Feature Inventory & Test Mapping
+| # | Feature | Requirement Source | Tier 1 (Feature) | Tier 2 (Boundary) | Tier 3 (Pairwise) | Tier 4 (Scenario) |
+|---|---|---|:---:|:---:|:---:|:---:|
+| 1 | MCP TypeBox Schemas & Enums | PR #450 / R2 | ≥5 | ≥5 | ✓ | ✓ |
+| 2 | SSE UTF-16 Surrogate Sanitization | PR #424 / R2 | ≥5 | ≥5 | ✓ | ✓ |
+| 3 | Resolved Run Error Banner Cleanup | PR #449, #447 / R2 | ≥5 | ≥5 | ✓ | ✓ |
+| 4 | Unified Red Error Tokens | PR #428, #432, #462 / R1 | ≥5 | ≥5 | ✓ | ✓ |
+| 5 | 9-Breakpoint Responsive Layout | R4 | ≥9 | ≥5 | ✓ | ✓ |
+| 6 | Collapsible MCP Tool Activity Accordion | PR #440 / R1 | ≥5 | ≥5 | ✓ | ✓ |
+| 7 | Interactive Suggestion Choice Chips | PR #433 / R1 | ≥5 | ≥5 | ✓ | ✓ |
+| 8 | Hover Timestamps & Compute Duration | PR #397, #461 / R1 | ≥5 | ≥5 | ✓ | ✓ |
+| 9 | Message Reactions & Copy Actions | PR #428, #432, #462 / R1 | ≥5 | ≥5 | ✓ | ✓ |
+| 10 | `@mention` Popover & Keyboard Navigation | R1 | ≥5 | ≥5 | ✓ | ✓ |
+| 11 | Shell.tsx Master Integration | R1 | ≥5 | ≥5 | ✓ | ✓ |
+| 12 | Invariant Sanctuary Verification | R3 (10 invariants) | ≥10 | ≥5 | ✓ | ✓ |
+| 13 | Monorepo Zero-Regression Certification | R5 | All 19 pkgs | Full build | ✓ | ✓ |
 
 ## Test Architecture
-- Test Runner: `vitest` v4.1.10 (`vitest.config.ts`)
-- Execution command: `pnpm test` (full monorepo) or `npx vitest run packages/testkit/src/tests/*.test.ts`
-- Test Suites Layout (`packages/testkit/src/tests/`):
-  1. `tier1-features-r1-r6.e2e.test.ts`: Tier 1 Feature Coverage (>=5 tests per feature)
-  2. `tier2-boundary-r1-r6.e2e.test.ts`: Tier 2 Boundary & Corner Cases
-  3. `tier3-pairwise-r1-r6.e2e.test.ts`: Tier 3 Cross-Feature Pairwise Combinations
-  4. `tier4-real-world-scenarios.e2e.test.ts`: Tier 4 Real-World Application Workloads
-  5. `tier5-adversarial-stress.e2e.test.ts`: Tier 5 Adversarial Stress & Chaos Testing
-  6. `r1-subagent-compilation.e2e.test.ts`: Sub-Agent Confinement & Compilation Suite
-  7. `challenger-2-empirical-adversarial.test.ts`: Empirical Adversarial Oracle Verification
+- Test runner: Vitest (`pnpm test` / `turbo test`) & Turborepo (`turbo check --force`).
+- Test case format: Vitest `describe()`, `it()`, `expect()` with React Testing Library / `@testing-library/react` and Vitest jsdom/happy-dom for UI and Node.js for backend adapters.
+- Test suites:
+  - Unit/Adapter: `packages/adapters/src/pi-runtime.test.ts`, `packages/core/src/events.test.ts`, `apps/web/src/lib/thread-events.test.ts`
+  - Web UI: `apps/web/src/tests/ui-excellence.test.tsx`, `apps/web/src/tests/responsive-matrix.test.tsx`
+  - Invariants: `packages/adapters/src/free-policy-engine.test.ts`, `packages/adapters/src/loop-guards.test.ts`, `packages/db/src/repos.test.ts`
+
+## Real-World Application Scenarios (Tier 4)
+1. **Multi-turn Chat with Tool Activity & Suggestion Selection**: Run an agent invoking MCP tools, viewing collapsed activity accordion, receiving suggestion chips, selecting option B via click, and verifying conversation resumption.
+2. **Streaming Emoji & Secret Masking Run**: Stream long text containing multi-byte emojis (`🚀`, `🤖`, `🎉`) interspersed with sensitive API tokens across small chunk boundaries, ensuring clean redaction and zero surrogate corruption.
+3. **Run Error Recovery & Retry Flow**: Trigger a transient run failure, observe unified red error banner, click retry/follow-up, verify banner cleanup and proper thread snapshot restoration.
+4. **Keyboard-Driven Mentions & Reaction Ergonomics**: Navigate chat composer, type `@`, use Arrow keys to select a specialist bot, hit Enter, submit prompt, view hover timestamps, compute duration badge, and toggle thumbs up reaction.
+5. **Multi-Device Responsive Stress Test**: Mount chat shell across 9 distinct viewport widths (320px to 1440px+), verifying touch target sizing ($\ge 44$px), safe area insets, and drawer responsiveness.
+
+## Coverage Thresholds
+- Tier 1: ≥5 per feature
+- Tier 2: ≥5 per feature (where boundaries exist)
+- Tier 3: Pairwise coverage of major feature interactions
+- Tier 4: ≥5 realistic application scenarios
+- Tier 5: Adversarial white-box stress testing

@@ -1,107 +1,78 @@
-# Project: RAKAZO — Itération d'Excellence Production
+# Project: RAKAZO — UI/UX Excellence & Robustness Integration
 
 ## Architecture
-RAKAZO is an enterprise AI agent platform organized as a Turborepo 2 + pnpm monorepo containing 19 packages across `apps/`, `packages/`, `infra/`, and `deploy/`.
-The core architecture enforces strict 3-tier dynamic decoupling for OmniRoute Free routing, complete isolation and sanctuarization of the historic OpenRouter Premium path (`openai/gpt-oss-120b`), sovereign MCP tool execution with loop guards and semantic token compaction, strict sub-agent confinement, non-blocking PostgreSQL SQL telemetry, seamless WebUI intent vs resolved model presentation, and multi-tenant VPS isolation.
+RAKAZO is an enterprise-grade AI Agent monorepo (19 packages/apps managed by Turborepo 2 + pnpm 9 workspaces) with strict TypeScript 5.8, React 18, Tailwind CSS v4, Fastify/Hono API, Prisma 7 / PostgreSQL, and standalone Coolify PaaS OmniRoute gateway integration.
 
+### Core Architecture Flow
 ```
-                  ┌─────────────────────────────────────────────────────────┐
-                  │                 WebUI / Desktop / Mobile                │
-                  │   Stable Intention (Settings) vs Resolved Model (Chat)  │
-                  └───────────────────────────┬─────────────────────────────┘
-                                              │ oRPC / HTTP
-                                              ▼
-                  ┌─────────────────────────────────────────────────────────┐
-                  │                   @rakazo/api (Hono)                    │
-                  │         Bot Config: mode ("premium" | "free"), tags     │
-                  └───────────────────────────┬─────────────────────────────┘
-                                              │
-                                              ▼
-                  ┌─────────────────────────────────────────────────────────┐
-                  │              @rakazo/adapters / Pi Runtime              │
-                  │         CanonicalAgentRuntime & InferenceTransport      │
-                  ├─────────────────────────────┬───────────────────────────┤
-                  │                             │                           │
-                  │ [mode: "premium"]           │ [mode: "free"]            │
-                  ▼                             ▼                           ▼
-    ┌───────────────────────────┐ ┌───────────────────────────┐ ┌──────────────────────┐
-    │  PiAiInferenceTransport   │ │OmniRouteInferenceTransport│ │ Sovereign MCP Engine │
-    │     (OpenRouter SDK)      │ │   (combo/rakazo-* route)  │ │  (8 Connectors /     │
-    │ openai/gpt-oss-120b direct│ │ Upstream Dynamic Model Res│ │   40 Tools, Guards)  │
-    └───────────────────────────┘ └─────────────┬─────────────┘ └──────────────────────┘
-                                                │
-                                                ▼
-                               ┌──────────────────────────────────┐
-                               │ PromptExecutionLog (PostgreSQL)  │
-                               │ Non-blocking SQL Telemetry       │
-                               │ resolvedProvider, resolvedModel, │
-                               │ cacheHitRatio, zero-cost checks  │
-                               └──────────────────────────────────┘
+User Interface (React 18 / Tailwind v4 / @rakazo/chat-ui)
+         │
+         ▼  (SSE Streaming & oRPC / TypeBox Schemas)
+Backend & Core (apps/api, @rakazo/core, @rakazo/contracts)
+         │
+         ├── Policy & Invariants Engine (@rakazo/adapters: free-policy-engine, loop-guards, subagent-inheritance)
+         │
+         ├── Runtime Execution (@rakazo/adapters: CanonicalAgentRuntime, pi-runtime)
+         │         │
+         │         ├── OpenRouter Premium (`openai/gpt-oss-120b`) [Commercial Tier]
+         │         └── OmniRoute Sovereign Gateway (Coolify App 21, 3-tier combo routing) [Free Tier]
+         │
+         └── Database & SQL Telemetry (@rakazo/db: Prisma 7, PostgreSQL, PromptExecutionLog)
 ```
 
 ## Feature Inventory
-| # | Feature | Description | Milestone | Source |
-|---|---------|-------------|-----------|--------|
-| F1 | Forensic Baseline Audit & Codebase Reconciliation | Empirical verification of 0 TS errors (19 packages), 2,768+ tests passing, clean working tree | M1 | ORIGINAL_REQUEST §R1 |
-| F2 | Generic Typed InferenceTransport | Abstract interface decoupling SSE HTTP transport from core runtime | M2 | ORIGINAL_REQUEST §R2 |
-| F3 | 3-Level Dynamic Decoupling | Product Intention <-> Canonical Route (`combo/rakazo-*`) <-> Turn Dynamic Resolution | M2 | ORIGINAL_REQUEST §R2 |
-| F4 | Zero Static Tables/Enums | 100% free model replacement in OmniRoute with 0 commits/migrations in Rakazo | M2 | ORIGINAL_REQUEST §R2 |
-| F5 | Response Header Propagation | `x-omniroute-*` headers mapped into `InferenceTransportChunk` | M3 | ORIGINAL_REQUEST §R3 |
-| F6 | Non-blocking SQL Telemetry | `recordPromptExecutionLogAsync` logging `resolvedProvider`, `resolvedModel`, `isFree` | M3 | ORIGINAL_REQUEST §R3 |
-| F7 | Strict Cache Hit Ratio & FNV-1a Affinity | `cachedTokens / (cachedTokens + promptTokens)` clamped [0, 1] and `sess_<hex>` affinity | M3 | ORIGINAL_REQUEST §R3 |
-| F8 | OpenRouter Premium Sanctuarization | `PiAiInferenceTransport` (`openai/gpt-oss-120b`) with zero OmniRoute dependencies | M4 | ORIGINAL_REQUEST §R4 |
-| F9 | Sovereign MCP Tool Loop | 8 connectors, 40 tools, `isToolPermitted`, `compactToolResult`, 25-turn breaker, 3x loop guard | M4 | ORIGINAL_REQUEST §R4 |
-| F10 | Free Sub-Agent Strict Confinement | 8,192 token ceiling, depth $\le 1$, delegation tools stripped, escalation veto | M4 | ORIGINAL_REQUEST §R4 |
-| F11 | WebUI Intent vs Turn Resolution | Bot settings show stable intent, transcript displays dynamic resolved model per turn | M5 | ORIGINAL_REQUEST §R5 |
-| F12 | Security, Secrets & Zero-Cost Fail-Closed | GitLeaks clean (0 secrets), error sanitization, immediate fail-closed on non-zero cost | M5 | ORIGINAL_REQUEST §R5 |
-| F13 | VPS Coolify Non-Interference | Resource limits (<1.2 GB), Traefik routing, zero port collisions for 15 VPS apps | M5 | ORIGINAL_REQUEST §R5 |
-| F14 | Master Documentation & Triple Coherence | Verification of Header == DB == UI and authoring `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md` | M6 | ORIGINAL_REQUEST §R6 |
-| F15 | Dual-Track Comprehensive E2E Testing | Multi-tier test suite (Tiers 1-4 + Tier 5 adversarial stress testing) | E2E | ORIGINAL_REQUEST §R1-R6 |
+Every requirement from the Survey phase is mapped to a specific milestone. No feature is unassigned.
+
+| # | Feature | Description | Milestone | Status |
+|---|---|---|---|---|
+| 1 | MCP Complex Schema & TypeBox Enum Normalization | Robust parsing of dynamic MCP schemas, unions, `anyOf`/`oneOf`, nullable types, single-value enums, null literals in `pi-runtime.ts` (PR #450) | M1 | DONE |
+| 2 | SSE UTF-16 Surrogate Pair Sanitization | Prevent multi-byte Unicode / Emoji (`🚀`, `🤖`, `🎉`) slicing across chunk boundaries and secret redaction buffers in `events.ts` (PR #424) | M1 | DONE |
+| 3 | Resolved Run Error Banner Cleanup | Reduction of terminal run events (`run.failed`, `run.cancelled`, `run.completed`) in `thread-events.ts` and clearing transient error banners upon retry/reload in `Shell.tsx` (PR #449, #447) | M1 | DONE |
+| 4 | Unified Red Error Tokens | Centralization of error palette (`--rk-error`, `--rk-error-surface`, `--destructive`, `rose-500`) across `@rakazo/ui-tokens` & `@rakazo/ui-web` (PR #428, #432, #462) | M2 | DONE |
+| 5 | 9-Breakpoint Responsive Layout & Touch Ergonomics | Strict $\ge 44$px touch targets, safe area insets, mobile drawers, responsive max-widths across 320px, 360px, 375px, 390px, 430px, 768px, 1024px, 1280px, 1440px+ | M2 | DONE |
+| 6 | Collapsible MCP Tool Activity Accordion | Foldable activity log component `ToolActivityAccordion.tsx` with single-click toggle and sanitized argument/output preview (PR #440) | M3 | DONE |
+| 7 | Interactive Suggestion Choice Chips | Interactive `ChoiceChipsCard.tsx` rendering letter badges and click-to-dispatch options from `kind: "choice"` blocks (PR #433) | M3 | DONE |
+| 8 | Hover Timestamps & Compute Duration Badge | Message bubble hover timestamp overlay and calculation of thought/compute duration (`TimestampBadge.tsx`) (PR #397, #461) | M3 | DONE |
+| 9 | Message Reactions & Copy Actions | Floating action bar `MessageActionBar.tsx` with thumbs up/down reaction state and quick clipboard copy (PR #428, #432, #462) | M3 | DONE |
+| 10 | `@mention` Popover & Keyboard Navigation | Keyboard-driven bot/subagent mention menu `MentionPopover.tsx` with `ArrowUp`, `ArrowDown`, `Enter`, `Tab`, `Escape` navigation | M3 | DONE |
+| 11 | Shell.tsx Master Integration | Flawless integration of all UI/UX components and event listeners in `apps/web/src/pages/Shell.tsx` | M4 | DONE |
+| 12 | Invariant Sanctuary Verification | Formal validation of all 10 core invariants (OpenRouter gpt-oss-120b, OmniRoute 3-tier, Bot DB persistence, $0.00 zero-cost, SQL telemetry, MCP isToolPermitted, semantic compact, 25 loop circuit breaker, free subagent depth 1, 4-block cache & FNV-1a) | M4 | DONE |
+| 13 | Monorepo Zero-Regression Certification | 0 TypeScript errors across all 19 packages via `turbo check --force`, 100% test pass rate across Vitest suites | M5 | DONE |
+| 14 | Master Documentation Sync | Update `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`, `AGENTS.md`, `docs/ENVIRONMENT_SETUP.md`, `docs/OMNIROUTE_DEPLOYMENT.md` | M5 | DONE |
+| 15 | Master Architect Handoff Publication | Publish comprehensive final handoff report `RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md` | M5 | DONE |
 
 ## Milestones
 | # | Name | Scope | Dependencies | Status |
-|---|------|-------|-------------|--------|
-| M1 | Forensic Baseline Audit & Reconciliation | Empirical audit of 19 packages, TS compilation, test execution | none | DONE |
-| M2 | Pluggable Inference Contract & Dynamic Decoupling | `InferenceTransport`, 3-level decoupling, zero static models | M1 | DONE |
-| M3 | Header Propagation, SQL Telemetry & Strict Cache Formula | Telemetry flow, `PromptExecutionLog`, FNV-1a affinity, cache formula | M2 | DONE |
-| M4 | OpenRouter Premium Sanctuarization, Sovereign MCP & Confinement | `PiAiInferenceTransport`, MCP loop guards, compacting, subagent budget | M1 | DONE |
-| M5 | WebUI Coherence, Security & VPS Non-Interference | Shell.tsx intent vs model, sanitization, zero-cost fail-closed, Docker/Traefik | M3, M4 | DONE |
-| M6 | Documentation of Authority & Final Master Handoff | Triple Coherence, `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md` | M5 | DONE |
-| E2E | Dual-Track E2E Test Suite & Adversarial Hardening | Requirement-driven Tiers 1-4 tests + Tier 5 adversarial test suite | M1-M5 | DONE |
+|---|---|---|---|---|
+| M1 | Robustness Hotfixes | Features 1, 2, 3: MCP TypeBox schema compilation, SSE UTF-16 surrogate sanitization, terminal run snapshot reduction | none | DONE |
+| M2 | Design Tokens & Responsive Ergonomics | Features 4, 5: Unified red error tokens, 9-breakpoint responsive CSS & touch targets | none | DONE |
+| M3 | Interactive UI/UX Components | Features 6, 7, 8, 9, 10: Tool accordion, choice chips, hover timestamps, message reactions, mention popover | M2 | DONE |
+| M4 | Shell.tsx Integration & Invariants Check | Features 11, 12: Integrated chat transcript, event subscriptions, invariant verification | M1, M3 | DONE |
+| M5 | Test Certification, Docs Sync & Master Handoff | Features 13, 14, 15: Full test battery, master docs synchronization, handoff report | M4 | DONE |
 
 ## Interface Contracts
-### `InferenceTransport` ↔ `CanonicalAgentRuntime`
-- File: `packages/adapters/src/inference-transport.ts`
-- Method: `streamInference(request: InferenceTransportRequest): AsyncIterable<InferenceTransportChunk>`
-- Yields:
-  - `text?: string`
-  - `resolvedProvider?: string`
-  - `resolvedModel?: string`
-  - `responseCostUsd?: number`
-  - `upstreamLatencyMs?: number`
-  - `cachedTokens?: number`, `promptTokens?: number`, `completionTokens?: number`
+### `ToolActivityAccordion` (`apps/web/src/components/chat/ToolActivityAccordion.tsx`)
+- Props: `{ toolName: string; status: "running" | "completed" | "failed"; args?: Record<string, unknown> | string; result?: string; durationMs?: number; defaultExpanded?: boolean; }`
 
-### `executor.ts` ↔ `PromptExecutionLog` (DB)
-- File: `packages/db/src/telemetry.ts`
-- Method: `recordPromptExecutionLogAsync(prisma, input: PromptExecutionLogInput): void`
-- Fields: `botId`, `inferenceMode`, `requestedCategory`, `resolvedProvider`, `resolvedModel`, `isFree`, `cacheHitRatio`, `costEstimatedUsd`, `durationMs`
+### `ChoiceChipsCard` (`apps/web/src/components/chat/ChoiceChipsCard.tsx`)
+- Props: `{ block: { kind: "choice"; question: string; subtitle?: string; options: Array<{ id: string; letter: string; label: string }>; }; onSelectOption: (option: { id: string; letter: string; label: string }) => void; disabled?: boolean; }`
 
-### `Shell.tsx` ↔ `TurnExecutionMetadata` (WebUI)
-- File: `apps/web/src/pages/Shell.tsx`
-- Extractor: `extractTurnExecutionMetadata(message): { resolvedModel?, resolvedProvider?, isFree? }`
-- Presentation: Badge renders `Modèle utilisé : ${resolvedModel} · ${resolvedProvider}` without modifying bot configuration.
+### `TimestampBadge` (`apps/web/src/components/chat/TimestampBadge.tsx`)
+- Props: `{ createdAt: string; resolvedModel?: string; resolvedProvider?: string; isFree?: boolean; durationMs?: number; latencyMs?: number; }`
+
+### `MessageActionBar` (`apps/web/src/components/chat/MessageActionBar.tsx`)
+- Props: `{ text: string; messageId: string; onReact?: (messageId: string, reaction: "up" | "down" | null) => void; }`
+
+### `MentionPopover` (`apps/web/src/components/chat/MentionPopover.tsx`)
+- Props: `{ query: string; bots: Bot[]; selectedIndex: number; onSelectBot: (bot: Bot) => void; onClose: () => void; }`
 
 ## Code Layout
-- `apps/api`: Backend API & oRPC routes (`port 3100`)
-- `apps/web`: Frontend React WebUI (`port 5173` preview, Vite production build)
-- `apps/worker`: Background task worker
-- `apps/www`: Astro documentation & marketing site
-- `apps/desktop`: Electron wrapper
-- `apps/mobile`: Expo / React Native mobile app
-- `packages/contracts`: Zod schemas, oRPC contracts, MCP catalog (`mcp-catalog.ts`)
-- `packages/adapters`: `InferenceTransport`, `OmniRouteInferenceTransport`, `PiAiInferenceTransport`, `CanonicalAgentRuntime`, `RakazoFreePolicyEngine`, `loop-guards.ts`, `tool-compacting.ts`, `subagent-inheritance.ts`, `executor.ts`
-- `packages/db`: Prisma schema, migrations, `telemetry.ts`
-- `packages/chat-ui`: UI message rendering, Markdown sanitization
-- `packages/testkit`: Multi-tier E2E and adversarial test suites
-- `deploy/omniroute`: OmniRoute gateway standalone proxy
-- `docker-compose.yaml`: Coolify multi-container production configuration
+- `packages/adapters/src/pi-runtime.ts` — MCP schema compilation & TypeBox enum resolution
+- `packages/core/src/events.ts` — SSE streaming chunking & UTF-16 surrogate sanitizer
+- `apps/web/src/lib/thread-events.ts` — Snapshot event filtering and terminal run reduction
+- `packages/ui-tokens/src/tokens.css`, `packages/ui-tokens/src/index.ts` — Unified red error design tokens
+- `apps/web/src/components/chat/*` — New dedicated UI/UX chat components
+- `apps/web/src/pages/Shell.tsx` — Main chat shell integration
+- `apps/web/src/tests/*`, `packages/testkit/*` — E2E and unit test suites
+- `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`, `AGENTS.md`, `docs/*` — Master documentation
+- `RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md` — Authoritative master handoff artifact

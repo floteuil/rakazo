@@ -121,3 +121,63 @@ Integrity mode: development
 - [ ] Zéro secret dans le frontend, zéro ingérence sur les 15 autres applications du VPS.
 - [ ] L'artefact maître `RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md` est publié et exempt d'affirmation non vérifiée.
 
+## Follow-up — 2026-09-02T12:31:12Z
+
+# RAKAZO — Intégration des Améliorations UI/UX à Risque Zéro & Correctifs de Robustesse
+
+> Working directory: /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app  
+> Integrity mode: development  
+
+Implémentation ciblée et additive des améliorations ergonomiques et visuelles à risque zéro (pliage de l'activité des outils MCP, choix cliquables interactifs, horodatage au survol, réactions, durée de calcul, navigation clavier `@mention`, unification du rouge d'erreur) et des correctifs de robustesse (tolérance aux schémas MCP complexes, assainissement UTF-16 en streaming, nettoyage des erreurs résolues), avec sanctuarisation intégrale de l'architecture souveraine OmniRoute, de la voie Premium OpenRouter (`openai/gpt-oss-120b`), validation multi-écrans (mobile/tablette/desktop), batterie de tests complète et documentation d'autorité.
+
+Working directory: /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app
+Integrity mode: development
+
+## Requirements
+
+### R1. Implémentation des Améliorations UI/UX & Confort à Risque Zéro
+- **Pliage Élégant de l'Activité des Outils MCP (PR #440)** : Regrouper les journaux d'exécution d'outils dans un conteneur discret et pliable/dépliable en 1 clic au lieu d'inonder le chat.
+- **Boutons de Choix Rapides Cliquables dans le Chat (PR #433)** : Permettre le rendu de puces interactives cliquables sous les réponses des agents pour fluidifier les interactions utilisateur.
+- **Horodatage & Durée Réelle de Calcul (PR #397 & #461)** : Afficher l'horodatage exact au survol des bulles de messages et la mention discrète de durée (*« A réfléchi pendant X.Xs »*).
+- **Réactions aux Messages & Navigation Clavier (PR #428, #432, #462)** : Bouton de réaction (pouce levé), navigation flèches/Entrée dans le sélecteur `@mention`, et uniformisation des tokens de couleur d'erreur.
+
+### R2. Correctifs de Robustesse Ciblés & Tolérance aux Cas Limites
+- **Tolérance aux Schémas d'Arguments MCP Complexes (PR #450)** : Gérer avec souplesse les enums TypeBox et schémas JSON tiers sans faire échouer le tour d'inférence.
+- **Assainissement des Caractères UTF-16 en Streaming (PR #424)** : Prévenir toute corruption d'affichage lors de la scission de paires de substitution UTF-16 (emojis/symboles) dans les flux SSE.
+- **Nettoyage des Erreurs de Run Résolues (PR #449 & #447)** : Empêcher la réapparition d'anciennes bannières d'erreur après le succès d'un tour ultérieur ou un rechargement.
+
+### R3. Sanctuarisation Absolue des Invariants Souverains
+- **Voie Premium OpenRouter** : Maintenir 100 % intacte et indépendante la voie `openai/gpt-oss-120b` via OpenRouter.
+- **Voie Gratuite OmniRoute** : Préserver le découpage à 3 niveaux (Intention `free` $\leftrightarrow$ Route `combo/rakazo-*` $\leftrightarrow$ Résolution par tour), la persistance DB dans `Bot.metadata.inference`, la double barrière zéro-coût ($0.00 max, *fail-closed*), et l'ingestion de la télémétrie SQL `PromptExecutionLog`.
+- **Boucle MCP & Sous-Agents** : Maintenir le filtrage des permissions (`isToolPermitted`), le compactage sémantique `compactToolResult`, les disjoncteurs anti-boucle (25 tours), et le confinement strict des sous-agents Gratuits (8k tokens, profondeur 1, exclusion des outils de délégation).
+- **Cache à Deux Niveaux** : Préserver le préfixe 4-blocs (Token 0 invariant) et l'affinité de session FNV-1a `x-session-id`.
+
+### R4. Ergonomie Responsive & Validation Multi-Écrans
+- Valider le comportement tactile, l'absence de débordement horizontal et la lisibilité sur 9 résolutions clés : 320px, 360px, 375px, 390px, 430px (smartphones), 768px, 1024px (tablettes), 1280px et 1440px+ (desktop).
+- Respecter les cibles tactiles $\ge 44$px, les zones de sécurité `env(safe-area-inset-bottom)`, et empêcher les zooms intempestifs sur iOS.
+
+### R5. Batterie de Tests, Non-Ingérence VPS & Documentation GitHub
+- Exécuter la suite complète de tests sans régression : maintenir 0 erreur TypeScript sur les 19 packages (`turbo check --force`) et 100 % de succès sur les suites unitaires, d'intégration et E2E (`vitest`).
+- Garantir la non-ingérence totale sur les 15 autres applications hébergées sur le serveur Coolify (`62.164.214.145`).
+- Mettre à jour la documentation du dépôt GitHub : `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`, `AGENTS.md`, `docs/ENVIRONMENT_SETUP.md`, `docs/OMNIROUTE_DEPLOYMENT.md`, et publier le rapport d'intégration `RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`.
+
+## Acceptance Criteria
+
+### Nouvelles Capacités UI/UX & Robustesse
+- [ ] L'activité des outils MCP se replie par défaut dans un bloc élégant et se déroule en un clic.
+- [ ] Les choix interactifs cliquables et les horodatages au survol s'affichent correctement.
+- [ ] Les schémas d'outils MCP complexes et les emojis en streaming SSE s'exécutent sans aucune erreur.
+- [ ] Les anciennes erreurs résolues ne réapparaissent pas au rechargement de la page.
+
+### Sanctuarisation & Non-Régression
+- [ ] La voie Premium OpenRouter (`gpt-oss-120b`) et la voie Gratuite OmniRoute (`combo/rakazo-*`) fonctionnent sans altération.
+- [ ] La persistance du mode Gratuit dans la base de données résiste au rechargement complet.
+- [ ] La boucle d'outils MCP, les sous-agents (8k / depth 1) et le cache 4 blocs restent 100 % intacts.
+
+### Qualité, Tests & Documentation
+- [ ] 0 erreur TypeScript sur l'ensemble des 19 packages (`turbo check --force`).
+- [ ] 100 % des tests unitaires et E2E passent avec succès (zéro régression).
+- [ ] Les 15 autres applications du VPS Coolify demeurent intactes et opérationnelles.
+- [ ] La documentation GitHub maîtresse est synchronisée et publiée sans aucun secret.
+
+

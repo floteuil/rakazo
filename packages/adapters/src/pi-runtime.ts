@@ -1744,9 +1744,16 @@ function isAgentToolExecutionResult(result: unknown): result is AgentToolExecuti
   );
 }
 
-function jsonSchemaParameters(schema: Record<string, unknown>) {
-  const properties = (schema.properties ?? {}) as Record<string, unknown>;
-  const required = new Set(Array.isArray(schema.required) ? schema.required.map(String) : []);
+export function jsonSchemaParameters(schema: unknown) {
+  if (!schema || typeof schema !== "object") {
+    return Type.Object({});
+  }
+  const s = schema as Record<string, unknown>;
+  const properties = (s.properties && typeof s.properties === "object" ? s.properties : {}) as Record<
+    string,
+    unknown
+  >;
+  const required = new Set(Array.isArray(s.required) ? s.required.map(String) : []);
   const fields: Record<string, ReturnType<typeof Type.Optional>> = {};
   for (const [key, spec] of Object.entries(properties)) {
     const field = jsonField(spec);
@@ -1757,16 +1764,51 @@ function jsonSchemaParameters(schema: Record<string, unknown>) {
   return Type.Object(fields);
 }
 
-function jsonField(spec: unknown): ReturnType<typeof Type.String> {
-  const definition = spec && typeof spec === "object" ? (spec as Record<string, unknown>) : {};
+export function jsonField(spec: unknown): ReturnType<typeof Type.String> {
+  if (!spec || typeof spec !== "object") return Type.String();
+  const definition = spec as Record<string, unknown>;
+
+  // Handle enum
   if (Array.isArray(definition.enum) && definition.enum.length > 0) {
-    return Type.Union(definition.enum.map((value) => Type.Literal(value))) as never;
+    if (definition.enum.length === 1) {
+      const val = definition.enum[0];
+      return (val === null ? Type.Null() : Type.Literal(val as string | number | boolean)) as never;
+    }
+    return Type.Union(
+      definition.enum.map((value) =>
+        value === null ? Type.Null() : Type.Literal(value as string | number | boolean),
+      ),
+    ) as never;
   }
+
+  // Handle anyOf / oneOf
+  const anyOf = Array.isArray(definition.anyOf)
+    ? definition.anyOf
+    : Array.isArray(definition.oneOf)
+      ? definition.oneOf
+      : null;
+  if (anyOf && anyOf.length > 0) {
+    if (anyOf.length === 1) return jsonField(anyOf[0]) as never;
+    return Type.Union(anyOf.map((s) => jsonField(s))) as never;
+  }
+
+  // Handle type array (e.g. ["string", "null"])
+  if (Array.isArray(definition.type) && definition.type.length > 0) {
+    const types = definition.type.map((t) => jsonField({ ...definition, type: t }));
+    return (types.length === 1 ? types[0] : Type.Union(types)) as never;
+  }
+
   const type = "type" in definition ? String(definition.type) : "string";
   if (type === "number" || type === "integer") return Type.Number() as never;
   if (type === "boolean") return Type.Boolean() as never;
+  if (type === "null") return Type.Null() as never;
   if (type === "array") return Type.Array(jsonField(definition.items)) as never;
-  if (type === "object") return jsonSchemaParameters(definition) as never;
+  if (type === "object") {
+    if (!definition.properties || typeof definition.properties !== "object") {
+      return Type.Record(Type.String(), Type.Unknown()) as never;
+    }
+    return jsonSchemaParameters(definition) as never;
+  }
   return Type.String();
 }
 

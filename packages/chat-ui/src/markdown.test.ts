@@ -27,4 +27,17 @@ describe("closeUnterminatedFence", () => {
     const markdown = "```ts\nconst value = 1;\n```\n\nDone";
     expect(closeUnterminatedFence(markdown)).toBe(markdown);
   });
+
+  it("handles tilde code fences properly", () => {
+    expect(closeUnterminatedFence("```ts\nconst x = 1;\n```\n~~~json\n{\"a\": 1}")).toBe(
+      "```ts\nconst x = 1;\n```\n~~~json\n{\"a\": 1}\n~~~",
+    );
+  });
+
+  it("handles text without code blocks without modification", () => {
+    const plain = "# Title\n\nParagraph text with *emphasis* and [link](https://example.com)";
+    expect(closeUnterminatedFence(plain)).toBe(plain);
+  });
 });
+
+

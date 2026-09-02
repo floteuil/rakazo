@@ -192,11 +192,84 @@ describe("thread event reduction", () => {
     expect(next).toMatchObject({ cursor: 12, messages: [], olderCursor: null, run: null });
   });
 
-  it("routes live clear events through the snapshot reducer", () => {
+  it("routes live clear and terminal run events through the snapshot reducer", () => {
     expect(
       isThreadSnapshotEvent(event({ type: "thread.cleared", seq: 12, runId: undefined })),
     ).toBe(true);
-    expect(isThreadSnapshotEvent(event({ type: "run.completed" }))).toBe(false);
+    expect(isThreadSnapshotEvent(event({ type: "run.completed" }))).toBe(true);
+    expect(isThreadSnapshotEvent(event({ type: "run.failed" }))).toBe(true);
+    expect(isThreadSnapshotEvent(event({ type: "run.cancelled" }))).toBe(true);
+    expect(isThreadSnapshotEvent(event({ type: "custom.unknown" as any }))).toBe(false);
+  });
+
+  it("reduces terminal run events (completed, failed, cancelled), clearing progress tokens and resetting active run", () => {
+    const initialWithProgress = snapshot([
+      message("msg-1", [{ kind: "text", text: "Hello" }], 1),
+      message("progress:run-1", [{ kind: "progress", text: "Drafting answer..." }], 2),
+    ]);
+    initialWithProgress.run = {
+      id: "run-1",
+      botId: "bot-1",
+      threadId: "thread-1",
+      taskId: "task-1",
+      status: "running",
+      trigger: "user",
+      modelProvider: "mistral",
+      modelId: "codestral-latest",
+      error: null,
+      startedAt: "2026-09-02T12:00:00.000Z",
+      completedAt: null,
+    };
+
+    // run.completed
+    const completed = reduceThreadSnapshot(
+      initialWithProgress,
+      event({ type: "run.completed", seq: 15, runId: "run-1" }),
+    );
+    expect(completed?.cursor).toBe(15);
+    expect(completed?.run).toBeNull();
+    expect(completed?.messages.map((m) => m.id)).toEqual(["msg-1"]);
+
+    // run.failed
+    const failed = reduceThreadSnapshot(
+      initialWithProgress,
+      event({ type: "run.failed", seq: 16, runId: "run-1" }),
+    );
+    expect(failed?.cursor).toBe(16);
+    expect(failed?.run).toBeNull();
+    expect(failed?.messages.map((m) => m.id)).toEqual(["msg-1"]);
+
+    // run.cancelled
+    const cancelled = reduceThreadSnapshot(
+      initialWithProgress,
+      event({ type: "run.cancelled", seq: 17, runId: "run-1" }),
+    );
+    expect(cancelled?.cursor).toBe(17);
+    expect(cancelled?.run).toBeNull();
+    expect(cancelled?.messages.map((m) => m.id)).toEqual(["msg-1"]);
+  });
+
+  it("retains unrelated run state when terminal event runId does not match current run", () => {
+    const initial = snapshot([]);
+    initial.run = {
+      id: "run-other",
+      botId: "bot-1",
+      threadId: "thread-1",
+      taskId: "task-1",
+      status: "running",
+      trigger: "user",
+      modelProvider: null,
+      modelId: null,
+      error: null,
+      startedAt: null,
+      completedAt: null,
+    };
+
+    const next = reduceThreadSnapshot(
+      initial,
+      event({ type: "run.completed", seq: 18, runId: "run-different" }),
+    );
+    expect(next?.run?.id).toBe("run-other");
   });
 
   it("applies the durable waiting-input run transition without a refresh", () => {

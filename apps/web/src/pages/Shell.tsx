@@ -25,6 +25,14 @@ import {
   ATTACHMENT_MAX_COUNT,
 } from "@rakazo/contracts";
 import {
+  ChoiceChipsCard,
+  type ChoiceBlock,
+  MentionPopover,
+  MessageActionBar,
+  TimestampBadge,
+  ToolActivityAccordion,
+} from "../components/chat";
+import {
   abortableDelay,
   attachmentsForBot,
   cronFromPreset,
@@ -191,6 +199,10 @@ export function ShellPage() {
     outputTokens: number;
     runs: number;
   } | null>(null);
+  const [reactions, setReactions] = useState<Record<string, "up" | "down" | null>>({});
+  const handleReact = useCallback((msgId: string, reaction: "up" | "down" | null) => {
+    setReactions((current) => ({ ...current, [msgId]: reaction }));
+  }, []);
   const autoBooted = useRef<string | null>(null);
   const routineSavePending = useRef(false);
   const routineRunPending = useRef(false);
@@ -524,6 +536,8 @@ export function ShellPage() {
               event.type === "bot.spawned" ||
               event.type === "bot.deleted" ||
               event.type === "run.completed" ||
+              event.type === "run.failed" ||
+              event.type === "run.cancelled" ||
               event.type === "thread.cleared"
             ) {
               void refreshBots().catch(() => undefined);
@@ -535,7 +549,12 @@ export function ShellPage() {
               }
               if (event.payload.role === "bot") markBotReadIfVisible(active.id);
             }
-            if (event.type === "run.completed" || event.type === "skill.teaching.stopped") {
+            if (
+              event.type === "run.completed" ||
+              event.type === "run.failed" ||
+              event.type === "run.cancelled" ||
+              event.type === "skill.teaching.stopped"
+            ) {
               void refreshThread(active.id).catch(() => undefined);
             } else if (isComputerStatusEvent(event)) {
               void refreshComputerScreen(active.id).catch(() => undefined);
@@ -754,6 +773,7 @@ export function ShellPage() {
       if (!trimmed && attachments.length === 0) return;
       setSending(true);
       setSendError(null);
+      setDictationError(null);
       try {
         const artifactIds: string[] = [];
         for (const pending of attachments) {
@@ -792,6 +812,8 @@ export function ShellPage() {
   const followUpMessage = useCallback(async (text: string) => {
     const id = activeBotId.current;
     if (!id) return;
+    setSendError(null);
+    setDictationError(null);
     await rpc.threads.followUp({ botId: id, text });
     await refreshThreadRef.current(id);
   }, []);
@@ -950,6 +972,7 @@ export function ShellPage() {
     });
     setAttachmentNotice(null);
     setSendError(null);
+    setDictationError(null);
   }, [active?.id]);
 
   useEffect(() => {
@@ -1312,6 +1335,8 @@ export function ShellPage() {
           onLoadOlder={loadOlder}
           onOpenBot={openBot}
           onAnswer={answerMessage}
+          onSelectChoice={(text) => void sendMessage(text)}
+          onReact={handleReact}
           onRefresh={refreshActiveThread}
           onAddRoutine={addSkillRoutine}
           voiceReady={Boolean(voiceStatus?.ready)}
@@ -1319,18 +1344,23 @@ export function ShellPage() {
           onSpeak={speakMessage}
         />
         {recordingSkill ? (
-          <div className="px-6 pb-2 text-center text-[13px] text-[#E65707]">
+          <div className="px-6 pb-2 text-center text-[13px] text-[#EF4444]">
             Teaching in progress — stop teaching before sending a new message.
           </div>
         ) : null}
         <Composer
           activeName={active?.name}
+          bots={bots}
           running={Boolean(snapshot?.run && isActive(snapshot.run.status))}
           disabled={Boolean(recordingSkill)}
           pendingAttachments={activePendingAttachments}
           attachmentNotice={attachmentNotice}
           sendError={sendError}
           dictationError={dictationError}
+          onClearError={() => {
+            setSendError(null);
+            setDictationError(null);
+          }}
           sending={sending}
           fileInputRef={fileInputRef}
           onAttachmentPick={onAttachmentPick}
@@ -1915,7 +1945,7 @@ export function ShellPage() {
   );
 }
 
-const Transcript = memo(function Transcript({
+export const Transcript = memo(function Transcript({
   scrollRef,
   botId,
   messages,
@@ -1926,6 +1956,8 @@ const Transcript = memo(function Transcript({
   onLoadOlder,
   onOpenBot,
   onAnswer,
+  onSelectChoice,
+  onReact,
   onRefresh,
   onAddRoutine,
   voiceReady,
@@ -1942,6 +1974,8 @@ const Transcript = memo(function Transcript({
   onLoadOlder: () => void | Promise<void>;
   onOpenBot: (botId: string) => void;
   onAnswer: (message: ThreadMessage, text: string) => Promise<void>;
+  onSelectChoice?: (text: string) => void | Promise<void>;
+  onReact?: (messageId: string, reaction: "up" | "down" | null) => void;
   onRefresh: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
   voiceReady: boolean;
@@ -1972,6 +2006,8 @@ const Transcript = memo(function Transcript({
             canAnswer={message.id === answerableAskMessageId}
             onOpenBot={onOpenBot}
             onAnswer={onAnswer}
+            onSelectChoice={onSelectChoice}
+            onReact={onReact}
             onRefresh={onRefresh}
             onAddRoutine={onAddRoutine}
             voiceReady={voiceReady}
@@ -1994,14 +2030,16 @@ const Transcript = memo(function Transcript({
   );
 });
 
-const Composer = memo(function Composer({
+export const Composer = memo(function Composer({
   activeName,
+  bots = [],
   running,
   disabled,
   pendingAttachments,
   attachmentNotice,
   sendError,
   dictationError,
+  onClearError,
   sending,
   fileInputRef,
   onAttachmentPick,
@@ -2014,12 +2052,14 @@ const Composer = memo(function Composer({
   onDictateStop,
 }: {
   activeName?: string;
+  bots?: Bot[];
   running: boolean;
   disabled?: boolean;
   pendingAttachments: PendingAttachment[];
   attachmentNotice: string | null;
   sendError: string | null;
   dictationError: string | null;
+  onClearError?: () => void;
   sending: boolean;
   fileInputRef: RefObject<HTMLInputElement | null>;
   onAttachmentPick: (files: FileList | null) => void | Promise<void>;
@@ -2032,20 +2072,106 @@ const Composer = memo(function Composer({
   onDictateStop: () => void;
 }) {
   const [draft, setDraft] = useState("");
+  const [showMention, setShowMention] = useState(false);
+  const [mentionQuery, setMentionQuery] = useState("");
+  const [mentionIndex, setMentionIndex] = useState(0);
+  const inputRef = useRef<HTMLInputElement>(null);
+
   const canSend = draft.trim().length > 0 || pendingAttachments.length > 0;
+
+  const filteredBots = useMemo(() => {
+    if (!bots || bots.length === 0) return [];
+    const q = (mentionQuery || "").toLowerCase().trim();
+    return bots.filter((b) => {
+      const nameMatch = b.name ? b.name.toLowerCase().includes(q) : false;
+      const titleMatch = b.title ? b.title.toLowerCase().includes(q) : false;
+      return nameMatch || titleMatch;
+    });
+  }, [bots, mentionQuery]);
 
   function send() {
     if (!canSend || sending || disabled) return;
     const text = draft;
     setDraft("");
+    setShowMention(false);
     void onSend(text);
+  }
+
+  function handleSelectBot(bot: Bot) {
+    const atIdx = draft.lastIndexOf("@");
+    const prefix = atIdx >= 0 ? draft.slice(0, atIdx) : draft;
+    setDraft(`${prefix}@${bot.name} `);
+    setShowMention(false);
+    inputRef.current?.focus();
+  }
+
+  function handleDraftChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const val = event.target.value;
+    setDraft(val);
+    const atMatch = /(?:^|\s)@([^\s@]*)$/.exec(val);
+    if (atMatch && bots && bots.length > 0) {
+      setShowMention(true);
+      setMentionQuery(atMatch[1] ?? "");
+      setMentionIndex(0);
+    } else {
+      setShowMention(false);
+    }
+  }
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    if (showMention && filteredBots.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setMentionIndex((prev) => (prev + 1) % filteredBots.length);
+        return;
+      }
+      if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setMentionIndex((prev) => (prev - 1 + filteredBots.length) % filteredBots.length);
+        return;
+      }
+      if (event.key === "Enter" || event.key === "Tab") {
+        event.preventDefault();
+        const selected = filteredBots[mentionIndex] ?? filteredBots[0];
+        if (selected) {
+          handleSelectBot(selected);
+        }
+        return;
+      }
+      if (event.key === "Escape") {
+        event.preventDefault();
+        setShowMention(false);
+        return;
+      }
+    }
+
+    if (event.key === "Enter" && !event.shiftKey) {
+      event.preventDefault();
+      send();
+    }
   }
 
   return (
     <div className="w-full px-2 pt-1.5 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6 sm:pb-6 sm:pt-3">
       {sendError || dictationError ? (
-        <div className="mb-2.5 rounded-[14px] border border-[#5A2A2A] bg-[#2A1717] px-3.5 py-2 text-[13px] text-[#F1A8A8]">
-          {sendError ?? dictationError}
+        <div
+          data-testid="composer-error-banner"
+          className="mb-2.5 rounded-[14px] border border-rose-800/80 bg-rose-950/80 px-3.5 py-2 text-[13px] text-rose-200 flex items-center justify-between gap-2"
+        >
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="text-rose-400 font-bold shrink-0">⚠️ Erreur :</span>
+            <span className="truncate">{sendError ?? dictationError}</span>
+          </div>
+          {onClearError ? (
+            <button
+              type="button"
+              onClick={onClearError}
+              className="text-rose-400 hover:text-rose-200 shrink-0 text-xs px-1.5 py-0.5 rounded hover:bg-rose-900/50 cursor-pointer"
+              aria-label="Fermer l'erreur"
+            >
+              ✕
+            </button>
+          ) : null}
         </div>
       ) : null}
       {attachmentNotice ? (
@@ -2084,82 +2210,89 @@ const Composer = memo(function Composer({
           ))}
         </div>
       ) : null}
-      <div className="flex w-full items-center gap-2 sm:gap-3.5 rounded-full border border-[#202023] bg-[#131315] py-1.5 px-2 sm:py-[9px] sm:pr-2.5 sm:pl-3 shadow-sm">
-        <input
-          ref={fileInputRef}
-          type="file"
-          multiple
-          accept={ATTACHMENT_ACCEPT}
-          className="hidden"
-          onChange={(event) => void onAttachmentPick(event.target.files)}
-        />
-        <button
-          type="button"
-          aria-label="Attach file"
-          disabled={disabled}
-          onClick={() => fileInputRef.current?.click()}
-          className="grid h-9 w-9 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border border-[#26262A] text-[#9A9AA0] hover:bg-[#1C1C1F] hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
-        >
-          <Plus size={17} strokeWidth={1.8} />
-        </button>
-        <button
-          type="button"
-          aria-label={dictating ? "Stop dictation" : "Dictate"}
-          onMouseDown={(event) => {
-            event.preventDefault();
-            onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
-          }}
-          onMouseUp={onDictateStop}
-          onMouseLeave={() => {
-            if (dictating) onDictateStop();
-          }}
-          onTouchStart={(event) => {
-            event.preventDefault();
-            onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
-          }}
-          onTouchEnd={onDictateStop}
-          className={`grid h-9 w-9 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border transition-colors cursor-pointer ${
-            dictating
-              ? "border-[#4ECB71] bg-[rgba(48,162,75,.16)] text-[#4ECB71]"
-              : "border-[#26262A] text-[#9A9AA0] hover:bg-[#1C1C1F] hover:text-white"
-          }`}
-          title={transcribe ? "Maintenir pour parler" : "Maintenir pour parler (dictée vocale)"}
-        >
-          <Mic size={16} strokeWidth={1.8} />
-        </button>
-        <input
-          value={draft}
-          onChange={(event) => setDraft(event.target.value)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" && !event.shiftKey) {
+      <div className="relative">
+        {showMention && bots && bots.length > 0 ? (
+          <MentionPopover
+            query={mentionQuery}
+            bots={bots}
+            selectedIndex={mentionIndex}
+            onSelectBot={handleSelectBot}
+            onClose={() => setShowMention(false)}
+          />
+        ) : null}
+        <div className="flex w-full items-center gap-2 sm:gap-3.5 rounded-full border border-[#202023] bg-[#131315] py-1.5 px-2 sm:py-[9px] sm:pr-2.5 sm:pl-3 shadow-sm">
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={ATTACHMENT_ACCEPT}
+            className="hidden"
+            onChange={(event) => void onAttachmentPick(event.target.files)}
+          />
+          <button
+            type="button"
+            aria-label="Attach file"
+            disabled={disabled}
+            onClick={() => fileInputRef.current?.click()}
+            className="grid h-9 w-9 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border border-[#26262A] text-[#9A9AA0] hover:bg-[#1C1C1F] hover:text-white transition-colors disabled:opacity-40 cursor-pointer"
+          >
+            <Plus size={17} strokeWidth={1.8} />
+          </button>
+          <button
+            type="button"
+            aria-label={dictating ? "Stop dictation" : "Dictate"}
+            onMouseDown={(event) => {
               event.preventDefault();
-              send();
-            }
-          }}
-          disabled={disabled}
-          placeholder={activeName ? `Envoyer un message à ${activeName}…` : "Écrire un message…"}
-          className="min-w-0 flex-1 bg-transparent px-1.5 text-[16px] sm:text-[15.5px] text-[#E9E9EA] placeholder-[#6C6C70] outline-none disabled:opacity-40"
-        />
-        {running ? (
-          <button
-            type="button"
-            aria-label="Arrêter"
-            onClick={() => void onStop()}
-            className="grid h-9 w-9 sm:h-9 sm:w-9 shrink-0 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] hover:bg-white transition-colors cursor-pointer"
+              onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
+            }}
+            onMouseUp={onDictateStop}
+            onMouseLeave={() => {
+              if (dictating) onDictateStop();
+            }}
+            onTouchStart={(event) => {
+              event.preventDefault();
+              onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
+            }}
+            onTouchEnd={onDictateStop}
+            className={`grid h-9 w-9 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border transition-colors cursor-pointer ${
+              dictating
+                ? "border-[#4ECB71] bg-[rgba(48,162,75,.16)] text-[#4ECB71]"
+                : "border-[#26262A] text-[#9A9AA0] hover:bg-[#1C1C1F] hover:text-white"
+            }`}
+            title={transcribe ? "Maintenir pour parler" : "Maintenir pour parler (dictée vocale)"}
           >
-            <Square size={12} strokeWidth={0} fill="currentColor" />
+            <Mic size={16} strokeWidth={1.8} />
           </button>
-        ) : (
-          <button
-            type="button"
-            aria-label="Envoyer"
-            disabled={sending || !canSend || disabled}
-            onClick={send}
-            className="grid h-9 w-9 sm:h-9 sm:w-9 shrink-0 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] hover:bg-white transition-colors disabled:opacity-40 cursor-pointer"
-          >
-            <ArrowUp size={18} strokeWidth={2} />
-          </button>
-        )}
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={handleDraftChange}
+            onKeyDown={handleKeyDown}
+            disabled={disabled}
+            placeholder={activeName ? `Envoyer un message à ${activeName}…` : "Écrire un message…"}
+            className="min-w-0 flex-1 bg-transparent px-1.5 text-[16px] sm:text-[15.5px] text-[#E9E9EA] placeholder-[#6C6C70] outline-none disabled:opacity-40"
+          />
+          {running ? (
+            <button
+              type="button"
+              aria-label="Arrêter"
+              onClick={() => void onStop()}
+              className="grid h-9 w-9 sm:h-9 sm:w-9 shrink-0 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] hover:bg-white transition-colors cursor-pointer"
+            >
+              <Square size={12} strokeWidth={0} fill="currentColor" />
+            </button>
+          ) : (
+            <button
+              type="button"
+              aria-label="Envoyer"
+              disabled={sending || !canSend || disabled}
+              onClick={send}
+              className="grid h-9 w-9 sm:h-9 sm:w-9 shrink-0 place-items-center rounded-full bg-[#F1F1EF] text-[#17171A] hover:bg-white transition-colors disabled:opacity-40 cursor-pointer"
+            >
+              <ArrowUp size={18} strokeWidth={2} />
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
@@ -2190,10 +2323,72 @@ function latestAnswerableAskMessageId(snapshot: ThreadSnapshot | null): string |
   return null;
 }
 
+function parseProgressTool(text: string): {
+  toolName: string;
+  status: "running" | "completed" | "failed";
+  args?: Record<string, unknown> | string;
+  result?: string;
+  durationMs?: number;
+} | null {
+  if (!text || typeof text !== "string") return null;
+  const trimmed = text.trim();
+
+  // 1. Check for JSON format: { "tool": "xyz", ... }
+  if (trimmed.startsWith("{") && trimmed.endsWith("}")) {
+    try {
+      const parsed = JSON.parse(trimmed);
+      if (parsed.tool || parsed.toolName || parsed.name) {
+        return {
+          toolName: parsed.tool || parsed.toolName || parsed.name,
+          status:
+            parsed.status === "failed"
+              ? "failed"
+              : parsed.status === "running"
+                ? "running"
+                : "completed",
+          args: parsed.args || parsed.parameters,
+          result: parsed.result || parsed.output,
+          durationMs: parsed.durationMs || parsed.duration,
+        };
+      }
+    } catch {
+      // not valid json
+    }
+  }
+
+  // 2. Check for tool log format: e.g. "Running tool: search" or "Executing tool read_file..." or "[tool: searxng]"
+  const match =
+    /^(?:\[tool:\s*|running tool:\s*|executing tool:\s*|tool:\s*|outil:\s*)([a-zA-Z0-9_\-]+)(.*)$/i.exec(
+      trimmed,
+    );
+  if (match) {
+    const toolName = match[1]!;
+    const rest = match[2] || "";
+    const isRunning = /running|en cours|executing/i.test(trimmed);
+    const isFailed = /failed|error|échec/i.test(trimmed);
+    const durMatch = /(\d+(?:\.\d+)?)\s*(ms|s)/i.exec(rest);
+    let durationMs: number | undefined;
+    if (durMatch) {
+      const num = parseFloat(durMatch[1]!);
+      durationMs = durMatch[2]?.toLowerCase() === "s" ? num * 1000 : num;
+    }
+    return {
+      toolName,
+      status: isFailed ? "failed" : isRunning ? "running" : "completed",
+      result: rest.trim() || undefined,
+      durationMs,
+    };
+  }
+
+  return null;
+}
+
 function extractTurnExecutionMetadata(message: ThreadMessage): {
   resolvedModel?: string;
   resolvedProvider?: string;
   isFree?: boolean;
+  durationMs?: number;
+  latencyMs?: number;
 } | null {
   const m = message as any;
   const rawMeta = m.metadata || m.executionMetadata || m.execution || m.inference || {};
@@ -2213,6 +2408,21 @@ function extractTurnExecutionMetadata(message: ThreadMessage): {
     m.run?.modelProvider ||
     m.run?.provider ||
     null;
+  const durationMs =
+    rawMeta.durationMs ||
+    rawMeta.duration ||
+    rawMeta.computeDurationMs ||
+    m.durationMs ||
+    m.duration ||
+    m.run?.durationMs ||
+    undefined;
+  const latencyMs =
+    rawMeta.latencyMs ||
+    rawMeta.upstreamLatencyMs ||
+    m.latencyMs ||
+    m.upstreamLatencyMs ||
+    m.run?.latencyMs ||
+    undefined;
   const isFree =
     rawMeta.isFree ??
     m.isFree ??
@@ -2228,29 +2438,35 @@ function extractTurnExecutionMetadata(message: ThreadMessage): {
         const bMeta = b.metadata || b.executionMetadata;
         const bModel = bMeta.resolvedModel || bMeta.model;
         const bProvider = bMeta.resolvedProvider || bMeta.provider;
-        if (bModel || bProvider) {
+        const bDur = bMeta.durationMs || bMeta.duration;
+        const bLat = bMeta.latencyMs || bMeta.upstreamLatencyMs;
+        if (bModel || bProvider || bDur || bLat) {
           return {
-            resolvedModel: bModel || resolvedModel,
-            resolvedProvider: bProvider || resolvedProvider,
+            resolvedModel: bModel || resolvedModel || undefined,
+            resolvedProvider: bProvider || resolvedProvider || undefined,
             isFree: bMeta.isFree ?? isFree,
+            durationMs: bDur || durationMs,
+            latencyMs: bLat || latencyMs,
           };
         }
       }
     }
   }
 
-  if (resolvedModel || resolvedProvider) {
+  if (resolvedModel || resolvedProvider || durationMs !== undefined || latencyMs !== undefined) {
     return {
       resolvedModel: resolvedModel || undefined,
       resolvedProvider: resolvedProvider || undefined,
       isFree: Boolean(isFree),
+      durationMs,
+      latencyMs,
     };
   }
 
   return null;
 }
 
-const MessageView = memo(function MessageView({
+export const MessageView = memo(function MessageView({
   botId,
   canAnswer,
   message,
@@ -2258,6 +2474,8 @@ const MessageView = memo(function MessageView({
   onOpenBot,
   onRefresh,
   onAddRoutine,
+  onSelectChoice,
+  onReact,
   voiceReady,
   speaking,
   onSpeak,
@@ -2269,11 +2487,14 @@ const MessageView = memo(function MessageView({
   onOpenBot: (botId: string) => void;
   onRefresh: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
+  onSelectChoice?: (text: string) => void | Promise<void>;
+  onReact?: (messageId: string, reaction: "up" | "down" | null) => void;
   voiceReady: boolean;
   speaking: boolean;
   onSpeak: () => void;
 }) {
   const executionMeta = extractTurnExecutionMetadata(message);
+  const textContent = speechFromBlocks(message.blocks) || "";
 
   return (
     <>
@@ -2284,12 +2505,57 @@ const MessageView = memo(function MessageView({
               key={i}
               className="flex items-center justify-center gap-2 py-1 text-[13.5px] text-[#85858A]"
             >
-              <span className="text-[#E65707]">◷</span>
+              <span className="text-[#EF4444]">◷</span>
               <span>{block.text}</span>
             </div>
           );
         }
+        if (block.kind === "choice") {
+          return (
+            <div key={i} className="flex justify-start w-full">
+              <ChoiceChipsCard
+                block={block as ChoiceBlock}
+                onSelectOption={(opt) => {
+                  if (onSelectChoice) {
+                    void onSelectChoice(opt.label || opt.letter);
+                  } else {
+                    void onAnswer(message, opt.label || opt.letter);
+                  }
+                }}
+              />
+            </div>
+          );
+        }
+        if ((block as any).kind === "tool") {
+          const tb = block as any;
+          return (
+            <div key={i} className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%]">
+              <ToolActivityAccordion
+                toolName={tb.toolName || tb.name || "mcp_tool"}
+                status={tb.status || "completed"}
+                args={tb.args || tb.parameters}
+                result={tb.result || tb.output}
+                durationMs={tb.durationMs || tb.duration}
+                defaultExpanded={tb.defaultExpanded}
+              />
+            </div>
+          );
+        }
         if (block.kind === "progress") {
+          const toolInfo = parseProgressTool(block.text);
+          if (toolInfo) {
+            return (
+              <div key={i} className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%]">
+                <ToolActivityAccordion
+                  toolName={toolInfo.toolName}
+                  status={toolInfo.status}
+                  args={toolInfo.args}
+                  result={toolInfo.result}
+                  durationMs={toolInfo.durationMs}
+                />
+              </div>
+            );
+          }
           return (
             <div key={i} className="flex justify-start w-full">
               <div className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%] rounded-[20px] bg-[#1A1A1D] px-3.5 py-3 sm:px-[18px] text-[15px] sm:text-[15.5px] leading-[1.5] text-[#DFDFE2]">
@@ -2312,11 +2578,11 @@ const MessageView = memo(function MessageView({
                   className="rounded-full px-[11px] py-1 text-[13px]"
                   style={{
                     background: failed
-                      ? "rgba(230,87,7,.14)"
+                      ? "rgba(239,68,68,.14)"
                       : running
                         ? "rgba(245,160,60,.14)"
                         : "rgba(48,162,75,.14)",
-                    color: failed ? "#E65707" : running ? "#F5A03C" : "#4ECB71",
+                    color: failed ? "#EF4444" : running ? "#F5A03C" : "#4ECB71",
                     animation: running ? "rkPulse 1.2s ease-in-out infinite" : undefined,
                   }}
                 >
@@ -2349,8 +2615,8 @@ const MessageView = memo(function MessageView({
                 <span
                   className="rounded-full px-[11px] py-1 text-[13px]"
                   style={{
-                    background: removed ? "rgba(230,87,7,.14)" : "rgba(48,162,75,.14)",
-                    color: removed ? "#E65707" : "#4ECB71",
+                    background: removed ? "rgba(239,68,68,.14)" : "rgba(48,162,75,.14)",
+                    color: removed ? "#EF4444" : "#4ECB71",
                   }}
                 >
                   {block.status === "archived"
@@ -2482,6 +2748,28 @@ const MessageView = memo(function MessageView({
         }
         return null;
       })}
+      {/* Message action bar & Timestamp badge */}
+      {message.role !== "user" ? (
+        <div className="mt-1 flex flex-wrap items-center justify-between gap-2 px-1">
+          <TimestampBadge
+            createdAt={message.createdAt}
+            resolvedModel={executionMeta?.resolvedModel}
+            resolvedProvider={executionMeta?.resolvedProvider}
+            isFree={executionMeta?.isFree}
+            durationMs={executionMeta?.durationMs}
+            latencyMs={executionMeta?.latencyMs}
+          />
+          <MessageActionBar
+            text={textContent}
+            messageId={message.id}
+            onReact={onReact}
+          />
+        </div>
+      ) : (
+        <div className="mt-1 flex justify-end px-1">
+          <TimestampBadge createdAt={message.createdAt} />
+        </div>
+      )}
       {message.role !== "user" && executionMeta ? (
         <div className="flex justify-start w-full mt-1 px-1">
           <div

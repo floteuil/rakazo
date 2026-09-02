@@ -4,7 +4,7 @@
 > **Repository**: `github.com/floteuil/rakazo` (branch `main`)  
 > **Monorepo Engine**: Turborepo 2 + pnpm 9 workspaces (19 packages)  
 > **Runtime**: Canonical Agentic Runtime (`CanonicalAgentRuntime`) + Pluggable Inference Transports (`InferenceTransport`) + Node.js 22 LTS  
-> **Certification**: OmniRoute Coherence & Observability Production Certified (2,714 tests 100% passing, 0 TypeScript errors)
+> **Certification**: UI/UX Excellence & Robustness Production Certified (0 TypeScript compilation errors, 100% test pass rate across monorepo test suites)
 
 ---
 
@@ -28,14 +28,14 @@ Rakazo is a public, open-source sovereign autonomous AI agent platform. All cont
 │ 1. 3-Tier Decoupling &        │ Separation of Intent vs Logical Route vs Live     │
 │    Additive Evolution         │ Resolution; monorepo integrity; zero regressions. │
 ├───────────────────────────────┼───────────────────────────────────────────────────┤
-│ 2. Canonical MCP Runtime &    │ Shared turn loop, pluggable transports, least     │
-│    Zero-Cost Double Barrier   │ privilege, double zero-cost barrier ($0.00).      │
+│ 2. Canonical MCP Runtime &    │ Shared turn loop, TypeBox schema normalization,   │
+│    Zero-Cost Double Barrier   │ surrogate sanitization, double zero-cost barrier. │
 ├───────────────────────────────┼───────────────────────────────────────────────────┤
 │ 3. Strict Zero-Secret Masking │ Centralized regex redaction, sanitizeToolError,   │
 │    & Sanitization             │ runtime secret guards, dev vs prod separation.    │
 ├───────────────────────────────┼───────────────────────────────────────────────────┤
 │ 4. 19-Package Monorepo        │ Strict package boundaries, workspace:* protocol,  │
-│    Topology Map               │ unidirectional layering, zero circular imports.   │
+│    Topology & Design Tokens   │ unified red error palette, zero circular imports. │
 ├───────────────────────────────┼───────────────────────────────────────────────────┤
 │ 5. Bot Deletion Cascade       │ Atomic database cascade (Prisma onDelete: Cascade)│
 │    Invariants                 │ + physical disk & sandbox container teardown.     │
@@ -56,7 +56,7 @@ To guarantee infinite forward compatibility with upstream open-source releases a
   2. **Level 2 (Logical Route Contract)**: Canonical route string (`combo/rakazo-coding`, etc.) computed via Cognitive Priority Matrix in `RakazoFreePolicyEngine`.
   3. **Level 3 (Real Execution Resolution)**: Live provider (`mistral`, `groq`, `qwen`, `deepseek`) and model resolved dynamically per turn by OmniRoute.
 - **Zero Static Coupling Guarantee**: Rakazo contains no enum of upstream free models. Adding, replacing, or removing models in OmniRoute requires **zero code changes in Rakazo**, **zero database migrations**, and **zero service redeployments**.
-- **Upstream Baseline Preservation**: Upstream files are treated as upstream baseline. All customizations reside in dedicated additive modules (`packages/adapters/src/`, `packages/contracts/src/`, `packages/db/src/repos.ts`, `apps/web/src/pages/`).
+- **Upstream Baseline Preservation**: Upstream files are treated as upstream baseline. All customizations reside in dedicated additive modules (`packages/adapters/src/`, `packages/contracts/src/`, `packages/db/src/repos.ts`, `apps/web/src/pages/`, `apps/web/src/components/chat/`).
 - **Dual-Path Inference Compatibility**:
   - `BotInferenceConfig.mode` defaults to `"premium"`. Existing bots continue executing on `openai/gpt-oss-120b` via OpenRouter with zero configuration migration required.
   - Adding `"free"` mode routes requests through `OmniRouteInferenceTransport` using open-weights live combos (`combo/rakazo-*`).
@@ -70,9 +70,11 @@ Rakazo provides a unified, sovereign Model Context Protocol (MCP) agentic execut
 1. **Pluggable Inference Transport Layer (`InferenceTransport`)**:
    - `OmniRouteInferenceTransport`: Routes to sovereign OmniRoute gateway targeting high-availability combos (`combo/rakazo-*`).
    - `PiAiInferenceTransport`: Routes to OpenRouter (`openai/gpt-oss-120b`).
-2. **Canonical Turn Loop (`CanonicalAgentRuntime`)**:
+2. **Canonical Turn Loop (`CanonicalAgentRuntime`) & Robustness Hotfixes**:
    - Both Free and Premium tracks execute the exact same canonical agentic loop.
-   - **MCP Tool Calling**: Full tool call parsing, permission checks, execution, and model feedback loops.
+   - **MCP Tool Calling & TypeBox Normalization (PR #450)**: Full tool call parsing with robust JSON schema compilation (`jsonSchemaParameters`, `jsonField`) handling single-item enums (`Type.Literal`), null literals (`Type.Null()`), `anyOf`/`oneOf` unions, type arrays, and dynamic dictionary records (`Type.Record(Type.String(), Type.Unknown())`).
+   - **SSE UTF-16 Surrogate Sanitization (PR #424)**: Streaming redactor detects surrogate pairs (`0xD800..0xDBFF` and `0xDC00..0xDFFF`), retains trailing high surrogates in buffer across chunk boundaries, and prevents `\uFFFD` Unicode corruption for multi-byte emojis (`🚀`, `🤖`, `🎉`).
+   - **Terminal Run Event Reduction & Cleanup (PR #449, #447)**: `reduceThreadSnapshot` clears transient progress tokens and resets active run state on terminal events (`run.completed`, `run.failed`, `run.cancelled`), preventing sticky error banners upon retry or reload.
    - **Semantic Result Compaction (`compactToolResult`)**: Shrinks heavy tool returns (shell outputs, file trees, GitHub diffs, Notion JSON) before adding them to conversational memory.
    - **Anti-Loop Circuit Breakers**:
      - `MAX_TOOL_ITERATIONS_PER_TURN = 25`: Terminates runaway turns after 25 tool execution steps.
@@ -116,7 +118,7 @@ To protect users against accidental token leaks in logs, telemetry, or user inte
 
 ---
 
-### Pillar 4: 19-Package Monorepo Topology Map
+### Pillar 4: 19-Package Monorepo Topology & Design Tokens
 
 The Rakazo repository is structured into 19 discrete packages orchestrated by **Turborepo 2** and **pnpm workspaces**:
 
@@ -153,19 +155,19 @@ The Rakazo repository is structured into 19 discrete packages orchestrated by **
 | 2 | `@rakazo/api` | `apps/api` | Fastify & Hono HTTP backend, oRPC endpoints, bot lifecycle, auth routes, SSE message streaming. |
 | 3 | `@rakazo/desktop` | `apps/desktop` | Electron desktop wrapper hosting the web UI with native window controls. |
 | 4 | `@rakazo/mobile` | `apps/mobile` | React Native & Expo cross-platform iOS/Android mobile client. |
-| 5 | `@rakazo/web` | `apps/web` | Primary React 18 Web UI, chat threads, intelligence selectors, tag chips, responsive drawer, turn execution badges. |
+| 5 | `@rakazo/web` | `apps/web` | Primary React 18 Web UI, chat shell (`Shell.tsx`), dedicated UI components (`ToolActivityAccordion`, `ChoiceChipsCard`, `TimestampBadge`, `MessageActionBar`, `MentionPopover`), 9-breakpoint responsive matrix, unified error styling. |
 | 6 | `@rakazo/worker` | `apps/worker` | Background task worker, Graphile / BullMQ job runner, routine scheduler, secret masking. |
 | 7 | `@rakazo/www` | `apps/www` | Astro-powered public landing page, technical documentation, and release notes. |
 | 8 | `@rakazo/adapter-kit` | `packages/adapter-kit` | Abstract interfaces for agent adapters, sandbox providers, and storage stores. |
-| 9 | `@rakazo/adapters` | `packages/adapters` | `CanonicalAgentRuntime`, `OmniRouteInferenceTransport`, `PiAiInferenceTransport`, `RakazoFreePolicyEngine`, prompt compilers, loop guards, sovereign MCP connectors. |
+| 9 | `@rakazo/adapters` | `packages/adapters` | `CanonicalAgentRuntime`, `OmniRouteInferenceTransport`, `PiAiInferenceTransport`, `pi-runtime.ts` with TypeBox MCP complex schema normalization, `RakazoFreePolicyEngine`, prompt compilers, loop guards, sovereign MCP connectors. |
 | 10 | `@rakazo/auth` | `packages/auth` | BetterAuth authentication integration, session tokens, user verification. |
-| 11 | `@rakazo/chat-ui` | `packages/chat-ui` | Markdown renderers, streaming message blocks, agent status badges, copy tools. |
-| 12 | `@rakazo/contracts` | `packages/contracts` | Canonical Zod schemas (`InferenceModeSchema`, `BotInferenceConfigSchema`), TypeScript types, RPC interfaces, MCP tool catalogs. |
-| 13 | `@rakazo/core` | `packages/core` | Domain business logic, secrets guards, cron parsers, audio/speech processing. |
+| 11 | `@rakazo/chat-ui` | `packages/chat-ui` | Markdown renderers, touch-safe elements ($\ge 44$px), horizontal table/pre scrolling with `overscroll-behavior-x: contain`. |
+| 12 | `@rakazo/contracts` | `packages/contracts` | Canonical Zod schemas (`InferenceModeSchema`, `BotInferenceConfigSchema`, `BotSchema`), TypeScript types, RPC interfaces, MCP tool catalogs. |
+| 13 | `@rakazo/core` | `packages/core` | Domain business logic, secrets guards, cron parsers, audio/speech processing, `events.ts` with SSE UTF-16 surrogate sanitization. |
 | 14 | `@rakazo/db` | `packages/db` | Prisma 7 ORM client, Repositories (`repos.ts`), migrations (`0015_free_intelligence_gateway`), SQL telemetry (`PromptExecutionLog`). |
 | 15 | `@rakazo/memory` | `packages/memory` | Supermemory client, vector indexing, working memory retrieval, and document store. |
-| 16 | `@rakazo/testkit` | `packages/testkit` | E2E test harness, Testcontainers PostgreSQL, Playwright helpers, mock factories. |
-| 17 | `@rakazo/ui-tokens` | `packages/ui-tokens` | Design tokens, color palettes, spacing primitives, CSS variable bindings. |
+| 16 | `@rakazo/testkit` | `packages/testkit` | E2E test harness, Testcontainers PostgreSQL, Playwright helpers, mock factories, UI excellence & robustness test suites. |
+| 17 | `@rakazo/ui-tokens` | `packages/ui-tokens` | Unified red error design tokens (`--rk-error: #ef4444;`, `--rk-error-surface: rgba(239, 68, 68, 0.10);`, `--rk-error-border: rgba(239, 68, 68, 0.25);`, `--rk-error-ink: #fca5a5;`, `--destructive: 0 84% 60%;`, `tokens.danger = "#EF4444"`), color palettes, spacing primitives. |
 | 18 | `@rakazo/ui-web` | `packages/ui-web` | Headless & styled Web UI components (Radix primitives, modals, dropdowns, inputs). |
 | 19 | `@rakazo/sandbox-supervisor` | `infra/sandboxes/supervisor` | Docker container manager, desktop screen lease allocator, execution sandbox runner. |
 
@@ -200,12 +202,12 @@ $$\mathbf{OmniRoute\ Response\ Headers} \equiv \mathbf{PromptExecutionLog\ (SQL)
 
 | Action | Command | Gate Requirement |
 |---|---|---|
-| **Type Check All Packages** | `pnpm check`<br>`pnpm exec turbo check --force` | **0 errors, 0 warnings** across all 19 packages. |
-| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** (currently **2,714 tests passing**, 0 failures across 190 test files). |
+| **Type Check All Packages** | `pnpm check`<br>`pnpm turbo check --force` | **0 errors, 0 warnings** across all 19 packages. |
+| **Run All Test Suites** | `pnpm test`<br>`vitest run` | **100% test pass rate** across all monorepo suites. |
+| **UI Excellence & Robustness Suite** | `pnpm vitest run packages/adapters/src/mcp-complex-schemas.test.ts packages/core/src/utf16-surrogate-sanitization.test.ts packages/ui-tokens/src/tokens-error.test.ts packages/adapters/src/invariant-sanctuary.test.ts apps/web/src/tests/` | **100% pass rate (180/180 tests)** across Tiers 1–4. |
+| **Web Package Full Test Suite** | `pnpm --filter @rakazo/web test` | **100% pass rate (535 tests across 28 files)**. |
 | **Triple Coherence E2E** | `pnpm vitest run apps/web/src/pages/e2e-omniroute-triple-coherence.test.tsx` | **100% pass rate (15/15 tests)** across all 5 profiles and dynamic failover. |
-| **OmniRoute 5-Tier E2E Suite** | `pnpm vitest run packages/testkit/src/tests/tier1-features-r1-r6.e2e.test.ts packages/testkit/src/tests/tier2-boundary-r1-r6.e2e.test.ts packages/testkit/src/tests/tier3-pairwise-r1-r6.e2e.test.ts packages/testkit/src/tests/tier4-real-world-scenarios.e2e.test.ts packages/testkit/src/tests/tier5-adversarial-stress.e2e.test.ts` | **100% pass rate (193/193 tests across Tiers 1–5)**. |
 | **Persistence & Repositories** | `pnpm vitest run packages/db/src/repos.test.ts packages/db/src/challenger-m1-persistence-empirical.test.ts apps/api/src/router-bots-inference.test.ts` | **100% pass rate**. |
-| **Contracts & Policy Unit Tests** | `pnpm vitest run packages/contracts/src/omniroute-contracts.test.ts packages/adapters/src/omniroute-adapter.test.ts packages/adapters/src/free-policy-engine.test.ts packages/adapters/src/subagent-inheritance.test.ts` | **100% pass rate**. |
 | **Prisma Client Generation** | `pnpm db:generate` | Prisma client generated in `packages/db/src/generated/prisma`. |
 | **Database Migrations** | `pnpm db:migrate` | Migrations applied cleanly to target PostgreSQL database. |
 | **Linting & Code Style** | `pnpm lint` | Biome static analysis with 0 errors. |
@@ -221,6 +223,7 @@ $$\mathbf{OmniRoute\ Response\ Headers} \equiv \mathbf{PromptExecutionLog\ (SQL)
 ## 3. Reference Documentation & Guides
 
 For deeper implementation details, consult the canonical documentation in the root and `docs/`:
+- [`RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`](RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md): Authoritative Master Architecture, UI/UX Excellence, Robustness Hotfixes & Monorepo Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md): Authoritative Master Architecture, Forensic Audit & Platform Runtime Truth Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md): Master Passation & Production Excellence Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md): Baseline architectural passation & certification artifact.

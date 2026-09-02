@@ -14,9 +14,19 @@ export const tokens = {
   cream: "#F1F1EF",
   creamInk: "#1A1A1A",
   accent: "#3EC5A8",
-  danger: "#E65707",
+  danger: "#EF4444",
+  error: "#EF4444",
+  errorInk: "#FCA5A5",
   success: "#30A24B",
   successSoft: "#4ECB71",
+} as const;
+
+export const errorTokens = {
+  error: "#EF4444",
+  errorSurface: "rgba(239, 68, 68, 0.10)",
+  errorBorder: "rgba(239, 68, 68, 0.25)",
+  errorInk: "#FCA5A5",
+  destructive: "0 84% 60%",
 } as const;
 
 export const botColors = [
@@ -28,3 +38,7 @@ export const botColors = [
   "#F2622A",
   "#D9508A",
 ] as const;
+
+export type Tokens = typeof tokens;
+export type ErrorTokens = typeof errorTokens;
+
