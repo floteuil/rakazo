@@ -205,6 +205,9 @@ export function extractBotInferenceConfig(bot: unknown): BotInferenceConfig | un
 }
 
 export function isToolPermitted(toolName: string, mcpConfig?: BotMcpConfig | null): boolean {
+  if (toolName.toLowerCase().includes("stripe")) {
+    return false;
+  }
   if (!mcpConfig) return true;
   const hasConnectors =
     mcpConfig.connectors &&

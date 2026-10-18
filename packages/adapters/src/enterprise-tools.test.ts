@@ -1095,5 +1095,156 @@ describe("Enterprise MCP Connectors", () => {
       const res = await executeEnterpriseTool("unknown_enterprise_tool", {});
       expect(res).toEqual({ error: "Enterprise tool unknown_enterprise_tool not recognized." });
     });
+
+    it("strictly blocks and rejects any Stripe tool invocation", async () => {
+      const res1 = (await executeEnterpriseTool("stripe_create_charge", {})) as { error: string };
+      expect(res1.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
+
+      const res2 = (await executeEnterpriseTool("stripe_agence_billing", {})) as { error: string };
+      expect(res2.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
+    });
+  });
+
+  describe("Antigravity MCP Connectors Integration", () => {
+    it("exports all 47 Antigravity enterprise tools", () => {
+      expect(enterpriseAgentTools.length).toBeGreaterThanOrEqual(70);
+      const toolNames = enterpriseAgentTools.map((t) => t.name);
+
+      // Twenty CRM
+      expect(toolNames).toContain("twenty_list_people");
+      expect(toolNames).toContain("twenty_get_person");
+      expect(toolNames).toContain("twenty_create_person");
+      expect(toolNames).toContain("twenty_list_companies");
+      expect(toolNames).toContain("twenty_create_opportunity");
+      expect(toolNames).toContain("twenty_list_tasks");
+      expect(toolNames).toContain("twenty_graphql_query");
+
+      // AFFiNE
+      expect(toolNames).toContain("affine_list_docs");
+      expect(toolNames).toContain("affine_get_doc");
+      expect(toolNames).toContain("affine_create_doc");
+      expect(toolNames).toContain("affine_append_markdown");
+      expect(toolNames).toContain("affine_search_docs");
+
+      // Context7
+      expect(toolNames).toContain("context7_resolve_library_id");
+      expect(toolNames).toContain("context7_query_docs");
+
+      // Open Design
+      expect(toolNames).toContain("open_design_list_projects");
+      expect(toolNames).toContain("open_design_create_artifact");
+      expect(toolNames).toContain("open_design_write_file");
+      expect(toolNames).toContain("open_design_list_skills");
+
+      // Image Optimizer
+      expect(toolNames).toContain("image_optimize_compress");
+
+      // Qdrant
+      expect(toolNames).toContain("qdrant_list_collections");
+      expect(toolNames).toContain("qdrant_search_points");
+      expect(toolNames).toContain("qdrant_upsert_points");
+
+      // Coolify
+      expect(toolNames).toContain("coolify_list_applications");
+      expect(toolNames).toContain("coolify_deploy_application");
+      expect(toolNames).toContain("coolify_restart_application");
+
+      // Flowise
+      expect(toolNames).toContain("flowise_list_chatflows");
+      expect(toolNames).toContain("flowise_run_prediction");
+
+      // PocketBase
+      expect(toolNames).toContain("pocketbase_health");
+      expect(toolNames).toContain("pocketbase_list_records");
+
+      // Ubersuggest
+      expect(toolNames).toContain("ubersuggest_keyword_overview");
+      expect(toolNames).toContain("ubersuggest_domain_overview");
+    });
+
+    it("executes Twenty CRM tools correctly", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ data: { people: [{ id: "p1", name: "Alice" }] } }),
+      });
+
+      const res = await executeEnterpriseTool("twenty_list_people", { limit: 10 });
+      expect(res).toEqual({ data: { people: [{ id: "p1", name: "Alice" }] } });
+    });
+
+    it("executes AFFiNE document tools correctly", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ id: "doc-123", title: "Architecture" }),
+      });
+
+      const res = await executeEnterpriseTool("affine_create_doc", { title: "Architecture" });
+      expect(res).toEqual({ id: "doc-123", title: "Architecture" });
+    });
+
+    it("executes Context7 library resolution and documentation queries", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ libraryId: "/vercel/next.js", name: "Next.js" }),
+      });
+
+      const res = (await executeEnterpriseTool("context7_resolve_library_id", {
+        libraryName: "Next.js",
+        query: "server components",
+      })) as { libraryId: string };
+      expect(res.libraryId).toBe("/vercel/next.js");
+
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ libraryId: "/vercel/next.js", snippets: [{ title: "Middleware" }] }),
+      });
+
+      const docRes = (await executeEnterpriseTool("context7_query_docs", {
+        libraryId: "/vercel/next.js",
+        query: "middleware",
+      })) as { libraryId: string; snippets: unknown[] };
+      expect(docRes.libraryId).toBe("/vercel/next.js");
+      expect(docRes.snippets).toBeDefined();
+    });
+
+    it("executes Open Design UI tools correctly", async () => {
+      global.fetch = vi.fn().mockResolvedValue({
+        ok: true,
+        text: async () => JSON.stringify({ ok: true, name: "test.html" }),
+      });
+
+      const artRes = (await executeEnterpriseTool("open_design_create_artifact", {
+        name: "test.html",
+        content: "<div>Test</div>",
+      })) as { ok: boolean; name: string };
+      expect(artRes.ok).toBe(true);
+      expect(artRes.name).toBe("test.html");
+    });
+
+    it("executes Image Optimizer compression tool correctly", async () => {
+      const optRes = (await executeEnterpriseTool("image_optimize_compress", {
+        urls: "https://example.com/logo.png",
+        quality: 85,
+        format: "webp",
+      })) as { ok: boolean; quality: number; targetFormat: string };
+      expect(optRes.ok).toBe(true);
+      expect(optRes.quality).toBe(85);
+      expect(optRes.targetFormat).toBe("webp");
+    });
+
+    it("executes Ubersuggest in strict consultation mode preserving quotas", async () => {
+      const kwRes = (await executeEnterpriseTool("ubersuggest_keyword_overview", {
+        keyword: "intelligence artificielle",
+      })) as { ok: boolean; mode: string; quotaPreserved: boolean };
+      expect(kwRes.ok).toBe(true);
+      expect(kwRes.mode).toBe("hors_projet_consultation_stricte");
+      expect(kwRes.quotaPreserved).toBe(true);
+
+      const domRes = (await executeEnterpriseTool("ubersuggest_domain_overview", {
+        domain: "groupefloteuil.fr",
+      })) as { ok: boolean; quotaPreserved: boolean };
+      expect(domRes.ok).toBe(true);
+      expect(domRes.quotaPreserved).toBe(true);
+    });
   });
 });

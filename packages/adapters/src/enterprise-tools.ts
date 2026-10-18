@@ -1,4 +1,10 @@
 import type { ConnectorTool } from "@rakazo/adapter-kit";
+import {
+  antigravityConnectorTools,
+  isAntigravityConnectorTool,
+  executeAntigravityConnectorTool,
+} from "./enterprise-connectors-antigravity.js";
+export * from "./enterprise-connectors-antigravity.js";
 
 /* ========================================================================== */
 /* Utility & Resilience Helpers                                              */
@@ -24,6 +30,8 @@ export function sanitizeToolError(message: string): string {
     .replace(/n8n_api_[a-zA-Z0-9_]+/g, "n8n_api_[redacted]")
     .replace(/cf_token_[a-zA-Z0-9_-]+/g, "cf_token_[redacted]")
     .replace(/cfat_[a-zA-Z0-9_-]+/g, "cfat_[redacted]")
+    .replace(/ctx7sk-[a-zA-Z0-9_-]+/g, "ctx7sk_[redacted]")
+    .replace(/qnijqdr[a-zA-Z0-9_-]+/g, "qdrant_[redacted]")
     .replace(/sk-or-[a-zA-Z0-9_-]+/g, "sk-or-[redacted]")
     .replace(/sk-ant-[a-zA-Z0-9_-]+/g, "sk-ant-[redacted]")
     .replace(/sk-[a-zA-Z0-9_-]{20,}/g, "sk-[redacted]")
@@ -32,7 +40,7 @@ export function sanitizeToolError(message: string): string {
     .replace(/Basic\s+[a-zA-Z0-9_\-.+/=]+/gi, "Basic [redacted]");
 }
 
-async function safeFetchJson<T>(
+export async function safeFetchJson<T>(
   url: string,
   options: RequestInit,
   serviceName: string,
@@ -1574,7 +1582,7 @@ export async function executeCloudflarePurgeCache(
 /* Tool Definitions & Master Dispatcher                                       */
 /* ========================================================================== */
 
-export const enterpriseAgentTools: ConnectorTool[] = [
+const baseEnterpriseAgentTools: ConnectorTool[] = [
   // GitHub
   {
     name: "github_search_repos",
@@ -1994,6 +2002,11 @@ export const enterpriseAgentTools: ConnectorTool[] = [
   },
 ];
 
+export const enterpriseAgentTools: ConnectorTool[] = [
+  ...baseEnterpriseAgentTools,
+  ...antigravityConnectorTools,
+];
+
 export const ENTERPRISE_TOOL_NAMES = new Set(enterpriseAgentTools.map((t) => t.name));
 
 export function isEnterpriseTool(name: string): boolean {
@@ -2005,6 +2018,17 @@ export async function executeEnterpriseTool(
   args: Record<string, unknown>,
   context?: { signal?: AbortSignal },
 ): Promise<unknown> {
+  // STRICT INVARIANT: Stripe is categorically prohibited
+  if (name.toLowerCase().includes("stripe")) {
+    return {
+      error: "Security Policy: Stripe connector is strictly forbidden and isolated from Rakazo.",
+    };
+  }
+
+  if (isAntigravityConnectorTool(name)) {
+    return executeAntigravityConnectorTool(name, args, context);
+  }
+
   switch (name) {
     // GitHub
     case "github_search_repos":

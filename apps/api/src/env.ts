@@ -45,6 +45,23 @@ export interface AppEnv {
   cloudflareAccountId: string | undefined;
   omnirouteBaseUrl: string;
   omnirouteApiKey?: string;
+  twentyApiUrl?: string;
+  twentyApiKey?: string;
+  affineBaseUrl?: string;
+  affineWorkspaceId?: string;
+  affineEmail?: string;
+  context7ApiKey?: string;
+  context7ApiUrl?: string;
+  openDesignDaemonUrl?: string;
+  qdrantUrl?: string;
+  qdrantApiKey?: string;
+  coolifyApiUrl?: string;
+  coolifyApiToken?: string;
+  flowiseApiEndpoint?: string;
+  flowiseApiKey?: string;
+  pocketbaseUrl?: string;
+  pocketbaseAdminToken?: string;
+  ubersuggestApiKey?: string;
 }
 
 export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
@@ -95,6 +112,23 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     omnirouteBaseUrl:
       optional(source.OMNIROUTE_BASE_URL) ?? "https://omniroute.workspacegroupefloteuil.eu/v1",
     omnirouteApiKey: optional(source.OMNIROUTE_API_KEY),
+    twentyApiUrl: optional(source.TWENTY_API_URL),
+    twentyApiKey: optional(source.TWENTY_API_KEY),
+    affineBaseUrl: optional(source.AFFINE_BASE_URL),
+    affineWorkspaceId: optional(source.AFFINE_WORKSPACE_ID),
+    affineEmail: optional(source.AFFINE_EMAIL),
+    context7ApiKey: optional(source.CONTEXT7_API_KEY),
+    context7ApiUrl: optional(source.CONTEXT7_API_URL),
+    openDesignDaemonUrl: optional(source.OPEN_DESIGN_DAEMON_URL),
+    qdrantUrl: optional(source.QDRANT_URL),
+    qdrantApiKey: optional(source.QDRANT_API_KEY),
+    coolifyApiUrl: optional(source.COOLIFY_API_URL),
+    coolifyApiToken: optional(source.COOLIFY_API_TOKEN),
+    flowiseApiEndpoint: optional(source.FLOWISE_API_ENDPOINT),
+    flowiseApiKey: optional(source.FLOWISE_API_KEY),
+    pocketbaseUrl: optional(source.POCKETBASE_URL),
+    pocketbaseAdminToken: optional(source.POCKETBASE_ADMIN_TOKEN),
+    ubersuggestApiKey: optional(source.UBERSUGGEST_API_KEY),
   };
 }
 

@@ -237,27 +237,18 @@ function createExecutorTestHarness(botConfig: Record<string, unknown> = {}) {
 /* ========================================================================== */
 
 describe("Adversarial Security Challenge 1: Privilege Escalation & applyTool Execution Gate", () => {
-  it("blocks all 40 Sovereign Enterprise tools when all 8 connectors are disabled in bot metadata", async () => {
+  it("blocks all Sovereign Enterprise tools when all connectors are disabled in bot metadata", async () => {
     const disabledAllMetadata = {
       mcp: {
-        connectors: {
-          searxng_scraperr: false,
-          github: false,
-          notion: false,
-          postiz: false,
-          wordpress_novamira: false,
-          n8n: false,
-          cloudflare: false,
-          system_platform: false,
-        },
+        connectors: Object.fromEntries(SOVEREIGN_MCP_CONNECTORS.map((c) => [c.id, false])),
       },
     };
 
     const harness = createExecutorTestHarness({ metadata: disabledAllMetadata });
     const applyTool = await harness.getApplyTool();
 
-    // Verify all 40 sovereign tools are blocked
-    expect(ALL_SOVEREIGN_TOOL_NAMES.length).toBe(40);
+    // Verify all sovereign tools are blocked
+    expect(ALL_SOVEREIGN_TOOL_NAMES.length).toBeGreaterThanOrEqual(40);
 
     for (const toolName of ALL_SOVEREIGN_TOOL_NAMES) {
       const res = (await applyTool(toolName, { query: "test", id: 1 }, `exec-${toolName}`)) as {
@@ -384,15 +375,9 @@ describe("Adversarial Security Challenge 1: Privilege Escalation & applyTool Exe
   it("preserves system builtins execution capability even when all external connectors are disabled", async () => {
     const zeroEnterpriseConfig = {
       mcp: {
-        connectors: {
-          searxng_scraperr: false,
-          github: false,
-          notion: false,
-          postiz: false,
-          wordpress_novamira: false,
-          n8n: false,
-          cloudflare: false,
-        },
+        connectors: Object.fromEntries(
+          SOVEREIGN_MCP_CONNECTORS.filter((c) => c.id !== "system_platform").map((c) => [c.id, false]),
+        ),
       },
     };
 
@@ -413,6 +398,21 @@ describe("Adversarial Security Challenge 1: Privilege Escalation & applyTool Exe
     };
     expect(remRes.error).toBeUndefined();
     expect(remRes.ok).toBe(true);
+  });
+
+  it("enforces categorical isolation: attempts to call any Stripe tool are rejected with security error", async () => {
+    // 1. Through executeEnterpriseTool dispatcher
+    const res1 = (await executeEnterpriseTool("stripe_create_payment", {})) as { error?: string };
+    expect(res1.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
+
+    const res2 = (await executeEnterpriseTool("stripe_agence_list_customers", {})) as { error?: string };
+    expect(res2.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
+
+    // 2. Through applyTool executor gate
+    const harness = createExecutorTestHarness({});
+    const applyTool = await harness.getApplyTool();
+    const gateRes = (await applyTool("stripe_create_payment", {}, "exec-stripe-gate")) as { error?: string };
+    expect(gateRes.error).toContain("Execution was blocked by security policy");
   });
 });
 

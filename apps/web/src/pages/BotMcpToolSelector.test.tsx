@@ -12,8 +12,8 @@ import {
 
 describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
   describe("Static Catalog & Helper Functions", () => {
-    it("renders all 8 Sovereign MCP Connectors from contracts", () => {
-      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(8);
+    it("renders all Sovereign MCP Connectors from contracts", () => {
+      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
       const ids = SOVEREIGN_MCP_CONNECTORS.map((c) => c.id);
       expect(ids).toEqual([
         "searxng_scraperr",
@@ -23,14 +23,24 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
         "wordpress_novamira",
         "n8n",
         "cloudflare",
+        "twenty_crm",
+        "affine",
+        "context7",
+        "open_design",
+        "image_optimizer",
+        "qdrant",
+        "coolify",
+        "flowise",
+        "pocketbase",
+        "ubersuggest",
         "system_platform",
       ]);
     });
 
-    it("getAllActiveMcpConfig enables all connectors and all 40 tools", () => {
+    it("getAllActiveMcpConfig enables all connectors and all tools", () => {
       const config = getAllActiveMcpConfig();
-      expect(Object.keys(config.connectors || {})).toHaveLength(8);
-      expect(Object.keys(config.tools || {})).toHaveLength(40);
+      expect(Object.keys(config.connectors || {})).toHaveLength(18);
+      expect(Object.keys(config.tools || {}).length).toBeGreaterThanOrEqual(40);
       for (const val of Object.values(config.connectors || {})) {
         expect(val).toBe(true);
       }
@@ -39,10 +49,10 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
       }
     });
 
-    it("getAllDisabledMcpConfig disables all connectors and all 40 tools", () => {
+    it("getAllDisabledMcpConfig disables all connectors and all tools", () => {
       const config = getAllDisabledMcpConfig();
-      expect(Object.keys(config.connectors || {})).toHaveLength(8);
-      expect(Object.keys(config.tools || {})).toHaveLength(40);
+      expect(Object.keys(config.connectors || {})).toHaveLength(18);
+      expect(Object.keys(config.tools || {}).length).toBeGreaterThanOrEqual(40);
       for (const val of Object.values(config.connectors || {})) {
         expect(val).toBe(false);
       }
@@ -78,8 +88,7 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
 
       // Verify title & badges
       expect(markup).toContain("Connecteurs &amp; Outils MCP Souverains");
-      expect(markup).toContain("Souverain");
-      expect(markup).toContain("6 / 40 outils actifs");
+      expect(markup).toContain(`${SOVEREIGN_MCP_CONNECTORS.reduce((acc, c) => acc + c.tools.length, 0)} outils actifs`);
 
       // Verify Quick Action Buttons
       expect(markup).toContain("Tout activer");

@@ -17,8 +17,8 @@ import { PluginsOverlay } from "./PluginsOverlay";
 
 describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", () => {
   describe("Sovereign MCP Catalog Contracts & Integrity", () => {
-    it("exports exactly 8 Sovereign MCP connectors", () => {
-      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(8);
+    it("exports exactly 18 Sovereign MCP connectors", () => {
+      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
       const ids = SOVEREIGN_MCP_CONNECTORS.map((c) => c.id);
       expect(ids).toContain("searxng_scraperr");
       expect(ids).toContain("github");
@@ -28,12 +28,22 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       expect(ids).toContain("n8n");
       expect(ids).toContain("cloudflare");
       expect(ids).toContain("system_platform");
+      expect(ids).toContain("twenty_crm");
+      expect(ids).toContain("affine");
+      expect(ids).toContain("context7");
+      expect(ids).toContain("open_design");
+      expect(ids).toContain("image_optimizer");
+      expect(ids).toContain("qdrant");
+      expect(ids).toContain("coolify");
+      expect(ids).toContain("flowise");
+      expect(ids).toContain("pocketbase");
+      expect(ids).toContain("ubersuggest");
     });
 
-    it("contains exactly 40 sovereign tools across all 8 connectors", () => {
+    it("contains exactly 87 sovereign tools across all 18 connectors", () => {
       const allTools = getAllSovereignTools();
-      expect(allTools).toHaveLength(40);
-      expect(ALL_SOVEREIGN_TOOL_NAMES).toHaveLength(40);
+      expect(allTools).toHaveLength(87);
+      expect(ALL_SOVEREIGN_TOOL_NAMES).toHaveLength(87);
       expect(DEFAULT_ENABLED_SOVEREIGN_TOOLS).toHaveLength(7);
     });
 
@@ -77,16 +87,16 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
 
     it("filters tools by category using getSovereignToolsByCategory", () => {
       const searchTools = getSovereignToolsByCategory("search");
-      expect(searchTools).toHaveLength(2);
+      expect(searchTools).toHaveLength(9);
 
       const codeTools = getSovereignToolsByCategory("code");
-      expect(codeTools).toHaveLength(6);
+      expect(codeTools).toHaveLength(13);
 
       const systemTools = getSovereignToolsByCategory("system");
       expect(systemTools).toHaveLength(12);
 
       const allTools = getSovereignToolsByCategory("all");
-      expect(allTools).toHaveLength(40);
+      expect(allTools).toHaveLength(87);
     });
 
     it("defines valid SOVEREIGN_CATEGORIES matching specifications", () => {
@@ -113,7 +123,7 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       expect(html).toContain("Connecteurs MCP Souverains");
     });
 
-    it("renders all 8 sovereign connector cards in the default catalog view", () => {
+    it("renders all 18 sovereign connector cards in the default catalog view", () => {
       const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} initialCatalog={[]} />);
       for (const connector of SOVEREIGN_MCP_CONNECTORS) {
         expect(html).toContain(`data-testid="connector-card-${connector.id}"`);
@@ -173,7 +183,7 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} initialCatalog={[]} />);
       expect(html).toContain("Mode Souverain Pur Actif");
       expect(html).toContain(
-        "Les 8 Connecteurs MCP Souverains ci-dessus couvrent 100% des opérations",
+        "Les 18 Connecteurs MCP Souverains ci-dessus couvrent 100% des opérations",
       );
     });
 

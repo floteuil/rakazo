@@ -247,13 +247,13 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       }
     });
 
-    it("4.2 PluginsOverlay: renders all 8 Sovereign connectors and 40 tools without XSS execution", () => {
+    it("4.2 PluginsOverlay: renders all 18 Sovereign connectors and 87 tools without XSS execution", () => {
       const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} />);
 
-      // Verify all 8 connectors exist
-      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(8);
+      // Verify all 18 connectors exist
+      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
       const totalTools = SOVEREIGN_MCP_CONNECTORS.reduce((acc, c) => acc + c.tools.length, 0);
-      expect(totalTools).toBe(40);
+      expect(totalTools).toBe(87);
 
       // Verify HTML escapes tags
       expect(html).not.toContain("<script>");

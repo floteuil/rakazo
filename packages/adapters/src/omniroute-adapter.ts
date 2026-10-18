@@ -176,12 +176,33 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
         response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
-        if (Number.isNaN(cost) || cost < 0) {
+        if (Number.isNaN(cost) || !Number.isFinite(cost) || cost !== 0) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
 
+      const providerHeader = response.headers.get("x-omniroute-provider");
+      if (providerHeader) {
+        this.policyEngine.assertZeroCostAndAllowed(
+          providerHeader,
+          costHeader !== null && costHeader !== undefined ? Number.parseFloat(costHeader) : 0.0,
+        );
+      }
+
       const data = (await response.json()) as any;
+      const dataCost =
+        data?.pricing?.total_cost ??
+        data?.pricing?.cost ??
+        data?.pricing?.prompt ??
+        data?.pricing?.completion ??
+        data?.usage?.cost ??
+        data?.cost;
+      if (dataCost !== undefined && dataCost !== null) {
+        const numericCost = Number(dataCost);
+        if (Number.isNaN(numericCost) || !Number.isFinite(numericCost) || numericCost > 0) {
+          throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+        }
+      }
       const choice = data?.choices?.[0];
       return {
         id: data?.id || "chatcmpl-unknown",
@@ -268,19 +289,17 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
         response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
-        if (Number.isNaN(cost) || cost < 0) {
+        if (Number.isNaN(cost) || !Number.isFinite(cost) || cost !== 0) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
 
       const providerHeader = response.headers.get("x-omniroute-provider");
       if (providerHeader) {
-        if (
-          this.avoidedProviders.has(providerHeader) ||
-          providerHeader === "unauthorized-paid-proxy"
-        ) {
-          throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-        }
+        this.policyEngine.assertZeroCostAndAllowed(
+          providerHeader,
+          costHeader !== null && costHeader !== undefined ? Number.parseFloat(costHeader) : 0.0,
+        );
       }
 
       if (!response.body) {
@@ -318,6 +337,20 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
             const dataStr = trimmed.slice(6);
             try {
               const parsed = JSON.parse(dataStr);
+              const chunkCost =
+                parsed?.pricing?.total_cost ??
+                parsed?.pricing?.cost ??
+                parsed?.pricing?.prompt ??
+                parsed?.pricing?.completion ??
+                parsed?.usage?.cost ??
+                parsed?.cost;
+              if (chunkCost !== undefined && chunkCost !== null) {
+                const numericCost = Number(chunkCost);
+                if (Number.isNaN(numericCost) || !Number.isFinite(numericCost) || numericCost > 0) {
+                  throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+                }
+              }
+
               const delta = parsed?.choices?.[0]?.delta;
               if (delta) {
                 yield {

@@ -723,7 +723,7 @@ export function PluginsOverlay({
                       <div>
                         <div className="font-medium text-[#D1D1D6]">Mode Souverain Pur Actif</div>
                         <div className="text-[11.5px] text-[#71717A] mt-0.5">
-                          Composio n'est pas activé sur cette instance. Les 8 Connecteurs MCP
+                          Composio n'est pas activé sur cette instance. Les {SOVEREIGN_MCP_CONNECTORS.length} Connecteurs MCP
                           Souverains ci-dessus couvrent 100% des opérations d'entreprise sans fuite
                           de données.
                         </div>

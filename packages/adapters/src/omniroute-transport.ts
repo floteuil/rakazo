@@ -111,21 +111,17 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
         response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
-        if (Number.isNaN(cost) || cost < 0) {
+        if (Number.isNaN(cost) || !Number.isFinite(cost) || cost !== 0) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
 
       const providerHeader = response.headers.get("x-omniroute-provider");
       if (providerHeader) {
-        if (
-          providerHeader === "unapproved_commercial_proxy" ||
-          providerHeader === "unauthorized-paid-proxy" ||
-          providerHeader === "unknown_vendor" ||
-          providerHeader === "tos_violating_mirror"
-        ) {
-          throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-        }
+        this.policyEngine.assertZeroCostAndAllowed(
+          providerHeader,
+          costHeader !== null && costHeader !== undefined ? Number.parseFloat(costHeader) : 0.0,
+        );
       }
 
       if (!response.body) {
@@ -163,6 +159,20 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
             const dataStr = trimmed.slice(6);
             try {
               const parsed = JSON.parse(dataStr);
+
+              const chunkCost =
+                parsed?.pricing?.total_cost ??
+                parsed?.pricing?.cost ??
+                parsed?.pricing?.prompt ??
+                parsed?.pricing?.completion ??
+                parsed?.usage?.cost ??
+                parsed?.cost;
+              if (chunkCost !== undefined && chunkCost !== null) {
+                const numericCost = Number(chunkCost);
+                if (Number.isNaN(numericCost) || !Number.isFinite(numericCost) || numericCost > 0) {
+                  throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
+                }
+              }
 
               const delta = parsed?.choices?.[0]?.delta;
               if (delta) {

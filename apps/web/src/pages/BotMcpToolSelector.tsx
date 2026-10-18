@@ -107,16 +107,10 @@ export function getAllActiveMcpConfig(): BotMcpConfig {
 }
 
 export function getRecommendedMcpConfig(): BotMcpConfig {
-  const connectors: Record<string, boolean> = {
-    searxng_scraperr: true,
-    system_platform: true,
-    github: false,
-    notion: false,
-    postiz: false,
-    wordpress_novamira: false,
-    n8n: false,
-    cloudflare: false,
-  };
+  const connectors: Record<string, boolean> = {};
+  for (const connector of SOVEREIGN_MCP_CONNECTORS) {
+    connectors[connector.id] = connector.id === "searxng_scraperr" || connector.id === "system_platform";
+  }
   const tools: Record<string, boolean> = {};
   for (const connector of SOVEREIGN_MCP_CONNECTORS) {
     for (const tool of connector.tools) {
