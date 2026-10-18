@@ -53,6 +53,7 @@ import {
   appContract,
   type BotInferenceConfig,
   type ComputerStatus,
+  DEFAULT_PROMPT_COMPILER_MODEL,
   type Me,
   type ThreadSnapshot,
 } from "@rakazo/contracts";
@@ -1722,15 +1723,16 @@ export function createRouter(deps: RouterDeps) {
     },
     prompts: {
       compile: authed.prompts.compile.handler(async ({ input }) => {
+        const compilerModel = process.env.OPENROUTER_MODEL || DEFAULT_PROMPT_COMPILER_MODEL;
         const promptCompiler = createPromptCompilerService({
           apiKey: deps.env.openRouterKey,
-          modelId: deps.env.defaultModel,
+          modelId: compilerModel,
         });
         const result = await promptCompiler.compile(input);
         if (result.telemetry) {
           recordPromptExecutionLogAsync(deps.prisma, {
             provider: "openrouter",
-            model: deps.env.defaultModel,
+            model: compilerModel,
             levelUsed: result.levelUsed,
             promptTokens: result.telemetry.promptTokens,
             completionTokens: result.telemetry.completionTokens,

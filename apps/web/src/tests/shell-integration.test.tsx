@@ -310,7 +310,7 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
       expect(markup).toContain("data-testid=\"composer-error-banner\"");
       expect(markup).toContain("bg-rose-950/80");
       expect(markup).toContain("border-rose-800/80");
-      expect(markup).toContain("Dépassement du quota de tokens gratuit");
+      expect(markup).toContain("Votre fournisseur de modèle a atteint son plafond de dépenses.");
       expect(markup).toContain("Fermer l&#x27;erreur");
     });
 

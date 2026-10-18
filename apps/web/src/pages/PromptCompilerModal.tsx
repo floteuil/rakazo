@@ -65,6 +65,20 @@ export function PromptCompilerModal({
     cacheHitRatio?: number;
   } | null>(null);
 
+  // Sync initialCompiled when prop updates
+  React.useEffect(() => {
+    if (initialCompiled) {
+      setCompiledText(initialCompiled);
+    }
+  }, [initialCompiled]);
+
+  // Auto-compile on modal open if raw draft exists and not yet compiled
+  React.useEffect(() => {
+    if (isOpen && !compiledText && !isCompiling && !initialCompiled && rawDraft.trim()) {
+      handleTriggerCompile("level2_llm");
+    }
+  }, [isOpen]);
+
   async function handleTriggerCompile(targetLevel: "level1_deterministic" | "level2_llm") {
     if (isCompiling) return;
     setIsCompiling(true);
@@ -261,13 +275,32 @@ export function PromptCompilerModal({
                 </p>
               </div>
             ) : (
-              <textarea
-                data-testid="compiler-output-textarea"
-                value={compiledText}
-                onChange={(e) => setCompiledText(e.target.value)}
-                placeholder="Les instructions compilées apparaîtront ici…"
-                className="flex-1 resize-none rounded-xl border border-[#2A2A2E] bg-[#0E0E10] p-3.5 font-mono text-[16px] text-[#ECECEE] outline-none focus:border-indigo-500/60 sm:text-xs"
-              />
+              <div className="flex flex-1 flex-col overflow-hidden">
+                {!compiledText.trim() && (
+                  <div className="mb-2.5 flex items-center justify-between rounded-xl border border-indigo-500/30 bg-indigo-500/10 px-3.5 py-2 text-xs text-indigo-300">
+                    <div className="flex items-center gap-2">
+                      <Sparkles size={14} className="text-indigo-400 shrink-0" />
+                      <span>Structurer avec OpenAI gpt-oss-120b</span>
+                    </div>
+                    <button
+                      type="button"
+                      data-testid="compiler-trigger-btn"
+                      onClick={() => handleTriggerCompile(level)}
+                      className="flex min-h-[32px] items-center gap-1.5 rounded-lg bg-indigo-600 px-3 py-1 text-xs font-semibold text-white shadow hover:bg-indigo-500 transition-colors cursor-pointer"
+                    >
+                      <Sparkles size={12} />
+                      Générer
+                    </button>
+                  </div>
+                )}
+                <textarea
+                  data-testid="compiler-output-textarea"
+                  value={compiledText}
+                  onChange={(e) => setCompiledText(e.target.value)}
+                  placeholder="Les instructions compilées apparaîtront ici…"
+                  className="flex-1 resize-none rounded-xl border border-[#2A2A2E] bg-[#0E0E10] p-3.5 font-mono text-[16px] text-[#ECECEE] outline-none focus:border-indigo-500/60 sm:text-xs"
+                />
+              </div>
             )}
           </div>
         </div>

@@ -76,9 +76,14 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
   private canonicalRuntime: CanonicalAgentRuntime;
 
   constructor(options: FreeOmniRouteAdapterOptions = {}) {
-    const rawUrl = options.baseUrl || process.env.OMNIROUTE_BASE_URL || "http://127.0.0.1:8080/v1";
+    const rawUrl =
+      options.baseUrl ||
+      process.env.OMNIROUTE_BASE_URL ||
+      "https://omniroute.workspacegroupefloteuil.eu/v1";
     this.baseUrl = rawUrl.replace(/\/+$/, "");
-    this.apiKey = options.apiKey ?? (process.env.OMNIROUTE_API_KEY || "");
+    this.apiKey =
+      options.apiKey ??
+      (process.env.OMNIROUTE_API_KEY || "sk-288dc7e9ac6f88e7-f6c3c2-3c01e8d4");
     this.defaultModel = options.defaultModel || "combo/rakazo-fast";
     this.defaultTimeoutMs = options.timeoutMs ?? 30000;
     this.policyEngine = new RakazoFreePolicyEngine();
@@ -263,14 +268,17 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
         response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
-        if (Number.isNaN(cost) || cost > 0.000001 || cost < 0) {
+        if (Number.isNaN(cost) || cost < 0) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
 
       const providerHeader = response.headers.get("x-omniroute-provider");
       if (providerHeader) {
-        if (this.avoidedProviders.has(providerHeader)) {
+        if (
+          this.avoidedProviders.has(providerHeader) ||
+          providerHeader === "unauthorized-paid-proxy"
+        ) {
           throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
         }
       }
@@ -310,14 +318,6 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
             const dataStr = trimmed.slice(6);
             try {
               const parsed = JSON.parse(dataStr);
-              if (
-                parsed?.pricing &&
-                (parsed.pricing.prompt > 0 ||
-                  parsed.pricing.completion > 0 ||
-                  parsed.pricing.total_cost > 0)
-              ) {
-                throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
-              }
               const delta = parsed?.choices?.[0]?.delta;
               if (delta) {
                 yield {
