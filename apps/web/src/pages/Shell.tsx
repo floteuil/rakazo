@@ -76,8 +76,21 @@ import {
   useMemo,
   useRef,
   useState,
+  useSyncExternalStore,
 } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
+import {
+  beginComposerDraftSubmission,
+  readComposerDraft,
+  settleComposerDraftSubmission,
+  subscribeComposerDraftAccepted,
+  writeComposerDraft,
+} from "../lib/composer-draft";
+import {
+  getComposerEnterToSend,
+  subscribeComposerEnterToSend,
+} from "../lib/composer-enter-to-send-pref";
+import { formatUserFacingRunError } from "../lib/run-error";
 import { SkillDraftCard } from "../components/teach/SkillDraftCard";
 import { TeachCaptureOverlay } from "../components/teach/TeachCaptureOverlay";
 import { TeachComputerSection } from "../components/teach/TeachComputerSection";
@@ -225,6 +238,11 @@ export function ShellPage() {
   const autoSpokenBotId = useRef<string | null>(null);
 
   const active = bots.find((b) => b.id === botId) ?? bots[0];
+  const enterToSend = useSyncExternalStore(
+    subscribeComposerEnterToSend,
+    getComposerEnterToSend,
+    () => true,
+  );
   const activePendingAttachments = useMemo(
     () => attachmentsForBot(pendingAttachments, active?.id),
     [active?.id, pendingAttachments],
@@ -1350,6 +1368,8 @@ export function ShellPage() {
         ) : null}
         <Composer
           activeName={active?.name}
+          draftKey={active?.id ? `bot:${active.id}` : "default"}
+          enterToSend={enterToSend}
           bots={bots}
           running={Boolean(snapshot?.run && isActive(snapshot.run.status))}
           disabled={Boolean(recordingSkill)}
@@ -2032,6 +2052,8 @@ export const Transcript = memo(function Transcript({
 
 export const Composer = memo(function Composer({
   activeName,
+  draftKey = "default",
+  enterToSend = true,
   bots = [],
   running,
   disabled,
@@ -2052,6 +2074,8 @@ export const Composer = memo(function Composer({
   onDictateStop,
 }: {
   activeName?: string;
+  draftKey?: string;
+  enterToSend?: boolean;
   bots?: Bot[];
   running: boolean;
   disabled?: boolean;
@@ -2071,11 +2095,22 @@ export const Composer = memo(function Composer({
   onDictateStart: (onFinal: (text: string) => void) => void;
   onDictateStop: () => void;
 }) {
-  const [draft, setDraft] = useState("");
+  const [draft, setDraft] = useState(() => readComposerDraft(draftKey));
   const [showMention, setShowMention] = useState(false);
   const [mentionQuery, setMentionQuery] = useState("");
   const [mentionIndex, setMentionIndex] = useState(0);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return subscribeComposerDraftAccepted(draftKey, (text) => {
+      setDraft((current) => (current === text ? "" : current));
+      setShowMention(false);
+    });
+  }, [draftKey]);
+
+  useEffect(() => {
+    setDraft(readComposerDraft(draftKey));
+  }, [draftKey]);
 
   const canSend = draft.trim().length > 0 || pendingAttachments.length > 0;
 
@@ -2092,21 +2127,34 @@ export const Composer = memo(function Composer({
   function send() {
     if (!canSend || sending || disabled) return;
     const text = draft;
+    const submission = beginComposerDraftSubmission(draftKey, draft);
     setDraft("");
     setShowMention(false);
-    void onSend(text);
+    writeComposerDraft(draftKey, "");
+    void onSend(text)
+      .then(() => {
+        settleComposerDraftSubmission(draftKey, submission, true);
+      })
+      .catch(() => {
+        settleComposerDraftSubmission(draftKey, submission, false);
+        setDraft(submission.text);
+        writeComposerDraft(draftKey, submission.text);
+      });
   }
 
   function handleSelectBot(bot: Bot) {
     const atIdx = draft.lastIndexOf("@");
     const prefix = atIdx >= 0 ? draft.slice(0, atIdx) : draft;
-    setDraft(`${prefix}@${bot.name} `);
+    const next = `${prefix}@${bot.name} `;
+    writeComposerDraft(draftKey, next);
+    setDraft(next);
     setShowMention(false);
     inputRef.current?.focus();
   }
 
   function handleDraftChange(event: React.ChangeEvent<HTMLInputElement>) {
     const val = event.target.value;
+    writeComposerDraft(draftKey, val);
     setDraft(val);
     const atMatch = /(?:^|\s)@([^\s@]*)$/.exec(val);
     if (atMatch && bots && bots.length > 0) {
@@ -2146,8 +2194,10 @@ export const Composer = memo(function Composer({
     }
 
     if (event.key === "Enter" && !event.shiftKey) {
-      event.preventDefault();
-      send();
+      if (enterToSend || event.ctrlKey || event.metaKey) {
+        event.preventDefault();
+        send();
+      }
     }
   }
 
@@ -2160,7 +2210,7 @@ export const Composer = memo(function Composer({
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-rose-400 font-bold shrink-0">⚠️ Erreur :</span>
-            <span className="truncate">{sendError ?? dictationError}</span>
+            <span className="truncate">{formatUserFacingRunError(sendError ?? dictationError ?? "")}</span>
           </div>
           {onClearError ? (
             <button

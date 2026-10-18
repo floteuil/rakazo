@@ -1,5 +1,7 @@
 export const ATTACHMENT_MAX_BYTES = 10 * 1024 * 1024;
 export const ATTACHMENT_MAX_COUNT = 4;
+export const ARTIFACT_NAME_MAX_LENGTH = 255;
+export const ARTIFACT_DESCRIPTION_MAX_LENGTH = 280;
 /** Base64 expands payload by 4/3; cap before decode to reject oversize uploads cheaply. */
 export const ATTACHMENT_MAX_BASE64_LENGTH = Math.ceil(ATTACHMENT_MAX_BYTES / 3) * 4;
 
@@ -11,10 +13,14 @@ export const ATTACHMENT_IMAGE_MIME_TYPES = [
 ] as const;
 
 export const ATTACHMENT_FILE_MIME_TYPES = [
+  "video/mp4",
   "application/pdf",
   "text/plain",
+  "text/markdown",
   "text/csv",
+  "text/html",
   "application/json",
+  "application/zip",
 ] as const;
 
 export const ATTACHMENT_ALLOWED_MIME_TYPES = [
@@ -40,3 +46,13 @@ export function validateThreadsSendInput(input: {
   const artifactIds = input.artifactIds ?? [];
   return Boolean(text || artifactIds.length);
 }
+
+/** Effective per-file upload limit advertised in me/bootstrap. */
+export function attachmentMaxBytes(config?: { maxUploadSizeBytes?: number } | null): number {
+  return config?.maxUploadSizeBytes ?? ATTACHMENT_MAX_BYTES;
+}
+
+export function attachmentSizeLabel(maxBytes: number): string {
+  return `${maxBytes / (1024 * 1024)} MiB`;
+}
+

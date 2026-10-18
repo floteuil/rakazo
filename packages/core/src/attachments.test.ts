@@ -11,8 +11,11 @@ import {
 } from "./attachments.js";
 
 describe("attachment helpers", () => {
-  it("rejects unsupported mime types and empty payloads", () => {
-    expect(() => validateAttachmentMimeType("application/zip")).toThrow(AttachmentValidationError);
+  it("accepts zip archives and rejects unsupported mime types and empty payloads", () => {
+    expect(() => validateAttachmentMimeType("application/zip")).not.toThrow();
+    expect(() => validateAttachmentMimeType("application/octet-stream")).toThrow(
+      AttachmentValidationError,
+    );
     expect(() => decodeAttachmentBase64("")).toThrow(AttachmentValidationError);
     expect(() => decodeAttachmentBase64("aGVsbG8=trailing-junk")).toThrow(
       AttachmentValidationError,
@@ -49,7 +52,9 @@ describe("attachment helpers", () => {
   it("infers attachment mime types from extensions", () => {
     expect(inferAttachmentMimeType("photo.JPG", "")).toBe("image/jpeg");
     expect(inferAttachmentMimeType("notes.pdf", "")).toBe("application/pdf");
-    expect(inferAttachmentMimeType("archive.zip", "")).toBeNull();
+    expect(inferAttachmentMimeType("notes.md", "")).toBe("text/markdown");
+    expect(inferAttachmentMimeType("archive.zip", "")).toBe("application/zip");
+    expect(inferAttachmentMimeType("binary.bin", "")).toBeNull();
   });
 
   it("scopes current-turn images to user-triggered runs", () => {

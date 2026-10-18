@@ -102,6 +102,7 @@ export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
 }
 
 const EXTENSION_MIME_TYPES: Record<string, AttachmentMimeType> = {
+  ".mp4": "video/mp4",
   ".jpg": "image/jpeg",
   ".jpeg": "image/jpeg",
   ".png": "image/png",
@@ -109,29 +110,48 @@ const EXTENSION_MIME_TYPES: Record<string, AttachmentMimeType> = {
   ".gif": "image/gif",
   ".pdf": "application/pdf",
   ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".markdown": "text/markdown",
   ".csv": "text/csv",
+  ".html": "text/html",
+  ".htm": "text/html",
   ".json": "application/json",
+  ".zip": "application/zip",
 };
 
 const MIME_TYPE_EXTENSIONS: Record<AttachmentMimeType, string> = {
+  "video/mp4": ".mp4",
   "image/jpeg": ".jpg",
   "image/png": ".png",
   "image/webp": ".webp",
   "image/gif": ".gif",
   "application/pdf": ".pdf",
   "text/plain": ".txt",
+  "text/markdown": ".md",
   "text/csv": ".csv",
+  "text/html": ".html",
   "application/json": ".json",
+  "application/zip": ".zip",
 };
 
 export function inferAttachmentMimeType(
   name: string,
   reportedType?: string,
 ): AttachmentMimeType | null {
-  if (reportedType && isAllowedAttachmentMimeType(reportedType)) return reportedType;
+  if (
+    reportedType === "application/x-zip-compressed" ||
+    reportedType === "application/x-zip" ||
+    reportedType === "multipart/x-zip"
+  ) {
+    return "application/zip";
+  }
   const dot = name.lastIndexOf(".");
-  if (dot < 0) return null;
-  return EXTENSION_MIME_TYPES[name.slice(dot).toLowerCase()] ?? null;
+  const extensionType = dot < 0 ? undefined : EXTENSION_MIME_TYPES[name.slice(dot).toLowerCase()];
+  if (extensionType === "text/markdown" && (!reportedType || reportedType === "text/plain")) {
+    return extensionType;
+  }
+  if (reportedType && isAllowedAttachmentMimeType(reportedType)) return reportedType;
+  return extensionType ?? null;
 }
 
 export function attachmentExtensionForMimeType(mimeType: string): string {

@@ -1,9 +1,19 @@
 export * from "./async.js";
 export * from "./attachments.js";
+export * from "./bot-sections.js";
+export * from "./composer-mention-picker.js";
+export * from "./composer-mentions.js";
+export * from "./composer-slash.js";
 export * from "./cron.js";
 export * from "./events.js";
+export * from "./format-file-size.js";
+export * from "./group-mentions.js";
+export * from "./instruction-diff.js";
+export * from "./markdown-plain.js";
 export * from "./message-pages.js";
 export * from "./model-oauth.js";
+export * from "./remote-images.js";
+export * from "./run-error.js";
 export * from "./run-state.js";
 export * from "./sandbox-command.js";
 export * from "./screen-lease.js";
@@ -11,5 +21,11 @@ export * from "./search.js";
 export * from "./secrets-guard.js";
 export * from "./signup-policy.js";
 export * from "./speech-text.js";
+export * from "./stuck-work.js";
 export * from "./teach-playbook.js";
 export * from "./teach-recording.js";
+export * from "./text-direction.js";
+export * from "./time-separators.js";
+export * from "./user-error.js";
+
+
