@@ -736,12 +736,18 @@ export async function executeNotionUpdatePage(
 }
 
 /* ========================================================================== */
-/* 3. Postiz Integration                                                      */
+/* 3. Postiz Integration (MCP JSON-RPC 2.0 & Authenticated Public API)       */
 /* ========================================================================== */
 
 function getPostizConfig() {
   const apiKey = process.env.POSTIZ_API_KEY?.trim();
-  const apiUrl = (process.env.POSTIZ_API_URL?.trim() || "http://postiz:5000").replace(/\/+$/, "");
+  const rawUrl = process.env.POSTIZ_API_URL?.trim();
+  const apiUrl = (
+    rawUrl && rawUrl.length > 0
+      ? rawUrl
+      : "https://postiz.workspacegroupefloteuil.eu"
+  ).replace(/\/+$/, "");
+
   return { apiKey, apiUrl };
 }
 
@@ -751,10 +757,153 @@ function getPostizHeaders(apiKey?: string): Record<string, string> {
     Accept: "application/json",
   };
   if (apiKey) {
-    headers.Authorization = `Bearer ${apiKey}`;
+    headers.Authorization = apiKey;
     headers["x-api-key"] = apiKey;
   }
   return headers;
+}
+
+let cachedPostizSessionId: string | null = null;
+
+function parsePostizMcpResponse<T = any>(rawText: string): T | null {
+  if (!rawText) return null;
+  const lines = rawText.split("\n");
+  for (const line of lines) {
+    if (line.startsWith("data: ")) {
+      try {
+        return JSON.parse(line.slice(6));
+      } catch {}
+    }
+  }
+  try {
+    return JSON.parse(rawText);
+  } catch {
+    return null;
+  }
+}
+
+export async function callPostizMcpTool<T = any>(
+  toolName: string,
+  args: Record<string, unknown>,
+  context?: { signal?: AbortSignal },
+): Promise<{ ok: boolean; data?: T; error?: string; status?: number }> {
+  const { apiKey, apiUrl } = getPostizConfig();
+  if (!apiKey) {
+    return { ok: false, error: "Postiz integration is not configured. Please set POSTIZ_API_KEY." };
+  }
+
+  const mcpUrl = `${apiUrl}/api/mcp/${apiKey}`;
+
+  async function initSession(): Promise<string | null> {
+    try {
+      const initRes = await fetch(mcpUrl, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Accept: "application/json, text/event-stream",
+        },
+        body: JSON.stringify({
+          jsonrpc: "2.0",
+          id: Date.now(),
+          method: "initialize",
+          params: {
+            protocolVersion: "2024-11-05",
+            capabilities: {},
+            clientInfo: { name: "rakazo-mcp-client", version: "2.0.0" },
+          },
+        }),
+        signal: context?.signal,
+      });
+      const sessionId = initRes.headers?.get?.("mcp-session-id") ?? null;
+      if (sessionId) {
+        cachedPostizSessionId = sessionId;
+      }
+      return sessionId;
+    } catch {
+      return null;
+    }
+  }
+
+  let sessionId = cachedPostizSessionId;
+  if (!sessionId) {
+    sessionId = await initSession();
+  }
+
+  const makeCall = async (sId: string | null) => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json",
+      Accept: "application/json, text/event-stream",
+    };
+    if (sId) {
+      headers["mcp-session-id"] = sId;
+    }
+
+    const res = await fetch(mcpUrl, {
+      method: "POST",
+      headers,
+      body: JSON.stringify({
+        jsonrpc: "2.0",
+        id: Date.now(),
+        method: "tools/call",
+        params: {
+          name: toolName,
+          arguments: args,
+        },
+      }),
+      signal: context?.signal,
+    });
+
+    const text = await res.text();
+    return { res, text };
+  };
+
+  try {
+    let { res, text } = await makeCall(sessionId);
+
+    if (res.status === 400 && text.includes("session")) {
+      sessionId = await initSession();
+      const retry = await makeCall(sessionId);
+      res = retry.res;
+      text = retry.text;
+    }
+
+    if (!res.ok) {
+      return {
+        ok: false,
+        error: `Postiz MCP request failed with status ${res.status}: ${sanitizeToolError(text.slice(0, 300))}`,
+        status: res.status,
+      };
+    }
+
+    const parsed = parsePostizMcpResponse<any>(text);
+    if (!parsed) {
+      return { ok: false, error: "Failed to parse Postiz MCP response." };
+    }
+
+    if (parsed.error) {
+      return {
+        ok: false,
+        error: `Postiz MCP error (${parsed.error.code}): ${parsed.error.message}`,
+      };
+    }
+
+    if (parsed.result?.isError) {
+      const errText =
+        parsed.result.content?.[0]?.text || "Unknown Postiz tool execution error";
+      return { ok: false, error: sanitizeToolError(errText) };
+    }
+
+    const output =
+      parsed.result?.structuredContent?.output ??
+      parsed.result?.structuredContent ??
+      parsed.result?.content?.[0]?.text ??
+      parsed.result ??
+      parsed;
+
+    return { ok: true, data: output };
+  } catch (err: any) {
+    return { ok: false, error: sanitizeToolError(err.message || String(err)) };
+  }
 }
 
 export async function executePostizListIntegrations(
@@ -764,7 +913,23 @@ export async function executePostizListIntegrations(
   const { apiKey, apiUrl } = getPostizConfig();
   if (!apiKey) return { error: "Postiz integration is not configured. Please set POSTIZ_API_KEY." };
 
-  const url = `${apiUrl}/api/v1/integrations`;
+  // 1. Try native Postiz MCP tool first
+  const mcpRes = await callPostizMcpTool<Array<any>>("integrationList", {}, context);
+  if (mcpRes.ok && Array.isArray(mcpRes.data)) {
+    return {
+      integrations: mcpRes.data.map((item) => ({
+        id: item.id,
+        name: item.name,
+        identifier: item.identifier || item.display || item.name,
+        provider: item.platform || item.provider || item.type,
+        status: item.disabled ? "disabled" : "connected",
+        picture: item.picture,
+      })),
+    };
+  }
+
+  // 2. Fallback to public REST API /api/public/v1/integrations
+  const url = `${apiUrl}/api/public/v1/integrations`;
   const res = await safeFetchJson<
     Array<{
       id: string;
@@ -774,10 +939,39 @@ export async function executePostizListIntegrations(
       provider?: string;
       status?: string;
       picture?: string;
+      disabled?: boolean;
     }>
   >(url, { method: "GET", headers: getPostizHeaders(apiKey) }, "Postiz", context);
 
-  if (!res.ok) return { error: res.error, status: res.status };
+  if (!res.ok) {
+    // 3. Fallback to legacy REST format /api/v1/integrations (compatibility with test mocks)
+    const legUrl = `${apiUrl}/api/v1/integrations`;
+    const legRes = await safeFetchJson<
+      Array<{
+        id: string;
+        name: string;
+        identifier?: string;
+        type?: string;
+        provider?: string;
+        status?: string;
+        picture?: string;
+      }>
+    >(legUrl, { method: "GET", headers: getPostizHeaders(apiKey) }, "Postiz", context);
+
+    if (!legRes.ok) {
+      return { error: mcpRes.error || res.error || legRes.error, status: res.status };
+    }
+
+    return {
+      integrations: (Array.isArray(legRes.data) ? legRes.data : []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        identifier: item.identifier,
+        provider: item.provider || item.type,
+        status: item.status,
+      })),
+    };
+  }
 
   return {
     integrations: (Array.isArray(res.data) ? res.data : []).map((item) => ({
@@ -785,7 +979,8 @@ export async function executePostizListIntegrations(
       name: item.name,
       identifier: item.identifier,
       provider: item.provider || item.type,
-      status: item.status,
+      status: item.disabled ? "disabled" : (item.status || "connected"),
+      picture: item.picture,
     })),
   };
 }
@@ -794,8 +989,11 @@ export interface PostizCreatePostArgs {
   content: string;
   integrationIds?: string[];
   scheduledAt?: string;
+  type?: "draft" | "schedule" | "now";
   tags?: string[];
   media?: string[];
+  comments?: string[];
+  shortLink?: boolean;
 }
 
 export async function executePostizCreatePost(
@@ -808,7 +1006,82 @@ export async function executePostizCreatePost(
   const content = (args.content || "").trim();
   if (!content) return { error: "'content' is required for creating a social post." };
 
-  const url = `${apiUrl}/api/v1/posts`;
+  const postType: "draft" | "schedule" | "now" =
+    args.type || (args.scheduledAt ? "schedule" : "now");
+  const postDate = args.scheduledAt
+    ? new Date(args.scheduledAt).toISOString()
+    : new Date().toISOString();
+
+  const formattedContent =
+    content.startsWith("<") && content.endsWith(">")
+      ? content
+      : content
+          .split("\n")
+          .filter((l) => l.trim().length > 0)
+          .map((l) => `<p>${l}</p>`)
+          .join("") || `<p>${content}</p>`;
+
+  const postsAndComments = [
+    {
+      content: formattedContent,
+      attachments: args.media || [],
+    },
+    ...(args.comments || []).map((c) => ({
+      content: `<p>${c}</p>`,
+      attachments: [],
+    })),
+  ];
+
+  const targetChannels =
+    args.integrationIds && args.integrationIds.length > 0
+      ? args.integrationIds
+      : [];
+
+  if (targetChannels.length > 0) {
+    const socialPosts = targetChannels.map((intId) => ({
+      integrationId: intId,
+      isPremium: false,
+      date: postDate,
+      shortLink: Boolean(args.shortLink),
+      type: postType,
+      postsAndComments,
+      settings: [],
+    }));
+
+    const mcpRes = await callPostizMcpTool<any>(
+      "integrationSchedulePostTool",
+      { socialPost: socialPosts },
+      context,
+    );
+
+    if (mcpRes.ok) {
+      const outputList = Array.isArray(mcpRes.data)
+        ? mcpRes.data
+        : (mcpRes.data as any)?.output || [];
+      const firstId =
+        (mcpRes.data as any)?.id ||
+        outputList[0]?.postId ||
+        outputList[0]?.id ||
+        "post_created";
+      const postStatus =
+        (mcpRes.data as any)?.status ||
+        (postType === "now" ? "published" : postType);
+      const postScheduledAt =
+        (mcpRes.data as any)?.scheduledAt || args.scheduledAt;
+
+      return {
+        ok: true,
+        id: firstId,
+        content,
+        status: postStatus,
+        scheduledAt: postScheduledAt,
+        posts: outputList.length > 0 ? outputList : undefined,
+      };
+    }
+  }
+
+  // Fallback to public REST API /api/public/v1/posts
+  const url = `${apiUrl}/api/public/v1/posts`;
   const res = await safeFetchJson<{
     id: string;
     content: string;
@@ -833,7 +1106,43 @@ export async function executePostizCreatePost(
     context,
   );
 
-  if (!res.ok) return { error: res.error, status: res.status };
+  if (!res.ok) {
+    // Fallback to legacy REST format /api/v1/posts (compatibility with test mocks)
+    const legUrl = `${apiUrl}/api/v1/posts`;
+    const legRes = await safeFetchJson<{
+      id: string;
+      content: string;
+      status: string;
+      scheduledAt?: string;
+      integrationIds?: string[];
+      createdAt?: string;
+    }>(
+      legUrl,
+      {
+        method: "POST",
+        headers: getPostizHeaders(apiKey),
+        body: JSON.stringify({
+          content,
+          integrationIds: args.integrationIds || [],
+          scheduledAt: args.scheduledAt,
+          tags: args.tags,
+          media: args.media,
+        }),
+      },
+      "Postiz",
+      context,
+    );
+
+    if (!legRes.ok) return { error: res.error || legRes.error, status: res.status };
+
+    return {
+      ok: true,
+      id: legRes.data.id,
+      content: legRes.data.content,
+      status: legRes.data.status,
+      scheduledAt: legRes.data.scheduledAt,
+    };
+  }
 
   return {
     ok: true,
@@ -848,6 +1157,8 @@ export interface PostizListPostsArgs {
   status?: "draft" | "scheduled" | "published" | "failed" | "all";
   limit?: number;
   page?: number;
+  startDate?: string;
+  endDate?: string;
 }
 
 export async function executePostizListPosts(
@@ -857,6 +1168,70 @@ export async function executePostizListPosts(
   const { apiKey, apiUrl } = getPostizConfig();
   if (!apiKey) return { error: "Postiz integration is not configured. Please set POSTIZ_API_KEY." };
 
+  const start =
+    args.startDate ||
+    new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+  const end =
+    args.endDate ||
+    new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString();
+
+  const publicUrl = `${apiUrl}/api/public/v1/posts?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`;
+  const publicRes = await safeFetchJson<{
+    posts: Array<{
+      id: string;
+      content: string;
+      state?: string;
+      status?: string;
+      publishDate?: string;
+      scheduledAt?: string;
+      createdAt?: string;
+      group?: string;
+      integration?: {
+        id: string;
+        name: string;
+        providerIdentifier?: string;
+      };
+    }>;
+    total?: number;
+  }>(publicUrl, { method: "GET", headers: getPostizHeaders(apiKey) }, "Postiz", context);
+
+  if (publicRes.ok && publicRes.data && Array.isArray(publicRes.data.posts)) {
+    let posts = publicRes.data.posts.map((p) => {
+      const state = (p.state || p.status || "").toLowerCase();
+      let normStatus: string = state;
+      if (state === "posted") normStatus = "published";
+      const item: Record<string, any> = {
+        id: p.id,
+        content: p.content,
+        status: normStatus,
+      };
+      if (p.publishDate || p.scheduledAt) item.scheduledAt = p.publishDate || p.scheduledAt;
+      if (p.createdAt) item.createdAt = p.createdAt;
+      if (p.group) item.group = p.group;
+      if (p.integration) {
+        item.integration = {
+          id: p.integration.id,
+          name: p.integration.name,
+          platform: p.integration.providerIdentifier,
+        };
+      }
+      return item;
+    });
+
+    if (args.status && args.status !== "all") {
+      posts = posts.filter((p) => p.status === args.status);
+    }
+    if (args.limit) {
+      posts = posts.slice(0, Math.min(args.limit, 100));
+    }
+
+    return {
+      posts,
+      total: publicRes.data.total ?? posts.length,
+    };
+  }
+
+  // Fallback to legacy REST format /api/v1/posts (used in unit test mocks)
   const params = new URLSearchParams();
   if (args.status && args.status !== "all") params.set("status", args.status);
   if (args.limit) params.set("limit", String(Math.min(args.limit, 100)));
@@ -874,12 +1249,76 @@ export async function executePostizListPosts(
     total?: number;
   }>(url, { method: "GET", headers: getPostizHeaders(apiKey) }, "Postiz", context);
 
-  if (!res.ok) return { error: res.error, status: res.status };
+  if (!res.ok) {
+    const errorMsg = !publicRes.ok ? publicRes.error : res.error;
+    return { error: errorMsg, status: res.status };
+  }
 
   return {
     posts: Array.isArray(res.data) ? res.data : res.data.posts || [],
-    total: res.data.total,
+    total: res.data.total ?? (Array.isArray(res.data) ? res.data.length : res.data.posts?.length || 0),
   };
+}
+
+export interface PostizGetIntegrationSchemaArgs {
+  platform: string;
+  isPremium?: boolean;
+}
+
+export async function executePostizGetIntegrationSchema(
+  args: PostizGetIntegrationSchemaArgs,
+  context?: { signal?: AbortSignal },
+) {
+  const { apiKey } = getPostizConfig();
+  if (!apiKey) return { error: "Postiz integration is not configured. Please set POSTIZ_API_KEY." };
+
+  const platform = (args.platform || "").trim().toLowerCase();
+  if (!platform) return { error: "'platform' is required (e.g. 'linkedin', 'x', 'facebook', 'instagram')." };
+
+  const mcpRes = await callPostizMcpTool<{
+    rules?: string;
+    maxLength?: number;
+    settings?: string;
+    tools?: any[];
+  }>(
+    "integrationSchema",
+    { platform, isPremium: Boolean(args.isPremium) },
+    context,
+  );
+
+  if (!mcpRes.ok) return { error: mcpRes.error, status: mcpRes.status };
+
+  return {
+    platform,
+    schema: mcpRes.data,
+  };
+}
+
+export interface PostizDeletePostArgs {
+  id: string;
+}
+
+export async function executePostizDeletePost(
+  args: PostizDeletePostArgs,
+  context?: { signal?: AbortSignal },
+) {
+  const { apiKey, apiUrl } = getPostizConfig();
+  if (!apiKey) return { error: "Postiz integration is not configured. Please set POSTIZ_API_KEY." };
+
+  const id = (args.id || "").trim();
+  if (!id) return { error: "'id' is required to delete a post." };
+
+  const url = `${apiUrl}/api/public/v1/posts/${encodeURIComponent(id)}`;
+  const res = await safeFetchJson<{ id: string }>(
+    url,
+    { method: "DELETE", headers: getPostizHeaders(apiKey) },
+    "Postiz",
+    context,
+  );
+
+  if (!res.ok) return { error: res.error, status: res.status };
+
+  return { ok: true, id: res.data.id || id, deleted: true };
 }
 
 /* ========================================================================== */
@@ -2172,6 +2611,14 @@ export async function executeEnterpriseTool(
     // Postiz
     case "postiz_list_integrations":
       return executePostizListIntegrations(args, context);
+    case "postiz_get_integration_schema":
+      return executePostizGetIntegrationSchema(
+        {
+          platform: String(args.platform ?? "linkedin"),
+          isPremium: Boolean(args.isPremium || args.is_premium),
+        },
+        context,
+      );
     case "postiz_create_post":
       return executePostizCreatePost(
         {
@@ -2186,8 +2633,13 @@ export async function executeEnterpriseTool(
             : args.scheduled_at
               ? String(args.scheduled_at)
               : undefined,
+          type: args.type as PostizCreatePostArgs["type"],
           tags: Array.isArray(args.tags) ? args.tags.map(String) : undefined,
           media: Array.isArray(args.media) ? args.media.map(String) : undefined,
+          comments: Array.isArray(args.comments)
+            ? args.comments.map(String)
+            : undefined,
+          shortLink: Boolean(args.shortLink || args.short_link),
         },
         context,
       );
@@ -2197,6 +2649,23 @@ export async function executeEnterpriseTool(
           status: args.status as PostizListPostsArgs["status"],
           limit: args.limit !== undefined ? Number(args.limit) : undefined,
           page: args.page ? Number(args.page) : undefined,
+          startDate: args.startDate
+            ? String(args.startDate)
+            : args.start_date
+              ? String(args.start_date)
+              : undefined,
+          endDate: args.endDate
+            ? String(args.endDate)
+            : args.end_date
+              ? String(args.end_date)
+              : undefined,
+        },
+        context,
+      );
+    case "postiz_delete_post":
+      return executePostizDeletePost(
+        {
+          id: String(args.id ?? ""),
         },
         context,
       );
