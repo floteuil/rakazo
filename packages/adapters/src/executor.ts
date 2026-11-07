@@ -1586,7 +1586,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
             blocks: [{ kind: "text", text }],
           });
           if (!completed) return;
-          if (bot.notifyOnFinish) {
+          if (bot.notifyOnFinish && !(run.trigger === "routine" && isSilentRoutineOutput(text))) {
             await notifyRun(deps, run, {
               kind: "completion",
               title: `${bot.name} finished`,
@@ -2050,9 +2050,28 @@ function publicProfile(
   return description ? `${heading}\n${description}` : heading;
 }
 
+export const SILENT_ROUTINE_TOKEN = "NO_SIGNAL";
+
+export const SILENT_ROUTINE_DIRECTIVE_FR =
+  "RÈGLE DE SOBRIÉTÉ DES ROUTINES PLANIFIÉES (SILENCE = RÉSULTAT VALIDE) : Si aucune nouveauté, anomalie ou signal pertinent n'est détecté dès ta première vérification, réponds uniquement « NO_SIGNAL — Aucun élément nouveau à signaler aujourd'hui. » et arrête immédiatement ton exécution au tour 1 sans inventer de rapport artificiel ni appeler d'autres outils.";
+
+export function isSilentRoutineOutput(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  return (
+    trimmed === SILENT_ROUTINE_TOKEN ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN} `) ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN}—`) ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN} —`) ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN}:`) ||
+    trimmed.includes("NO_SIGNAL — Aucun élément nouveau")
+  );
+}
+
 /**
  * Keeps a bot's public profile (`name: title\ndescription`) and private operating
- * instructions distinct (Upstream #1504 / 81640fa3e).
+ * instructions distinct (Upstream #1504 / 81640fa3e), and injects the French Silent
+ * Routine Guard (`NO_SIGNAL`) when triggered by a scheduled routine (P4).
  */
 export function runIdentityInstruction(
   bot: {
@@ -2069,14 +2088,20 @@ export function runIdentityInstruction(
   if (trigger !== "created") {
     const identity = publicProfile(bot.name, bot.title, description);
     // Older bots saved one text as both fields; do not repeat it.
-    if (!instructions || instructions === description) {
-      return instructions ? rawInstructions : identity;
+    const base =
+      !instructions || instructions === description
+        ? instructions
+          ? rawInstructions
+          : identity
+        : [
+            identity,
+            "Teammates see only the profile above. These instructions are private to you:",
+            instructions,
+          ].join("\n");
+    if (trigger === "routine") {
+      return `${base}\n\n${SILENT_ROUTINE_DIRECTIVE_FR}`;
     }
-    return [
-      identity,
-      "Teammates see only the profile above. These instructions are private to you:",
-      instructions,
-    ].join("\n");
+    return base;
   }
   return [
     `Name: ${bot.name.trim() || "(none)"}`,

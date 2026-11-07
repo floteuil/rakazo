@@ -76,3 +76,13 @@ Ces composants constituent le cœur de l'application et sont vérifiés à chaqu
 | **Avertissement sur les modèles texte-uniquement (sans vision)** | `7d9cef3c6` | `packages/adapters/src/pi-models.ts`, `apps/web/src/pages/ModelSettingsOverlay.tsx` |
 | **Bouton Stop ultra-réactif (< 1 seconde)** | `v0.8.0` | `packages/adapters/src/executor.ts` (`cancelPoll`), `apps/api/src/router.ts` (`threads.stop`) |
 | **Raccourcis clavier (`⌘/Ctrl+/`, `⌘/Ctrl+F`) & Persistance des fichiers joints** | `ed6715893` / `v0.8.0` | `apps/web/src/pages/Shell.tsx`, `apps/web/src/lib/pending-attachments.ts` |
+
+---
+
+## 5. Contrat Opérationnel d'Agent (P2) & Économie de Tokens Avancée (P3 & P4 — Écosystème `awesome-grok-bot`)
+
+| Module | Inspiration | Fichiers Clés | Description & Impact |
+| :--- | :--- | :--- | :--- |
+| **P2 — Contrat Opérationnel d'Agent (FR)** | `DevvGwardo/agent-roster-playbook` & `PramodDutta/botskills` | `packages/adapters/src/prompt-compiler.ts` | Injecte systématiquement en français dans les prompts compilés (Niveaux 1 & 2) : **1.** la *Matrice d'Autonomie Contractuelle* (`ACT ALONE < 1 min` vs `PARK FOR ME` approbation humaine), **2.** l'*Obligation de Preuve (`Show the tape`)*, et **3.** le *Bouclier Anti-Injection de Prompt*. |
+| **P3 — Remasterisation du Fil (« Handoff 5 lignes »)** | `Chakhdz/grok-bot-token-saver` (`REVIVE.md`) | `apps/web/src/lib/thread-remaster.ts`, `apps/web/src/pages/Shell.tsx` | Bouton & Modale responsive (téléphone, tablette, ordinateur) permettant de compacter un fil long en un **Handoff structuré de 5 lignes en français** (0 appel LLM), de nettoyer le fil et de repartir à **0 token d'historique traîné** (jusqu'à **-70 %** de tokens). |
+| **P4 — Garde-Fou « Routine Silencieuse (`NO_SIGNAL`) »** | `DevvGwardo/agent-roster-playbook` (`06-watcher-lanes.md`) | `packages/adapters/src/executor.ts`, `apps/web/src/pages/Shell.tsx` | Lorsqu'une routine planifiée ne détecte aucune nouveauté dès le 1er tour, l'agent répond immédiatement `NO_SIGNAL — Aucun élément nouveau à signaler aujourd'hui.`, coupe sa boucle d'outils et supprime les notifications superflues. |

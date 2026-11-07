@@ -14,7 +14,12 @@ import {
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { builtinAgentTools } from "./builtin-tools.js";
 import { enterpriseAgentTools, executeEnterpriseTool } from "./enterprise-tools.js";
-import { runIdentityInstruction } from "./executor.js";
+import {
+  isSilentRoutineOutput,
+  runIdentityInstruction,
+  SILENT_ROUTINE_DIRECTIVE_FR,
+  SILENT_ROUTINE_TOKEN,
+} from "./executor.js";
 import {
   FREE_INFERENCE_UNAVAILABLE_MESSAGE,
   RakazoFreePolicyEngine,
@@ -43,7 +48,15 @@ import {
   extractCacheTelemetry,
   resolvePromptCacheStrategy,
 } from "./prefix-caching.js";
-import { compilePromptLevel1Deterministic, extractThoughtTrace } from "./prompt-compiler.js";
+import {
+  ANTI_PROMPT_INJECTION_RULE_FR,
+  CONTRACTUAL_AUTONOMY_RULE_FR,
+  CONTRACTUAL_ESCALATION_RULE_FR,
+  compilePromptLevel1Deterministic,
+  createPromptCompilerService,
+  extractThoughtTrace,
+  SHOW_THE_TAPE_RULE_FR,
+} from "./prompt-compiler.js";
 import {
   SUBAGENT_MAX_DEPTH,
   SUBAGENT_TOKEN_BUDGET_CEILING,
@@ -463,6 +476,87 @@ describe("Master Sovereign Sanctuary, Anti-Runaway & v0.8.0+ Certification Suite
       const elapsed = Date.now() - start;
       expect(elapsed).toBeLessThan(500);
       expect(events.at(-1)).toEqual({ type: "done", text: "stopped" });
+    });
+  });
+
+  // ==========================================================================
+  // 4. P2 & P4: CONTRAT OPÉRATIONNEL D'AGENT & GARDE-FOU ROUTINE SILENCIEUSE
+  // ==========================================================================
+  describe("4. Contrat Opérationnel d'Agent (P2) & Routine Silencieuse NO_SIGNAL (P4)", () => {
+    it("4.1 (P2) injects French contractual autonomy matrix (< 1 min undo vs PARK FOR ME), Show-the-tape proof obligation, and anti-prompt-injection boundary in Level 1 and Level 2", async () => {
+      const level1 = compilePromptLevel1Deterministic({
+        rawInstruction:
+          "Tu es l'agent éditorial de Groupe Floteuil. Rédige les brouillons LinkedIn et prépare le calendrier.",
+        botName: "Agent Éditorial",
+      });
+
+      expect(level1.compiledInstruction).toContain("# Role & Identity");
+      expect(level1.compiledInstruction).toContain("## Operational Rules & Constraints");
+      expect(level1.compiledInstruction).toContain(CONTRACTUAL_AUTONOMY_RULE_FR);
+      expect(level1.compiledInstruction).toContain("ACT ALONE < 1 min vs PARK FOR ME");
+      expect(level1.compiledInstruction).toContain(ANTI_PROMPT_INJECTION_RULE_FR);
+      expect(level1.compiledInstruction).toContain(SHOW_THE_TAPE_RULE_FR);
+      expect(level1.compiledInstruction).toContain(CONTRACTUAL_ESCALATION_RULE_FR);
+
+      let capturedSystemPrompt = "";
+      const mockFetch = vi.fn().mockImplementation(async (_url, init) => {
+        const parsed = JSON.parse(String(init?.body ?? "{}"));
+        capturedSystemPrompt = parsed.messages?.[0]?.content ?? "";
+        return new Response(
+          JSON.stringify({
+            choices: [
+              {
+                message: {
+                  content:
+                    "# Role & Identity\nAgent Éditorial\n\n## Core Mission\n- Rédiger\n\n## Operational Rules & Constraints\n- ACT ALONE < 1 min vs PARK FOR ME\n\n## Output Format & Deliverables\n- Show the tape\n\n## Error Handling & Edge Cases\n- PARK FOR ME",
+                },
+              },
+            ],
+            usage: { prompt_tokens: 180, completion_tokens: 90 },
+          }),
+          { status: 200 },
+        );
+      });
+
+      const compiler = createPromptCompilerService({
+        apiKey: "sk-or-test-key",
+        fetchFn: mockFetch as unknown as typeof fetch,
+      });
+
+      const level2 = await compiler.compileLevel2({
+        rawInstruction:
+          "Tu es un agent d'analyse SEO pour Novamira. Vérifie les positions et propose des optimisations de contenu.",
+        botName: "SEO Novamira",
+      });
+
+      expect(level2.levelUsed).toBe("level2_llm");
+      expect(capturedSystemPrompt).toContain(CONTRACTUAL_AUTONOMY_RULE_FR);
+      expect(capturedSystemPrompt).toContain(SHOW_THE_TAPE_RULE_FR);
+      expect(capturedSystemPrompt).toContain(ANTI_PROMPT_INJECTION_RULE_FR);
+    });
+
+    it("4.2 (P4) injects French NO_SIGNAL silent routine directive on routine trigger and detects silent outputs", () => {
+      const bot = {
+        name: "Sentinelle",
+        title: "Veille Infrastructure",
+        description: "Surveille les alertes serveurs.",
+        instructions: "Vérifie l'état des conteneurs.",
+      };
+
+      const userPrompt = runIdentityInstruction(bot, "user");
+      expect(userPrompt).not.toContain(SILENT_ROUTINE_TOKEN);
+
+      const routinePrompt = runIdentityInstruction(bot, "routine");
+      expect(routinePrompt).toContain(SILENT_ROUTINE_DIRECTIVE_FR);
+      expect(routinePrompt).toContain("NO_SIGNAL — Aucun élément nouveau à signaler aujourd'hui.");
+
+      expect(isSilentRoutineOutput("NO_SIGNAL")).toBe(true);
+      expect(
+        isSilentRoutineOutput("NO_SIGNAL — Aucun élément nouveau à signaler aujourd'hui."),
+      ).toBe(true);
+      expect(isSilentRoutineOutput("  NO_SIGNAL: RAS  ")).toBe(true);
+      expect(isSilentRoutineOutput("Alerte critique détectée sur le conteneur web.")).toBe(false);
+      expect(isSilentRoutineOutput("")).toBe(false);
     });
   });
 });

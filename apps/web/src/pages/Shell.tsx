@@ -115,6 +115,15 @@ import {
   reduceThreadSnapshot,
   userHoldsComputerControl,
 } from "../lib/thread-events";
+import {
+  applySilentRoutineClause,
+  buildFiveLineThreadHandoff,
+  estimateTokensSavedByRemaster,
+  hasSilentRoutineClause,
+  type RemasterableMessage,
+  shouldSuggestThreadRemaster,
+  stripSilentRoutineClauseForEditor,
+} from "../lib/thread-remaster";
 import { speaker } from "../lib/tts";
 import type { ContextMenuPosition } from "./BotContextMenu";
 import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelector";
@@ -209,7 +218,12 @@ export function ShellPage() {
     name: "",
     prompt: "",
     schedule: defaultCronPreset(),
+    silentMode: true,
   });
+  const [remasterOpen, setRemasterOpen] = useState(false);
+  const [remasterDraft, setRemasterDraft] = useState("");
+  const [remasterCopied, setRemasterCopied] = useState(false);
+  const [remasterApplying, setRemasterApplying] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [deleteRoutineTarget, setDeleteRoutineTarget] = useState<Routine | null>(null);
   const [savingRoutine, setSavingRoutine] = useState(false);
@@ -689,8 +703,9 @@ export function ShellPage() {
       if (routine) {
         setRoutineDraft({
           name: routine.name,
-          prompt: routine.prompt,
+          prompt: stripSilentRoutineClauseForEditor(routine.prompt),
           schedule: presetFromCron(routine.cron),
+          silentMode: hasSilentRoutineClause(routine.prompt) || true,
         });
         setPanel("routine");
       } else {
@@ -874,7 +889,7 @@ export function ShellPage() {
     await refreshThreadRef.current(id);
   }, []);
   const addSkillRoutine = useCallback((name: string, prompt: string) => {
-    setRoutineDraft({ name, prompt, schedule: defaultCronPreset() });
+    setRoutineDraft({ name, prompt, schedule: defaultCronPreset(), silentMode: true });
     setEditingRoutine(null);
     setPanel("routine");
   }, []);
@@ -1029,6 +1044,10 @@ export function ShellPage() {
         return;
       }
       if (event.key === "Escape") {
+        if (remasterOpen && !remasterApplying) {
+          setRemasterOpen(false);
+          return;
+        }
         if (shortcutsOpen) {
           setShortcutsOpen(false);
           return;
@@ -1041,7 +1060,7 @@ export function ShellPage() {
     }
     window.addEventListener("keydown", onGlobalKeyDown);
     return () => window.removeEventListener("keydown", onGlobalKeyDown);
-  }, [shortcutsOpen, inChatSearchOpen]);
+  }, [shortcutsOpen, inChatSearchOpen, remasterOpen, remasterApplying]);
 
   useEffect(() => {
     if (!computerOpen) return;
@@ -1360,7 +1379,40 @@ export function ShellPage() {
               </span>
             </button>
           </div>
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 sm:gap-1.5">
+            {active && (snapshot?.messages?.length ?? 0) >= 2 ? (
+              <button
+                type="button"
+                data-testid="remaster-thread-trigger"
+                title="Remasteriser le fil en Handoff de 5 lignes (Économie de tokens)"
+                aria-label="Remasteriser le fil en Handoff de 5 lignes"
+                onClick={() => {
+                  const handoff = buildFiveLineThreadHandoff({
+                    botName: active.name,
+                    botTitle: active.title,
+                    botDescription: active.description,
+                    messages: (snapshot?.messages ?? []) as unknown as RemasterableMessage[],
+                  });
+                  setRemasterDraft(handoff);
+                  setRemasterCopied(false);
+                  setRemasterOpen(true);
+                }}
+                className={`flex h-[30px] items-center gap-1.5 rounded-[9px] border px-2 text-[12px] font-medium transition-colors sm:px-2.5 ${
+                  shouldSuggestThreadRemaster(snapshot?.messages?.length ?? 0)
+                    ? "border-[#8B5CF6]/50 bg-[#8B5CF6]/15 text-[#DDD6FE] hover:bg-[#8B5CF6]/25"
+                    : "border-[#26262A] bg-[#141417] text-[#C9C9CE] hover:bg-[#1B1B1E]"
+                }`}
+              >
+                <Sparkles size={13} strokeWidth={1.8} className="shrink-0 text-[#A78BFA]" />
+                <span className="sm:hidden">5L</span>
+                <span className="hidden sm:inline">Remasteriser</span>
+                {shouldSuggestThreadRemaster(snapshot?.messages?.length ?? 0) ? (
+                  <span className="hidden rounded-full bg-[#8B5CF6]/30 px-1.5 py-0.5 text-[10px] font-semibold text-[#EDE9FE] lg:inline">
+                    Éco Tokens
+                  </span>
+                ) : null}
+              </button>
+            ) : null}
             {active ? (
               <button
                 type="button"
@@ -1637,25 +1689,39 @@ export function ShellPage() {
                     onClick={() => {
                       setRoutineDraft({
                         name: routine.name,
-                        prompt: routine.prompt,
+                        prompt: stripSilentRoutineClauseForEditor(routine.prompt),
                         schedule: presetFromCron(routine.cron),
+                        silentMode: hasSilentRoutineClause(routine.prompt) || true,
                       });
                       setEditingRoutine(routine);
                       setPanel("routine");
                     }}
-                    className="flex w-full items-center gap-3 rounded-[11px] px-2.5 py-2.5 hover:bg-[#121214]"
+                    className="flex w-full items-center gap-2.5 rounded-[11px] px-2.5 py-2.5 hover:bg-[#121214]"
                   >
                     <span className="text-[#E65707]">◷</span>
-                    <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">
+                    <span className="min-w-0 flex-1 truncate text-left text-[14.5px] text-[#ECECEE]">
                       {routine.name}
                     </span>
-                    <span className="text-[13px] text-[#6C6C70]">{formatCron(routine.cron)}</span>
+                    <span
+                      title="Garde-fou Sobriété NO_SIGNAL actif"
+                      className="shrink-0 rounded-full border border-[#10B981]/30 bg-[#10B981]/10 px-2 py-0.5 text-[10.5px] font-medium text-[#34D399]"
+                    >
+                      NO_SIGNAL
+                    </span>
+                    <span className="shrink-0 text-[13px] text-[#6C6C70]">
+                      {formatCron(routine.cron)}
+                    </span>
                   </button>
                 ))}
                 <button
                   type="button"
                   onClick={() => {
-                    setRoutineDraft({ name: "", prompt: "", schedule: defaultCronPreset() });
+                    setRoutineDraft({
+                      name: "",
+                      prompt: "",
+                      schedule: defaultCronPreset(),
+                      silentMode: true,
+                    });
                     setEditingRoutine(null);
                     setPanel("routine");
                   }}
@@ -1677,6 +1743,7 @@ export function ShellPage() {
                         name: skill.name || skill.goal.slice(0, 80),
                         prompt: `Run taught skill: ${skill.name || skill.goal}\n${skill.playbook.steps.map((step, index) => `${index + 1}. ${step}`).join("\n")}`,
                         schedule: defaultCronPreset(),
+                        silentMode: true,
                       });
                       setEditingRoutine(null);
                       setPanel("routine");
@@ -1777,7 +1844,33 @@ export function ShellPage() {
                     />
                   </Suspense>
                 </div>
-                <div className="mt-5 flex items-center gap-3">
+                <label
+                  data-testid="routine-silent-mode-toggle"
+                  className="mt-4 flex cursor-pointer items-start gap-3 rounded-[12px] border border-[#26262A] bg-[#121215] p-3.5 transition-colors hover:border-[#34343A]"
+                >
+                  <input
+                    type="checkbox"
+                    checked={routineDraft.silentMode}
+                    onChange={(e) =>
+                      setRoutineDraft((s) => ({ ...s, silentMode: e.target.checked }))
+                    }
+                    className="mt-0.5 h-4 w-4 shrink-0 rounded border-[#3A3A40] bg-[#1B1B1F] accent-[#10B981]"
+                  />
+                  <span className="min-w-0 flex-1">
+                    <span className="flex flex-wrap items-center gap-2 text-[13.5px] font-medium text-[#ECECEE]">
+                      <span>Mode Routine Silencieuse</span>
+                      <span className="rounded-full bg-[#10B981]/15 px-2 py-0.5 font-mono text-[10.5px] text-[#34D399]">
+                        NO_SIGNAL
+                      </span>
+                    </span>
+                    <span className="mt-1 block text-[12.5px] leading-relaxed text-[#85858A]">
+                      Économie de tokens : si aucune nouveauté ou anomalie n'est détectée dès le 1er
+                      tour, l'agent répond « NO_SIGNAL » et s'arrête immédiatement sans rapport
+                      artificiel ni notification inutile.
+                    </span>
+                  </span>
+                </label>
+                <div className="mt-5 flex flex-wrap items-center gap-2.5 sm:gap-3">
                   <button
                     type="button"
                     disabled={savingRoutine || runningRoutine}
@@ -1788,19 +1881,23 @@ export function ShellPage() {
                       if (targetRoutine && targetRoutine.botId !== targetBotId) return;
                       routineSavePending.current = true;
                       setSavingRoutine(true);
+                      const finalRoutinePrompt = applySilentRoutineClause(
+                        routineDraft.prompt || "Check in.",
+                        routineDraft.silentMode,
+                      );
                       try {
                         if (targetRoutine) {
                           await rpc.routines.update({
                             routineId: targetRoutine.id,
                             name: routineDraft.name || "Routine",
-                            prompt: routineDraft.prompt || "Check in.",
+                            prompt: finalRoutinePrompt,
                             cron: cronFromPreset(routineDraft.schedule),
                           });
                         } else {
                           await rpc.routines.create({
                             botId: targetBotId,
                             name: routineDraft.name || "Routine",
-                            prompt: routineDraft.prompt || "Check in.",
+                            prompt: finalRoutinePrompt,
                             cron: cronFromPreset(routineDraft.schedule),
                             timezone: "UTC",
                             active: true,
@@ -2007,6 +2104,146 @@ export function ShellPage() {
                   </div>
                 ))}
               </dl>
+            </div>
+          </div>
+        ) : null}
+        {remasterOpen && active ? (
+          <div
+            data-testid="remaster-thread-dialog"
+            role="dialog"
+            aria-label="Remasteriser le fil en Handoff de 5 lignes"
+            className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5"
+          >
+            <button
+              type="button"
+              aria-label="Fermer la remasterisation du fil"
+              onClick={() => {
+                if (!remasterApplying) setRemasterOpen(false);
+              }}
+              className="absolute inset-0 h-full w-full cursor-default bg-black/75 backdrop-blur-sm"
+            />
+            <div className="relative z-10 flex max-h-[90dvh] w-full max-w-xl flex-col overflow-y-auto rounded-2xl border border-[#2C2C34] bg-[#141418] p-4 text-[#ECECEE] shadow-2xl sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Sparkles size={17} strokeWidth={1.8} className="shrink-0 text-[#A78BFA]" />
+                    <h3 className="text-[16px] font-semibold text-[#F1F1F4] sm:text-[17.5px]">
+                      Remasteriser le fil (Handoff 5 lignes)
+                    </h3>
+                  </div>
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-[#9A9AA0] sm:text-[13px]">
+                    Compacte l'historique actuel sans aucun appel IA et relance {active.name} sur un
+                    fil propre (0 token d'historique traîné) tout en préservant l'ordinateur et la
+                    mémoire.
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Fermer la modale de remasterisation"
+                  disabled={remasterApplying}
+                  onClick={() => setRemasterOpen(false)}
+                  className="shrink-0 rounded-lg p-1.5 text-[#85858A] hover:bg-[#1F1F24] hover:text-[#ECECEE]"
+                >
+                  <X size={16} strokeWidth={1.8} />
+                </button>
+              </div>
+
+              {(() => {
+                const stats = estimateTokensSavedByRemaster(
+                  (snapshot?.messages ?? []) as unknown as RemasterableMessage[],
+                  remasterDraft,
+                );
+                return (
+                  <div className="mt-3.5 grid grid-cols-3 gap-2 rounded-xl border border-[#24242C] bg-[#0E0E11] p-2.5 text-center sm:p-3">
+                    <div>
+                      <div className="text-[11px] text-[#85858A]">Messages condensés</div>
+                      <div className="mt-0.5 font-mono text-[14px] font-semibold text-[#ECECEE] sm:text-[15px]">
+                        {snapshot?.messages?.length ?? 0} → 1
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-[#85858A]">Tokens économisés</div>
+                      <div className="mt-0.5 font-mono text-[14px] font-semibold text-[#34D399] sm:text-[15px]">
+                        ~{stats.savedTokens}
+                      </div>
+                    </div>
+                    <div>
+                      <div className="text-[11px] text-[#85858A]">Allègement contexte</div>
+                      <div className="mt-0.5 font-mono text-[14px] font-semibold text-[#A78BFA] sm:text-[15px]">
+                        -{stats.reductionPercent}%
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
+              <label className="mt-3.5 block text-[12.5px] font-medium text-[#C9C9CE] sm:text-[13px]">
+                Handoff de continuité (modifiable avant relance)
+                <textarea
+                  data-testid="remaster-thread-textarea"
+                  value={remasterDraft}
+                  onChange={(e) => setRemasterDraft(e.target.value)}
+                  rows={6}
+                  className="mt-1.5 w-full rounded-xl border border-[#2C2C34] bg-[#0B0B0D] px-3 py-2.5 font-mono text-[16px] leading-relaxed text-[#ECECEE] outline-none focus:border-[#8B5CF6] sm:text-[13px]"
+                />
+              </label>
+
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <button
+                  type="button"
+                  data-testid="remaster-thread-copy"
+                  onClick={() => {
+                    void navigator.clipboard?.writeText(remasterDraft);
+                    setRemasterCopied(true);
+                    window.setTimeout(() => setRemasterCopied(false), 2000);
+                  }}
+                  className="w-full rounded-xl border border-[#2C2C34] bg-[#1A1A1F] px-3.5 py-2.5 text-[13.5px] font-medium text-[#C9C9CE] hover:bg-[#232329] sm:w-auto"
+                >
+                  {remasterCopied ? "✓ Copié dans le presse-papiers" : "Copier les 5 lignes"}
+                </button>
+                <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+                  <button
+                    type="button"
+                    disabled={remasterApplying}
+                    onClick={() => setRemasterOpen(false)}
+                    className="w-full rounded-xl px-3.5 py-2.5 text-[13.5px] text-[#9A9AA0] hover:bg-[#1F1F24] sm:w-auto"
+                  >
+                    Annuler
+                  </button>
+                  <button
+                    type="button"
+                    data-testid="remaster-thread-apply"
+                    disabled={remasterApplying || !remasterDraft.trim()}
+                    onClick={async () => {
+                      if (!active || remasterApplying) return;
+                      const targetBotId = active.id;
+                      const handoffToSend = remasterDraft.trim();
+                      setRemasterApplying(true);
+                      try {
+                        await rpc.threads.clear({ botId: targetBotId });
+                        if (activeBotId.current === targetBotId) {
+                          expandedHistoryThread.current = null;
+                          pinnedAroundRef.current = null;
+                          historyEpoch.current += 1;
+                          setSnapshot((current) =>
+                            current
+                              ? { ...current, messages: [], olderCursor: null, run: null }
+                              : current,
+                          );
+                        }
+                        setRemasterOpen(false);
+                        await sendMessage(handoffToSend);
+                        await refreshBots();
+                      } finally {
+                        setRemasterApplying(false);
+                      }
+                    }}
+                    className="w-full rounded-xl bg-[#8B5CF6] px-4 py-2.5 text-[13.5px] font-semibold text-white shadow-sm hover:bg-[#7C3AED] disabled:opacity-50 sm:w-auto"
+                  >
+                    {remasterApplying ? "Remasterisation…" : "Nettoyer le fil & Relancer"}
+                  </button>
+                </div>
+              </div>
             </div>
           </div>
         ) : null}
