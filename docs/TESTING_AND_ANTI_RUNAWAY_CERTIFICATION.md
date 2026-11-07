@@ -75,7 +75,7 @@ Ces composants constituent le cœur de l'application et sont vérifiés à chaqu
 | **Cloisonnement Description Publique vs Instructions Privées** | `81640fa3e` (#1504) | `packages/adapters/src/executor.ts` (`runIdentityInstruction`), `builtin-tools.ts`, `child-bots.ts` |
 | **Avertissement sur les modèles texte-uniquement (sans vision)** | `7d9cef3c6` | `packages/adapters/src/pi-models.ts`, `apps/web/src/pages/ModelSettingsOverlay.tsx` |
 | **Bouton Stop ultra-réactif (< 1 seconde)** | `v0.8.0` | `packages/adapters/src/executor.ts` (`cancelPoll`), `apps/api/src/router.ts` (`threads.stop`) |
-| **Raccourcis clavier (`⌘/Ctrl+/`, `⌘/Ctrl+F`) & Persistance des fichiers joints** | `ed6715893` / `v0.8.0` | `apps/web/src/pages/Shell.tsx`, `apps/web/src/lib/pending-attachments.ts` |
+| **Persistance des fichiers joints & Recherche dans la discussion** | `ed6715893` / `v0.8.0` | `apps/web/src/pages/Shell.tsx`, `apps/web/src/lib/pending-attachments.ts` |
 
 ---
 
@@ -100,4 +100,5 @@ Ces composants constituent le cœur de l'application et sont vérifiés à chaqu
 | **Idée n°3 — Cockpit de Sobriété IA & Météo des 18 Connecteurs MCP** | `apps/web/src/pages/SovereignCockpitOverlay.tsx`, `apps/web/src/pages/Shell.tsx` | Tableau de bord centralisé affichant en temps réel l'état des **7 couches anti-emballement**, la consommation hebdomadaire de tokens, l'état de la passerelle **OmniRoute** et la météo des **18 connecteurs MCP Souverains (87 outils)**. |
 | **Idée n°4 — Modèles de Routines Quotidiennes Prêts à l'Emploi** | `packages/contracts/src/sovereign-agent-blueprints.ts` (`SOVEREIGN_ROUTINE_TEMPLATES`), `apps/web/src/pages/Shell.tsx` | **5 modèles de routines** en 1 clic calés sur `Europe/Paris` (`24h`) avec garde-fou `NO_SIGNAL` intégré (*Briefing CRM 08:30*, *Opportunités SEO Lundi 09:00*, *Brouillons Postiz Mar/Jeu 09:00*, *Sentinelle Infrastructure 07:30*, *Bilan Hebdo Vendredi 17:00*). |
 | **Idée n°5 — Bouton « Mémoriser en Skill » depuis le Chat** | `apps/web/src/pages/Shell.tsx` (`MessageView`), `apps/web/src/pages/SkillLibraryOverlay.tsx` | Bouton d'action directe sous chaque réponse d'agent permettant d'ouvrir l'éditeur de la Bibliothèque de Compétences pré-rempli avec la méthodologie de la réponse pour la capitaliser en 1 clic. |
+| **Épuration UI & Ergonomie Multi-Support (Android, iOS, Tablette, PC)** | `apps/web/src/pages/Shell.tsx`, `apps/web/src/tests/shell-integration.test.tsx` | Suppression complète des interfaces de synthèse vocale, dictée micro et raccourcis clavier. Remplacement du bouton d'ordinateur par l'icône explicite `CalendarClock` (**« Routines programmées & Automatisation de l'agent »** avec infobulle au survol et compteur de routines actives) et agrandissement de la loupe de recherche (`<Search size={18} />`). Adaptation plein écran fluide des tiroirs latéraux sur smartphone Android/iOS. |
 
