@@ -2,8 +2,11 @@ import {
   buildSkillMarkdown,
   formatYamlBlockScalar,
   getAllSovereignTools,
+  MAX_SKILLS_PER_PACK,
   parseSkillMarkdown,
   SOVEREIGN_MCP_CONNECTORS,
+  SOVEREIGN_SKILL_PACKS,
+  SOVEREIGN_SKILLS_CATALOG,
 } from "@rakazo/contracts";
 import {
   isAgedStuckWork,
@@ -57,6 +60,7 @@ import {
   extractThoughtTrace,
   SHOW_THE_TAPE_RULE_FR,
 } from "./prompt-compiler.js";
+import { getSovereignSkillContent, getSovereignSkillFull } from "./sovereign-skills-store.js";
 import {
   SUBAGENT_MAX_DEPTH,
   SUBAGENT_TOKEN_BUDGET_CEILING,
@@ -557,6 +561,24 @@ describe("Master Sovereign Sanctuary, Anti-Runaway & v0.8.0+ Certification Suite
       expect(isSilentRoutineOutput("  NO_SIGNAL: RAS  ")).toBe(true);
       expect(isSilentRoutineOutput("Alerte critique détectée sur le conteneur web.")).toBe(false);
       expect(isSilentRoutineOutput("")).toBe(false);
+    });
+
+    it("4.3 resolves all 379 Sovereign Skills Markdown bodies across 51 Mission Packs (<= 10 skills/pack)", () => {
+      expect(SOVEREIGN_SKILL_PACKS).toHaveLength(51);
+      expect(SOVEREIGN_SKILLS_CATALOG).toHaveLength(379);
+      for (const pack of SOVEREIGN_SKILL_PACKS) {
+        expect(pack.skills.length).toBeGreaterThanOrEqual(1);
+        expect(pack.skills.length).toBeLessThanOrEqual(MAX_SKILLS_PER_PACK);
+      }
+      for (const summary of SOVEREIGN_SKILLS_CATALOG) {
+        const content = getSovereignSkillContent(summary.slug);
+        expect(typeof content).toBe("string");
+        expect(content!.length).toBeGreaterThan(20);
+        const full = getSovereignSkillFull(`sov-skill:${summary.slug}`);
+        expect(full?.slug).toBe(summary.slug);
+        expect(full?.name).toBe(summary.name);
+        expect(full?.content.length).toBeGreaterThan(20);
+      }
     });
   });
 });

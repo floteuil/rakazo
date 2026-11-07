@@ -1,5 +1,5 @@
 import { ChatMarkdown } from "@rakazo/chat-ui/web";
-import type { Skill, SkillSummary } from "@rakazo/contracts";
+import { type Skill, type SkillSummary, SOVEREIGN_SKILLS_CATALOG } from "@rakazo/contracts";
 import { Button } from "@rakazo/ui-web";
 import {
   AlertCircle,
@@ -318,8 +318,27 @@ export function SkillLibraryOverlay({
   onClose,
   onSelectSkill,
 }: SkillLibraryOverlayProps) {
-  const [skills, setSkills] = useState<SkillItem[]>(initialSkills ?? []);
-  const [loading, setLoading] = useState(!initialSkills);
+  const defaultCatalogItems = useMemo<SkillItem[]>(
+    () =>
+      SOVEREIGN_SKILLS_CATALOG.map((s) => ({
+        id: s.id,
+        name: s.name,
+        slug: s.slug,
+        description: s.description,
+        tags: s.tags,
+        sizeBytes: s.sizeBytes,
+        metadata: {
+          sovereign: true,
+          packId: s.packId,
+          packName: s.packName,
+          category: s.category,
+          sizeBytes: s.sizeBytes,
+        },
+      })),
+    [],
+  );
+  const [skills, setSkills] = useState<SkillItem[]>(initialSkills ?? defaultCatalogItems);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
@@ -344,28 +363,44 @@ export function SkillLibraryOverlay({
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputId = useId();
 
-  // Load skills via RPC if not supplied via props
+  // Load skills via RPC if not supplied via props and merge with Sovereign Catalog
   async function refreshSkills() {
     if (initialSkills) return;
     try {
       setLoading(true);
-      const list = await rpc.skills.list({});
-      const formatted: SkillItem[] = list.map((s: SkillSummary) => ({
-        id: s.id,
-        name: s.name,
-        slug: s.slug,
-        description: s.description,
-        tags: s.tags,
-        metadata: s.metadata,
-        createdAt: s.createdAt,
-        updatedAt: s.updatedAt,
-        sizeBytes:
-          s.metadata && typeof s.metadata.sizeBytes === "number" ? s.metadata.sizeBytes : 1500,
-      }));
-      setSkills(formatted);
+      const list = await rpc.skills.list({ limit: 100 });
+      const dbBySlug = new Map<string, SkillItem>();
+      const customItems: SkillItem[] = [];
+      const sovereignSlugSet = new Set(defaultCatalogItems.map((item) => item.slug.toLowerCase()));
+
+      for (const s of list) {
+        const formatted: SkillItem = {
+          id: s.id,
+          name: s.name,
+          slug: s.slug,
+          description: s.description,
+          tags: s.tags,
+          metadata: s.metadata,
+          createdAt: s.createdAt,
+          updatedAt: s.updatedAt,
+          sizeBytes:
+            s.metadata && typeof s.metadata.sizeBytes === "number" ? s.metadata.sizeBytes : 1500,
+        };
+        const lower = s.slug.toLowerCase();
+        dbBySlug.set(lower, formatted);
+        if (!sovereignSlugSet.has(lower)) {
+          customItems.push(formatted);
+        }
+      }
+
+      const merged = [
+        ...customItems,
+        ...defaultCatalogItems.map((sov) => dbBySlug.get(sov.slug.toLowerCase()) ?? sov),
+      ];
+      setSkills(merged);
       setError(null);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Impossible de charger les compétences.");
+    } catch {
+      setSkills(defaultCatalogItems);
     } finally {
       setLoading(false);
     }

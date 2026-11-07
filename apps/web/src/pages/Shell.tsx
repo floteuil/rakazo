@@ -128,6 +128,7 @@ import {
 import { speaker } from "../lib/tts";
 import type { ContextMenuPosition } from "./BotContextMenu";
 import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelector";
+import { BotSkillSelector } from "./BotSkillSelector";
 import { HostComputerPrompt } from "./HostComputerPrompt";
 import { PromptCompilerModal } from "./PromptCompilerModal";
 import { WindowChrome } from "./WindowChrome";
@@ -3706,69 +3707,12 @@ function CreateBotForm({
           className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[16px] sm:text-sm text-[#ECECEE]"
         />
       </div>
-      <div className="mt-4">
-        <span className="block text-[14px] text-[#85858A]">
-          Compétences de la bibliothèque (Skills)
-        </span>
-        {selectedSkillIds.length > 0 ? (
-          <div className="mt-2 flex flex-wrap gap-1.5">
-            {selectedSkillIds.map((id) => {
-              const skill = availableSkills.find((s) => s.id === id);
-              if (!skill) return null;
-              const isDirect =
-                (typeof skill.metadata?.sizeBytes === "number" ? skill.metadata.sizeBytes : 1500) <
-                4096;
-              return (
-                <span
-                  key={id}
-                  className="inline-flex items-center gap-1.5 rounded-lg border border-[#26262A] bg-[#17171A] px-2.5 py-1 text-xs text-[#ECECEE]"
-                >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      isDirect ? "bg-emerald-400" : "bg-blue-400"
-                    }`}
-                  />
-                  <span>{skill.name}</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedSkillIds(selectedSkillIds.filter((sid) => sid !== id))
-                    }
-                    className="text-[#71717A] hover:text-white"
-                  >
-                    ✕
-                  </button>
-                </span>
-              );
-            })}
-          </div>
-        ) : null}
-        {availableSkills.filter((s) => !selectedSkillIds.includes(s.id)).length > 0 ? (
-          <select
-            value=""
-            onChange={(e) => {
-              if (e.target.value) {
-                setSelectedSkillIds([...selectedSkillIds, e.target.value]);
-              }
-            }}
-            className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-[#17171A] px-3.5 py-2.5 text-xs text-[#ECECEE]"
-          >
-            <option value="">+ Associer une compétence de la bibliothèque...</option>
-            {availableSkills
-              .filter((s) => !selectedSkillIds.includes(s.id))
-              .map((s) => (
-                <option key={s.id} value={s.id}>
-                  {s.name} ({s.slug})
-                </option>
-              ))}
-          </select>
-        ) : (
-          <p className="mt-1 text-[12px] text-[#71717A]">
-            {availableSkills.length === 0
-              ? "Aucune compétence disponible dans la bibliothèque."
-              : "Toutes les compétences disponibles ont été associées."}
-          </p>
-        )}
+      <div className="mt-6 border-t border-[#26262A] pt-5">
+        <BotSkillSelector
+          selectedSkillIds={selectedSkillIds}
+          onChange={setSelectedSkillIds}
+          availableSkills={availableSkills}
+        />
       </div>
 
       <div className="mt-6 border-t border-[#26262A] pt-5">
@@ -3897,54 +3841,6 @@ function BotSettings({
     });
   };
 
-  const activeSkillsList = useMemo(() => {
-    return selectedSkillIds
-      .map((id) => {
-        const fromBot = botSkills.find((s) => s.id === id);
-        if (fromBot) return fromBot;
-        const fromAll = availableSkills.find((s) => s.id === id);
-        if (fromAll) {
-          return {
-            id: fromAll.id,
-            workspaceId: fromAll.workspaceId,
-            userId: fromAll.userId,
-            name: fromAll.name,
-            slug: fromAll.slug,
-            description: fromAll.description,
-            content: "",
-            tags: fromAll.tags,
-            metadata: fromAll.metadata,
-            createdAt: fromAll.createdAt,
-            updatedAt: fromAll.updatedAt,
-          } as Skill;
-        }
-        return null;
-      })
-      .filter((s): s is Skill => s !== null);
-  }, [selectedSkillIds, botSkills, availableSkills]);
-
-  const { directCount, directBytes, indexedCount } = useMemo(() => {
-    let dCount = 0;
-    let dBytes = 0;
-    let iCount = 0;
-    for (const s of activeSkillsList) {
-      const len = s.content
-        ? typeof TextEncoder !== "undefined"
-          ? new TextEncoder().encode(s.content).length
-          : s.content.length
-        : typeof s.metadata?.sizeBytes === "number"
-          ? s.metadata.sizeBytes
-          : 1500;
-      if (len < 4096) {
-        dCount += 1;
-        dBytes += len;
-      } else {
-        iCount += 1;
-      }
-    }
-    return { directCount: dCount, directBytes: dBytes, indexedCount: iCount };
-  }, [activeSkillsList]);
-
   return (
     <div data-testid="bot-settings">
       <div className="flex justify-center">
@@ -4001,85 +3897,13 @@ function BotSettings({
       </div>
       <ComputerModePicker value={computerMode} onChange={setComputerMode} />
       <div className="mt-6 border-t border-[#26262A] pt-5">
-        <div className="flex items-center justify-between">
-          <span className="text-[14px] font-medium text-[#ECECEE]">
-            Compétences actives (Skills)
-          </span>
-          <span className="text-[11px] text-[#71717A]">
-            {activeSkillsList.length === 0
-              ? "0 compétence"
-              : `${directCount} directe(s) (${(directBytes / 1024).toFixed(1)} Ko)${
-                  indexedCount > 0 ? `, ${indexedCount} indexée(s)` : ""
-                }`}
-          </span>
-        </div>
-
-        {activeSkillsList.length > 0 ? (
-          <div className="mt-3 flex flex-wrap gap-2">
-            {activeSkillsList.map((skill) => {
-              const byteLen = skill.content
-                ? typeof TextEncoder !== "undefined"
-                  ? new TextEncoder().encode(skill.content).length
-                  : skill.content.length
-                : typeof skill.metadata?.sizeBytes === "number"
-                  ? skill.metadata.sizeBytes
-                  : 1500;
-              const isDirect = byteLen < 4096;
-              return (
-                <div
-                  key={skill.id}
-                  className="flex items-center gap-2 rounded-lg border border-[#26262A] bg-[#17171A] px-3 py-1.5 text-xs text-[#ECECEE]"
-                >
-                  <span
-                    className={`h-1.5 w-1.5 rounded-full ${
-                      isDirect ? "bg-emerald-400" : "bg-blue-400"
-                    }`}
-                  />
-                  <span className="font-medium">{skill.name}</span>
-                  <span className="text-[10px] text-[#71717A] font-mono">({skill.slug})</span>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setSelectedSkillIds(selectedSkillIds.filter((id) => id !== skill.id))
-                    }
-                    className="ml-1 text-[#71717A] hover:text-rose-400 transition-colors"
-                    title="Détacher la compétence"
-                  >
-                    ✕
-                  </button>
-                </div>
-              );
-            })}
-          </div>
-        ) : (
-          <p className="mt-2 text-xs text-[#71717A]">
-            Aucune compétence active. Associez des compétences de la bibliothèque pour enrichir les
-            connaissances de cet agent.
-          </p>
-        )}
-
-        {availableSkills.filter((s) => !selectedSkillIds.includes(s.id)).length > 0 ? (
-          <div className="mt-3">
-            <select
-              value=""
-              onChange={(e) => {
-                if (e.target.value) {
-                  setSelectedSkillIds([...selectedSkillIds, e.target.value]);
-                }
-              }}
-              className="w-full rounded-[11px] border border-[#26262A] bg-[#17171A] px-3.5 py-2.5 text-xs text-[#ECECEE]"
-            >
-              <option value="">+ Attacher une compétence de la bibliothèque...</option>
-              {availableSkills
-                .filter((s) => !selectedSkillIds.includes(s.id))
-                .map((s) => (
-                  <option key={s.id} value={s.id}>
-                    {s.name} ({s.slug})
-                  </option>
-                ))}
-            </select>
-          </div>
-        ) : null}
+        <BotSkillSelector
+          selectedSkillIds={selectedSkillIds}
+          onChange={setSelectedSkillIds}
+          availableSkills={availableSkills}
+          botSkills={botSkills}
+          disabled={saving}
+        />
       </div>
 
       <div className="mt-6 border-t border-[#26262A] pt-5">

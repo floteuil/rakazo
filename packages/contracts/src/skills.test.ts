@@ -22,6 +22,18 @@ import {
   sanitizeMarkdownContent,
   slugify,
 } from "./skill-parser.js";
+import {
+  extractSovereignSkillSlug,
+  getSovereignPackById,
+  getSovereignSkillBySlug,
+  isSovereignSkillId,
+  MAX_SKILLS_PER_PACK,
+  SOVEREIGN_SKILL_CATEGORIES,
+  SOVEREIGN_SKILL_ID_PREFIX,
+  SOVEREIGN_SKILL_PACKS,
+  SOVEREIGN_SKILLS_CATALOG,
+  toSovereignSkillId,
+} from "./sovereign-skills-catalog.js";
 
 // ============================================================================
 // 4-TIER TEST SUITE
@@ -376,6 +388,46 @@ Règles impératives :
       expect(parsed.tags).toEqual(["securite", "hds", "sante", "rgpd", "chiffrement"]);
       expect(parsed.metadata.compliance).toBe("HDS-FR-2026");
       expect(parsed.content).toContain("Chiffrement au repos (AES-256-GCM)");
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // TIER 5: PRE-PACKAGED SOVEREIGN SKILLS CATALOG & MISSION PACKS (<= 10 SKILLS)
+  // --------------------------------------------------------------------------
+  describe("Tier 5: Sovereign Skills Catalog & Mission Packs (Gemini 3.1 Context Sobriety)", () => {
+    it("5.1 enforces MAX_SKILLS_PER_PACK = 10 across all 51 Mission Packs", () => {
+      expect(MAX_SKILLS_PER_PACK).toBe(10);
+      expect(SOVEREIGN_SKILL_PACKS.length).toBe(51);
+      for (const pack of SOVEREIGN_SKILL_PACKS) {
+        expect(pack.skills.length).toBeGreaterThanOrEqual(1);
+        expect(pack.skills.length).toBeLessThanOrEqual(MAX_SKILLS_PER_PACK);
+      }
+    });
+
+    it("5.2 contains all 379 unique curated skills with unique slugs and valid categories", () => {
+      expect(SOVEREIGN_SKILLS_CATALOG.length).toBe(379);
+      const validCategories = new Set(SOVEREIGN_SKILL_CATEGORIES.map((c) => c.id));
+      const slugs = new Set<string>();
+      for (const skill of SOVEREIGN_SKILLS_CATALOG) {
+        expect(skill.slug.length).toBeGreaterThan(0);
+        expect(skill.name.length).toBeGreaterThan(0);
+        expect(skill.sizeBytes).toBeGreaterThan(0);
+        expect(validCategories.has(skill.category)).toBe(true);
+        expect(slugs.has(skill.slug)).toBe(false);
+        slugs.add(skill.slug);
+      }
+    });
+
+    it("5.3 resolves Sovereign Skill IDs, slugs, and packs deterministically", () => {
+      const sample = SOVEREIGN_SKILLS_CATALOG[0]!;
+      const id = toSovereignSkillId(sample.slug);
+      expect(id).toBe(`${SOVEREIGN_SKILL_ID_PREFIX}${sample.slug}`);
+      expect(isSovereignSkillId(id)).toBe(true);
+      expect(isSovereignSkillId("cuid-custom-123")).toBe(false);
+      expect(extractSovereignSkillSlug(id)).toBe(sample.slug);
+      expect(getSovereignSkillBySlug(sample.slug)?.name).toBe(sample.name);
+      expect(getSovereignSkillBySlug(id)?.slug).toBe(sample.slug);
+      expect(getSovereignPackById(sample.packId)?.id).toBe(sample.packId);
     });
   });
 });

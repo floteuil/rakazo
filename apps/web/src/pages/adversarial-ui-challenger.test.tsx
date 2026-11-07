@@ -1,10 +1,18 @@
-import { type BotMcpConfig, SOVEREIGN_MCP_CONNECTORS } from "@rakazo/contracts";
+import {
+  type BotMcpConfig,
+  MAX_SKILLS_PER_PACK,
+  SOVEREIGN_MCP_CONNECTORS,
+  SOVEREIGN_SKILL_PACKS,
+  SOVEREIGN_SKILLS_CATALOG,
+  toSovereignSkillId,
+} from "@rakazo/contracts";
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it } from "vitest";
 import { AuthPage } from "./Auth";
 import { BotMcpToolSelector } from "./BotMcpToolSelector";
+import { BotSkillSelector } from "./BotSkillSelector";
 import { ModelSettingsOverlay } from "./ModelSettingsOverlay";
 import { PluginsOverlay } from "./PluginsOverlay";
 import { RoutineSchedule } from "./RoutineSchedule";
@@ -345,6 +353,51 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
           expect(Array.isArray(tool.requiredParams)).toBe(true);
         }
       }
+    });
+  });
+
+  // --------------------------------------------------------------------------
+  // SUITE 5: BotSkillSelector & Sovereign Skills Packs (<= 10 skills/pack)
+  // --------------------------------------------------------------------------
+  describe("Suite 5: BotSkillSelector & Sovereign Skills Packs (<= 10 skills/pack)", () => {
+    it("5.1 renders with 0 skills activated by default and displays 51 packs (max 10 skills/pack)", () => {
+      const html = renderToStaticMarkup(
+        <BotSkillSelector selectedSkillIds={[]} onChange={() => {}} />,
+      );
+
+      expect(html).toContain("0 compétence active");
+      expect(html).toContain(`Max ${MAX_SKILLS_PER_PACK} skills / pack`);
+      expect(html).toContain("Tous (51 packs)");
+      expect(html).toContain("text-[16px]"); // iOS Safari anti-auto-zoom
+    });
+
+    it("5.2 renders selected pack skills with Tri-State indicators and active pills", () => {
+      const firstPack = SOVEREIGN_SKILL_PACKS[0]!;
+      const selectedIds = firstPack.skills.map((s) => toSovereignSkillId(s.slug));
+      const html = renderToStaticMarkup(
+        <BotSkillSelector selectedSkillIds={selectedIds} onChange={() => {}} />,
+      );
+
+      expect(html).toContain(`${selectedIds.length} active(s)`);
+      expect(html).toContain(`${selectedIds.length}/${selectedIds.length} skills`);
+      expect(html).toContain(`pack-toggle-${firstPack.id}`);
+      expect(html).toContain("Tout désactiver");
+    });
+
+    it("5.3 displays Gemini 3.1 context sobriety warning when > 20 skills are selected", () => {
+      const manyIds = SOVEREIGN_SKILLS_CATALOG.slice(0, 25).map((s) => toSovereignSkillId(s.slug));
+      const html = renderToStaticMarkup(
+        <BotSkillSelector selectedSkillIds={manyIds} onChange={() => {}} />,
+      );
+
+      expect(html).toContain("Sobriété Gemini 3.1 (25 compétences sélectionnées)");
+    });
+
+    it("5.4 SkillLibraryOverlay pre-loads all 379 Sovereign Skills by default", () => {
+      const html = renderToStaticMarkup(<SkillLibraryOverlay onClose={() => {}} />);
+      expect(html).toContain("Bibliothèque de Compétences");
+      expect(html).toContain("skill-card-sov-skill:seo");
+      expect(html).toContain("skill-card-sov-skill:webdriverio-skill");
     });
   });
 });

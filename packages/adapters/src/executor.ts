@@ -98,6 +98,7 @@ import {
 } from "./pi-oauth.js";
 import { inferScript } from "./scripted-runtime.js";
 import type { EncryptedSecretStore } from "./secrets.js";
+import { getSovereignSkillFull } from "./sovereign-skills-store.js";
 import {
   isSupermemoryEnabled,
   searchSupermemory,
@@ -1039,21 +1040,30 @@ export function createRunExecutor(deps: ExecutorDeps) {
             if (!target) {
               return finish({ error: "Paramètre 'name' manquant pour read_skill." });
             }
-            if (!deps.prisma.skill?.findFirst) {
-              return finish({ error: `Skill '${target}' not found in workspace.` });
-            }
             const targetLower = target.toLowerCase();
-            const skill = await deps.prisma.skill.findFirst({
-              where: {
-                workspaceId: run.workspaceId,
-                OR: [
-                  { slug: targetLower },
-                  { name: { equals: target, mode: "insensitive" } },
-                  { id: target },
-                ],
-              },
-            });
+            const skill = deps.prisma.skill?.findFirst
+              ? await deps.prisma.skill.findFirst({
+                  where: {
+                    workspaceId: run.workspaceId,
+                    OR: [
+                      { slug: targetLower },
+                      { name: { equals: target, mode: "insensitive" } },
+                      { id: target },
+                    ],
+                  },
+                })
+              : null;
             if (!skill) {
+              const sovereign = getSovereignSkillFull(target);
+              if (sovereign) {
+                return finish({
+                  name: sovereign.name,
+                  slug: sovereign.slug,
+                  description: sovereign.description,
+                  tags: sovereign.tags,
+                  content: sovereign.content,
+                });
+              }
               return finish({ error: `Skill '${target}' not found in workspace.` });
             }
             const tags = Array.isArray(skill.tags)

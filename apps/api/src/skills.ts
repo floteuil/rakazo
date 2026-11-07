@@ -1,4 +1,5 @@
 import { ORPCError } from "@orpc/server";
+import { getSovereignSkillFull } from "@rakazo/adapters";
 import {
   type Actor,
   type AssignSkillsToBotInput,
@@ -168,13 +169,47 @@ export async function getSkill(
     const row = await deps.prisma.skill.findUnique({
       where: { id: input.skillId },
     });
-    if (!row) {
-      throw new ORPCError("NOT_FOUND", { message: "Skill not found" });
+    if (row) {
+      if (row.workspaceId !== actor.workspaceId) {
+        throw new IsolationError("Resource does not belong to the active workspace");
+      }
+      return mapSkill(row);
     }
-    if (row.workspaceId !== actor.workspaceId) {
-      throw new IsolationError("Resource does not belong to the active workspace");
+
+    const sovereign = getSovereignSkillFull(input.skillId);
+    if (sovereign) {
+      const existingBySlug = await deps.prisma.skill.findUnique({
+        where: {
+          workspaceId_slug: {
+            workspaceId: actor.workspaceId,
+            slug: sovereign.slug,
+          },
+        },
+      });
+      if (existingBySlug) return mapSkill(existingBySlug);
+      const nowIso = new Date().toISOString();
+      return {
+        id: sovereign.id,
+        workspaceId: actor.workspaceId,
+        userId: actor.userId,
+        name: sovereign.name,
+        slug: sovereign.slug,
+        description: sovereign.description,
+        content: sovereign.content,
+        tags: sovereign.tags,
+        metadata: {
+          sovereign: true,
+          packId: sovereign.packId,
+          packName: sovereign.packName,
+          category: sovereign.category,
+          sizeBytes: sovereign.sizeBytes,
+        },
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
     }
-    return mapSkill(row);
+
+    throw new ORPCError("NOT_FOUND", { message: "Skill not found" });
   }
 
   if (input.slug) {
@@ -186,10 +221,35 @@ export async function getSkill(
         },
       },
     });
-    if (!row) {
-      throw new ORPCError("NOT_FOUND", { message: "Skill not found" });
+    if (row) {
+      return mapSkill(row);
     }
-    return mapSkill(row);
+
+    const sovereign = getSovereignSkillFull(input.slug);
+    if (sovereign) {
+      const nowIso = new Date().toISOString();
+      return {
+        id: sovereign.id,
+        workspaceId: actor.workspaceId,
+        userId: actor.userId,
+        name: sovereign.name,
+        slug: sovereign.slug,
+        description: sovereign.description,
+        content: sovereign.content,
+        tags: sovereign.tags,
+        metadata: {
+          sovereign: true,
+          packId: sovereign.packId,
+          packName: sovereign.packName,
+          category: sovereign.category,
+          sizeBytes: sovereign.sizeBytes,
+        },
+        createdAt: nowIso,
+        updatedAt: nowIso,
+      };
+    }
+
+    throw new ORPCError("NOT_FOUND", { message: "Skill not found" });
   }
 
   throw new ORPCError("BAD_REQUEST", { message: "Either skillId or slug must be provided" });
@@ -237,9 +297,38 @@ export async function updateSkill(
   actor: Actor,
   input: UpdateSkillInput,
 ): Promise<Skill> {
-  const existing = await deps.prisma.skill.findUnique({
+  let existing = await deps.prisma.skill.findUnique({
     where: { id: input.skillId },
   });
+  if (!existing) {
+    const sovereign = getSovereignSkillFull(input.skillId);
+    if (sovereign) {
+      existing = await deps.prisma.skill.findUnique({
+        where: {
+          workspaceId_slug: {
+            workspaceId: actor.workspaceId,
+            slug: sovereign.slug,
+          },
+        },
+      });
+      if (!existing) {
+        return createSkill(deps, actor, {
+          name: input.name ?? sovereign.name,
+          slug: input.slug ?? sovereign.slug,
+          description: input.description ?? sovereign.description,
+          content: input.content ?? sovereign.content,
+          tags: input.tags ?? sovereign.tags,
+          metadata: input.metadata ?? {
+            sovereign: true,
+            packId: sovereign.packId,
+            packName: sovereign.packName,
+            category: sovereign.category,
+            sizeBytes: sovereign.sizeBytes,
+          },
+        });
+      }
+    }
+  }
   if (!existing) {
     throw new ORPCError("NOT_FOUND", { message: "Skill not found" });
   }
@@ -375,19 +464,69 @@ export async function assignSkillsToBot(
     throw new IsolationError("Bot does not belong to active workspace");
   }
 
-  // Validate all skills belong to actor workspace
-  if (input.skillIds.length > 0) {
+  const uniqueRequested = Array.from(new Set(input.skillIds));
+  const resolvedSkillIds: string[] = [];
+
+  if (uniqueRequested.length > 0) {
     const matchingSkills = await deps.prisma.skill.findMany({
       where: {
-        id: { in: input.skillIds },
+        id: { in: uniqueRequested },
         workspaceId: actor.workspaceId,
       },
       select: { id: true },
     });
-    if (matchingSkills.length !== input.skillIds.length) {
-      throw new IsolationError("Skill does not belong to active workspace");
+    const foundIdSet = new Set(matchingSkills.map((s) => s.id));
+
+    for (const reqId of uniqueRequested) {
+      if (foundIdSet.has(reqId)) {
+        resolvedSkillIds.push(reqId);
+        continue;
+      }
+
+      const sovereign = getSovereignSkillFull(reqId);
+      if (!sovereign) {
+        throw new IsolationError("Skill does not belong to active workspace");
+      }
+
+      // Materialize or reuse Sovereign Skill row in this workspace
+      const existingBySlug = await deps.prisma.skill.findUnique({
+        where: {
+          workspaceId_slug: {
+            workspaceId: actor.workspaceId,
+            slug: sovereign.slug,
+          },
+        },
+        select: { id: true },
+      });
+
+      if (existingBySlug) {
+        resolvedSkillIds.push(existingBySlug.id);
+      } else {
+        const created = await deps.prisma.skill.create({
+          data: {
+            workspaceId: actor.workspaceId,
+            userId: actor.userId,
+            name: sovereign.name,
+            slug: sovereign.slug,
+            description: sovereign.description,
+            content: sovereign.content,
+            tags: sovereign.tags as Prisma.InputJsonValue,
+            metadata: {
+              sovereign: true,
+              packId: sovereign.packId,
+              packName: sovereign.packName,
+              category: sovereign.category,
+              sizeBytes: sovereign.sizeBytes,
+            } as Prisma.InputJsonValue,
+          },
+          select: { id: true },
+        });
+        resolvedSkillIds.push(created.id);
+      }
     }
   }
+
+  const finalSkillIds = Array.from(new Set(resolvedSkillIds));
 
   await withSerializableRetry(() =>
     deps.prisma.$transaction(
@@ -396,9 +535,9 @@ export async function assignSkillsToBot(
           where: { botId: input.botId, workspaceId: actor.workspaceId },
         });
 
-        if (input.skillIds.length > 0) {
+        if (finalSkillIds.length > 0) {
           await tx.botSkill.createMany({
-            data: input.skillIds.map((skillId) => ({
+            data: finalSkillIds.map((skillId) => ({
               workspaceId: actor.workspaceId,
               botId: input.botId,
               skillId,
@@ -411,7 +550,7 @@ export async function assignSkillsToBot(
     ),
   );
 
-  return { ok: true as const, count: input.skillIds.length };
+  return { ok: true as const, count: finalSkillIds.length };
 }
 
 export async function getBotSkills(
