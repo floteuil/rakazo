@@ -734,6 +734,7 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         return {
           name: String(raw.name ?? ""),
           title: raw.title ? String(raw.title) : "",
+          description: raw.description ? String(raw.description) : "",
           instructions: raw.instructions ? String(raw.instructions) : "",
           prompt: raw.prompt ? String(raw.prompt) : "",
         };
@@ -1430,6 +1431,7 @@ function parametersFor(tool: ConnectorTool) {
     return Type.Object({
       name: Type.String(),
       title: Type.Optional(Type.String()),
+      description: Type.Optional(Type.String()),
       instructions: Type.Optional(Type.String()),
       prompt: Type.Optional(Type.String()),
     });
@@ -1749,10 +1751,9 @@ export function jsonSchemaParameters(schema: unknown) {
     return Type.Object({});
   }
   const s = schema as Record<string, unknown>;
-  const properties = (s.properties && typeof s.properties === "object" ? s.properties : {}) as Record<
-    string,
-    unknown
-  >;
+  const properties = (
+    s.properties && typeof s.properties === "object" ? s.properties : {}
+  ) as Record<string, unknown>;
   const required = new Set(Array.isArray(s.required) ? s.required.map(String) : []);
   const fields: Record<string, ReturnType<typeof Type.Optional>> = {};
   for (const [key, spec] of Object.entries(properties)) {
@@ -1888,6 +1889,95 @@ function createQueue(): EventQueue {
           wake = resolve;
         });
       }
+    },
+  };
+}
+
+// ============================================================================
+// EXTENDED MODEL TIMEOUTS & CONFIGURABLE IDLE WATCHDOG (Upstream #3228 / 515ac02fa)
+// ============================================================================
+
+export const MODEL_STREAM_TIMEOUT_MS = 120_000;
+export const MODEL_CONNECT_TIMEOUT_MS = 30_000;
+export const MODEL_STREAM_IDLE_TIMEOUT_MS = 180_000;
+
+function timeoutMsFromEnv(
+  value: string | undefined,
+  fallback: number,
+  min = 1_000,
+  max = 300_000,
+): number {
+  if (value === undefined) return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  const raw = Number(trimmed);
+  return Number.isInteger(raw) && raw >= min && raw <= max ? raw : fallback;
+}
+
+export function modelStreamTimeoutMs(fallback = MODEL_STREAM_TIMEOUT_MS): number {
+  return timeoutMsFromEnv(process.env.MODEL_STREAM_TIMEOUT_MS, fallback, 1_000, 2_147_483_647);
+}
+
+export function modelConnectTimeoutMs(fallback = MODEL_CONNECT_TIMEOUT_MS): number {
+  return timeoutMsFromEnv(process.env.MODEL_CONNECT_TIMEOUT_MS, fallback, 1_000, 300_000);
+}
+
+export function modelStreamIdleTimeoutMs(fallback = MODEL_STREAM_IDLE_TIMEOUT_MS): number {
+  return timeoutMsFromEnv(process.env.MODEL_STREAM_IDLE_TIMEOUT_MS, fallback, 0, 2_147_483_647);
+}
+
+export function modelStreamIdleWatchdog(
+  upstream?: AbortSignal,
+  idleTimeoutMs = modelStreamIdleTimeoutMs(),
+): {
+  signal: AbortSignal;
+  ping(): void;
+  dispose(): void;
+} {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+
+  const clear = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+
+  const onUpstreamAbort = () => {
+    clear();
+    if (!controller.signal.aborted) {
+      controller.abort(upstream?.reason ?? new Error("Model stream aborted"));
+    }
+  };
+
+  if (upstream?.aborted) {
+    onUpstreamAbort();
+  } else {
+    upstream?.addEventListener("abort", onUpstreamAbort, { once: true });
+  }
+
+  const arm = () => {
+    if (disposed || controller.signal.aborted || idleTimeoutMs === 0) return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (controller.signal.aborted) return;
+      controller.abort(new Error(`Model stream went silent for more than ${idleTimeoutMs}ms`));
+    }, idleTimeoutMs);
+    timer.unref?.();
+  };
+
+  return {
+    signal: controller.signal,
+    ping() {
+      clear();
+      arm();
+    },
+    dispose() {
+      disposed = true;
+      clear();
+      upstream?.removeEventListener("abort", onUpstreamAbort);
     },
   };
 }

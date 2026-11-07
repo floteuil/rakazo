@@ -101,7 +101,9 @@
   text-underline-offset: 0.15em;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
-  transition: color 0.15s ease, text-decoration-color 0.15s ease;
+  transition:
+    color 0.15s ease,
+    text-decoration-color 0.15s ease;
 }
 
 .rk-chat-markdown a:hover {
@@ -192,6 +194,28 @@
   margin: 0.65em 0;
   border-radius: 0.65em;
   object-fit: contain;
+}
+
+.rk-chat-markdown-diagram {
+  margin: 0.65em 0;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border: 1px solid #2d2d32;
+  border-radius: 0.75em;
+  background: #0e0e10;
+  padding: 0.8em 0.9em;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.rk-chat-markdown .rk-chat-markdown-diagram img {
+  display: block;
+  max-width: max(100%, calc(var(--rk-diagram-width, 320px) * 0.8));
+  height: auto;
+  margin: 0 auto;
+  border-radius: 0;
 }
 
 .rk-chat-markdown input[type="checkbox"] {
@@ -297,4 +321,3 @@
     padding-left: 1.1em;
   }
 }
-

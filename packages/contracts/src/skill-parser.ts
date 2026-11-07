@@ -115,7 +115,7 @@ export function parseSkillMarkdown(
 
   if (match && match[1] !== undefined) {
     try {
-      frontmatter = parseSimpleYaml(match[1]);
+      frontmatter = parseSimpleYaml(`${match[1]}\n`);
     } catch {
       frontmatter = {};
     }
@@ -213,4 +213,71 @@ export function parseSkillMarkdown(
     metadata,
     content: bodyContent || sanitized,
   };
+}
+
+/**
+ * Formats a YAML block scalar (`|-`, `|`, or `|+`) while preserving multiline lines
+ * and exact trailing newline counts (upstream fix #1534 / 4d5b1a5b9).
+ */
+export function formatYamlBlockScalar(key: string, value: string): string {
+  const trailingMatch = value.match(/\n+$/);
+  const trailing = trailingMatch ? trailingMatch[0].length : 0;
+  let indicator: string;
+  let lines: string[];
+
+  if (trailing === 0) {
+    indicator = "|-";
+    lines = value.split("\n");
+  } else if (trailing === 1) {
+    indicator = "|";
+    lines = value.slice(0, -1).split("\n");
+  } else {
+    indicator = "|+";
+    const core = value.slice(0, -trailing);
+    // keep decoder yields 1 + trailingBlanks newlines; emit trailingBlanks blank lines.
+    lines = [...core.split("\n"), ...Array.from({ length: trailing - 1 }, () => "")];
+  }
+  const indented = lines.map((line) => (line.length > 0 ? `  ${line}` : "")).join("\n");
+  return `${key}: ${indicator}\n${indented}`;
+}
+
+/**
+ * Serializes a parsed skill back to SKILL.md format while preserving multiline
+ * metadata fields and keep-chomp (`|+`) block scalars.
+ */
+export function buildSkillMarkdown(input: {
+  name: string;
+  slug?: string;
+  description?: string;
+  tags?: string[];
+  metadata?: Record<string, unknown>;
+  content: string;
+}): string {
+  const fmLines: string[] = ["---"];
+  fmLines.push(`name: ${JSON.stringify(input.name.trim())}`);
+  if (input.slug?.trim()) {
+    fmLines.push(`slug: ${JSON.stringify(slugify(input.slug.trim()))}`);
+  }
+  if (input.description !== undefined && input.description.length > 0) {
+    if (input.description.includes("\n")) {
+      fmLines.push(formatYamlBlockScalar("description", input.description));
+    } else {
+      fmLines.push(`description: ${JSON.stringify(input.description)}`);
+    }
+  }
+  if (input.tags && input.tags.length > 0) {
+    fmLines.push(`tags: [${input.tags.map((t) => JSON.stringify(t)).join(", ")}]`);
+  }
+  if (input.metadata) {
+    for (const [key, val] of Object.entries(input.metadata)) {
+      if (val === undefined) continue;
+      if (typeof val === "string" && val.includes("\n")) {
+        fmLines.push(formatYamlBlockScalar(key, val));
+      } else {
+        fmLines.push(`${key}: ${JSON.stringify(val)}`);
+      }
+    }
+  }
+  fmLines.push("---");
+  return `${fmLines.join("\n")}\n\n${input.content.trim()}\n`;
 }

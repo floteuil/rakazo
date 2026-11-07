@@ -174,3 +174,52 @@ export function computeSessionAffinityKey(params: {
   }
   return `sess_${(hash >>> 0).toString(16)}`;
 }
+
+// ============================================================================
+// PROMPT CACHE RETENTION & CONTEXT SELECTION POLICY (Upstream #1536 / aa3866888)
+// ============================================================================
+
+export type ContextSelectionStrategy = "retrieval" | "cache-aware" | "standalone";
+
+export interface PromptCacheCapabilities {
+  scope?: "connection" | "global";
+  retentionMs?: number;
+  minimumTokens?: number;
+  retentionMode?: "default" | "none";
+}
+
+export interface ContextPolicyRequest {
+  contextStrategy?: ContextSelectionStrategy;
+  hasHistoryRetrievalTools?: boolean;
+  cacheCapabilities?: PromptCacheCapabilities;
+}
+
+/**
+ * Resolves the context selection strategy while honoring declared prompt cache retention.
+ * - An explicit `contextStrategy` override always wins.
+ * - Without usable history retrieval tools, preserves standalone history (`"standalone"`).
+ * - With usable history retrieval tools and a positive finite `retentionMs` (and `retentionMode !== "none"`),
+ *   selects `"cache-aware"` prefix reuse.
+ * - Unknown, invalid (`<= 0`, `NaN`, `Infinity`), or disabled (`retentionMode: "none"`) cache windows
+ *   retain the default `"retrieval"` strategy.
+ */
+export function resolvePromptCacheStrategy(
+  request: ContextPolicyRequest,
+): ContextSelectionStrategy {
+  if (request.contextStrategy) {
+    return request.contextStrategy;
+  }
+  if (request.hasHistoryRetrievalTools === false) {
+    return "standalone";
+  }
+  const retention = request.cacheCapabilities?.retentionMs;
+  if (
+    request.cacheCapabilities?.retentionMode !== "none" &&
+    typeof retention === "number" &&
+    Number.isFinite(retention) &&
+    retention > 0
+  ) {
+    return "cache-aware";
+  }
+  return "retrieval";
+}

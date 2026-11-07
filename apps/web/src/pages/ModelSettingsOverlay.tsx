@@ -345,6 +345,14 @@ export function ModelSettingsOverlay({ onClose }: { onClose: () => void }) {
                   />
                 </div>
                 <p className="mt-2 text-[13px] leading-[1.5] text-[#85858A]">{selected.billing}</p>
+                {selected.images === false ? (
+                  <p
+                    data-testid="model-text-only-warning"
+                    className="mt-1.5 text-[12.5px] text-amber-400/90"
+                  >
+                    Modèle texte uniquement : ce modèle ne peut pas lire les images jointes.
+                  </p>
+                ) : null}
 
                 <div className="mt-5 rounded-[13px] border border-[#26262A] px-4 py-3">
                   <div className="text-[12.5px] uppercase tracking-[0.08em] text-[#6C6C70]">
@@ -592,7 +600,17 @@ function ModelPicker({
               onClick={() => choose(index)}
               onKeyDown={(event) => onOptionKeyDown(event, index)}
             >
-              {option.label}
+              <span className="flex items-center justify-between gap-2">
+                <span className="truncate">{option.label}</span>
+                {option.images === false ? (
+                  <span
+                    className="shrink-0 rounded bg-amber-500/10 px-1.5 py-0.5 text-[11px] text-amber-300"
+                    title="Ne lit pas les images"
+                  >
+                    Texte seul
+                  </span>
+                ) : null}
+              </span>
             </button>
           ))}
         </div>

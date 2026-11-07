@@ -180,7 +180,16 @@ export const builtinAgentTools: ConnectorTool[] = [
       properties: {
         name: { type: "string" },
         title: { type: "string" },
-        instructions: { type: "string" },
+        description: {
+          type: "string",
+          description:
+            "Short public summary of what the new bot is for. Teammates see it in their bot directory.",
+        },
+        instructions: {
+          type: "string",
+          description:
+            "Private operating instructions for the new bot. Only that bot sees them, as its system prompt.",
+        },
         prompt: {
           type: "string",
           description: "Optional first task to run in the new bot's thread.",

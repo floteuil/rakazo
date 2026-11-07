@@ -14,6 +14,8 @@ export type PiCatalogEntry = {
   oauthLabel?: string;
   subscription: boolean;
   signIn?: PiCatalogSignIn;
+  /** The model reads images. Left out where a connection setting decides it. */
+  images?: boolean;
 };
 
 export function listPiCatalog(): PiCatalogEntry[] {
@@ -40,6 +42,7 @@ function buildPiCatalog(): PiCatalogEntry[] {
       oauth,
     });
     for (const model of provider.getModels()) {
+      const modelInput = (model as { input?: readonly string[] }).input;
       entries.push({
         provider: provider.id,
         providerName: provider.name,
@@ -50,6 +53,7 @@ function buildPiCatalog(): PiCatalogEntry[] {
         oauthLabel,
         subscription,
         signIn,
+        ...(Array.isArray(modelInput) ? { images: modelInput.includes("image") } : {}),
       });
     }
   }

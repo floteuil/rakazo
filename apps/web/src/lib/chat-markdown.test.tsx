@@ -32,4 +32,18 @@ describe("ChatMarkdown", () => {
     expect(html).toContain("const live = true;");
     expect(html).toContain("rk-chat-markdown-cursor");
   });
+
+  it("renders completed Mermaid fences as strict SVG diagram images and keeps incomplete streaming fences as code", () => {
+    const completed = renderToStaticMarkup(
+      <ChatMarkdown>{"```mermaid\ngraph TD\n  A[Client] --> B[OmniRoute]\n```"}</ChatMarkdown>,
+    );
+    expect(completed).toContain('data-testid="chat-diagram"');
+    expect(completed).toContain("data:image/svg+xml;charset=utf-8,");
+
+    const streaming = renderToStaticMarkup(
+      <ChatMarkdown streaming>{"```mermaid\ngraph TD\n  A[Client] --> B[OmniRoute]"}</ChatMarkdown>,
+    );
+    expect(streaming).toContain("<pre>");
+    expect(streaming).not.toContain('data-testid="chat-diagram"');
+  });
 });

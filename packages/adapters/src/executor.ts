@@ -526,14 +526,40 @@ export function createRunExecutor(deps: ExecutorDeps) {
             if (!runRenewed || !computerRenewed) {
               leaseValid = false;
               runAbortController?.abort();
+              void deps.runtime.abort?.(runId).catch(() => undefined);
             }
           })
           .catch(() => {
             leaseValid = false;
             runAbortController?.abort();
+            void deps.runtime.abort?.(runId).catch(() => undefined);
           });
       }, 60_000);
       heartbeat.unref?.();
+
+      // Fast < 1s Stop watcher: detects user cancellation in DB without waiting for the 60s lease heartbeat
+      const cancelPoll = setInterval(() => {
+        if (!leaseValid) return;
+        void deps.prisma.run
+          .findUnique({
+            where: { id: runId },
+            select: { status: true, leaseOwner: true, leaseFence: true },
+          })
+          .then((still) => {
+            if (
+              !still ||
+              still.status === "cancelled" ||
+              still.leaseOwner !== workerId ||
+              still.leaseFence !== fence
+            ) {
+              leaseValid = false;
+              runAbortController?.abort();
+              void deps.runtime.abort?.(runId).catch(() => undefined);
+            }
+          })
+          .catch(() => undefined);
+      }, 1_000);
+      cancelPoll.unref?.();
 
       const runSecrets = [...deps.secrets];
       const enterpriseTokens = [
@@ -1055,6 +1081,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               spawnKey: executionId,
               name: String(args.name ?? ""),
               title: args.title ? String(args.title) : undefined,
+              description: args.description ? String(args.description) : undefined,
               instructions: args.instructions ? String(args.instructions) : undefined,
               prompt: args.prompt ? String(args.prompt) : undefined,
             });
@@ -1274,7 +1301,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 "archive_bot safely archives a bot this bot created, and only that bot. Use it when the user asks to remove that bot or when it is finished and unused. The user can restore it or permanently delete it later. confirm_name must exactly match its name.",
                 "Never print API keys, access tokens, or secret values. Prefer tools over claiming you already did the work.",
                 // BLOC B: Bot Persona & Durable Context
-                bot.instructions || `${bot.name}: ${bot.title}\n${bot.description}`,
+                runIdentityInstruction(bot, run.trigger ?? "user"),
                 `${computerInstruction} Use remember for durable facts. Use request_takeover when the user must provide protected input or human judgment. Use destination_write only for connected destination records.`,
                 workspaceInstruction,
                 memoryContext ? redactSecrets(memoryContext, runSecrets) : undefined,
@@ -1667,6 +1694,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
         }
       } finally {
         clearInterval(heartbeat);
+        clearInterval(cancelPoll);
         if (!retainComputerLease) {
           if (screenRelease) {
             await deps.sandbox
@@ -2009,4 +2037,51 @@ function sanitizeToolResult<T>(result: T): T {
     }
   }
   return result;
+}
+
+/** Name, title, and description, skipping any part that is blank. */
+function publicProfile(
+  name: string,
+  title: string | null | undefined,
+  description: string,
+): string {
+  const trimmedTitle = title?.trim() ?? "";
+  const heading = trimmedTitle ? `${name}: ${trimmedTitle}` : name;
+  return description ? `${heading}\n${description}` : heading;
+}
+
+/**
+ * Keeps a bot's public profile (`name: title\ndescription`) and private operating
+ * instructions distinct (Upstream #1504 / 81640fa3e).
+ */
+export function runIdentityInstruction(
+  bot: {
+    name: string;
+    title?: string | null;
+    description?: string | null;
+    instructions?: string | null;
+  },
+  trigger = "user",
+): string {
+  const description = bot.description?.trim() ?? "";
+  const rawInstructions = bot.instructions ?? "";
+  const instructions = rawInstructions.trim();
+  if (trigger !== "created") {
+    const identity = publicProfile(bot.name, bot.title, description);
+    // Older bots saved one text as both fields; do not repeat it.
+    if (!instructions || instructions === description) {
+      return instructions ? rawInstructions : identity;
+    }
+    return [
+      identity,
+      "Teammates see only the profile above. These instructions are private to you:",
+      instructions,
+    ].join("\n");
+  }
+  return [
+    `Name: ${bot.name.trim() || "(none)"}`,
+    `Title: ${(bot.title ?? "").trim() || "(none)"}`,
+    `Description: ${description || "(none)"}`,
+    instructions ? `Instructions:\n${instructions}` : "Instructions: (none)",
+  ].join("\n");
 }

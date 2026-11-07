@@ -96,6 +96,7 @@ docs/       architecture, operations, and release guides
 Common checks:
 
 ```bash
+pnpm verify:sanctuary  # Full Sovereign Sanctuary & Anti-Runaway certification battery
 pnpm lint
 pnpm check
 pnpm test
@@ -120,6 +121,7 @@ pnpm test:canary       # live OpenRouter / E2B / Box canaries
 COMPUTER_E2E_MODEL=<vision-capable-openrouter-model-id> pnpm test:computer
 ```
 
+- [Testing & Anti-Runaway Certification Suite](./docs/TESTING_AND_ANTI_RUNAWAY_CERTIFICATION.md)
 - [Architecture Master Blueprint](./RAKAZO_MASTER_BLUEPRINT_CURRENT.md)
 - [Architect Handoff Guide — Free Intelligence Gateway](./RAKAZO_ARCHITECT_HANDOFF_FREE_INTELLIGENCE_GATEWAY.md)
 - [Autonomous Agent Operating Constitution (AGENTS.md)](./AGENTS.md)

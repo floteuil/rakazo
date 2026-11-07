@@ -526,6 +526,7 @@ export function createRouter(deps: RouterDeps) {
           },
           data: { status: "cancelled", completedAt: new Date() },
         });
+        await Promise.allSettled(activeRuns.map((run) => deps.jobs.cancel(runJobKey(run.id))));
         await deps.prisma.computerExecutionLease.deleteMany({ where: { botId: bot.id } });
         await deps.prisma.computer.updateMany({
           where: { executionBotId: bot.id },

@@ -409,6 +409,8 @@ export const ModelCatalogEntrySchema = z.object({
   oauthLabel: z.string().optional(),
   subscription: z.boolean().optional(),
   signIn: z.enum(["device-code"]).optional(),
+  /** True when the model accepts image inputs; false for text-only models. */
+  images: z.boolean().optional(),
 });
 export type ModelCatalogEntry = z.infer<typeof ModelCatalogEntrySchema>;
 

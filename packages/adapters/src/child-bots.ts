@@ -46,6 +46,7 @@ export async function spawnBot(
     spawnKey: string;
     name: string;
     title?: string;
+    description?: string;
     instructions?: string;
     prompt?: string;
   },
@@ -65,7 +66,7 @@ export async function spawnBot(
     created = await createRepos(deps.prisma).createBot(actor, {
       name,
       title: (input.title ?? "").trim(),
-      description: "",
+      description: (input.description ?? "").trim(),
       instructions: (input.instructions ?? "").trim(),
       notifyOnFinish: true,
       parentBotId: input.spawnedBy.id,

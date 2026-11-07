@@ -25,14 +25,6 @@ import {
   ATTACHMENT_MAX_COUNT,
 } from "@rakazo/contracts";
 import {
-  ChoiceChipsCard,
-  type ChoiceBlock,
-  MentionPopover,
-  MessageActionBar,
-  TimestampBadge,
-  ToolActivityAccordion,
-} from "../components/chat";
-import {
   abortableDelay,
   attachmentsForBot,
   cronFromPreset,
@@ -80,6 +72,21 @@ import {
 } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  type ChoiceBlock,
+  ChoiceChipsCard,
+  MentionPopover,
+  MessageActionBar,
+  TimestampBadge,
+  ToolActivityAccordion,
+} from "../components/chat";
+import { SkillDraftCard } from "../components/teach/SkillDraftCard";
+import { TeachCaptureOverlay } from "../components/teach/TeachCaptureOverlay";
+import { TeachComputerSection } from "../components/teach/TeachComputerSection";
+import { TeachRecordingChrome, TeachStopButton } from "../components/teach/TeachRecordingChrome";
+import { decodeArtifactBase64, openArtifact } from "../lib/artifact-open";
+import { authClient } from "../lib/auth";
+import { takeInitialBootstrap } from "../lib/bootstrap";
+import {
   beginComposerDraftSubmission,
   readComposerDraft,
   settleComposerDraftSubmission,
@@ -90,18 +97,14 @@ import {
   getComposerEnterToSend,
   subscribeComposerEnterToSend,
 } from "../lib/composer-enter-to-send-pref";
-import { formatUserFacingRunError } from "../lib/run-error";
-import { SkillDraftCard } from "../components/teach/SkillDraftCard";
-import { TeachCaptureOverlay } from "../components/teach/TeachCaptureOverlay";
-import { TeachComputerSection } from "../components/teach/TeachComputerSection";
-import { TeachRecordingChrome, TeachStopButton } from "../components/teach/TeachRecordingChrome";
-import { decodeArtifactBase64, openArtifact } from "../lib/artifact-open";
-import { authClient } from "../lib/auth";
-import { takeInitialBootstrap } from "../lib/bootstrap";
 import { dictation } from "../lib/dictation";
-import { revokePendingAttachmentPreviews } from "../lib/pending-attachments";
+import {
+  revokePendingAttachmentPreviews,
+  usePendingAttachmentPreviewCleanup,
+} from "../lib/pending-attachments";
 import { markAfterPaint, markOnce } from "../lib/performance";
 import { rpc } from "../lib/rpc";
+import { formatUserFacingRunError } from "../lib/run-error";
 import {
   computerPanelAutoBoot,
   isComputerStatusEvent,
@@ -164,6 +167,12 @@ export function ShellPage() {
   const [searchLoading, setSearchLoading] = useState(false);
   const [snapshot, setSnapshot] = useState<ThreadSnapshot | null>(null);
   const [pendingAttachments, setPendingAttachments] = useState<PendingAttachment[]>([]);
+  usePendingAttachmentPreviewCleanup(pendingAttachments);
+  const attachmentSeqRef = useRef(0);
+  const [shortcutsOpen, setShortcutsOpen] = useState(false);
+  const [inChatSearchOpen, setInChatSearchOpen] = useState(false);
+  const [inChatSearchQuery, setInChatSearchQuery] = useState("");
+  const inChatSearchInputRef = useRef<HTMLInputElement>(null);
   const [sending, setSending] = useState(false);
   const [sendError, setSendError] = useState<string | null>(null);
   const [attachmentNotice, setAttachmentNotice] = useState<string | null>(null);
@@ -766,7 +775,7 @@ export function ShellPage() {
           continue;
         }
         next.push({
-          id: `${file.name}-${file.size}-${file.lastModified}-${next.length}`,
+          id: `${file.name}-${file.size}-${file.lastModified}-${++attachmentSeqRef.current}`,
           botId: id,
           file,
           previewUrl: mimeType.startsWith("image/") ? URL.createObjectURL(file) : undefined,
@@ -982,16 +991,57 @@ export function ShellPage() {
     setPanel((current) => (current === "routine" ? null : current));
   }, [active?.id]);
 
+  // Preserve pendingAttachments across thread switches (v0.8.0); only clear transient banners
   useEffect(() => {
-    setPendingAttachments((current) => {
-      const stale = current.filter((attachment) => attachment.botId !== active?.id);
-      revokePendingAttachmentPreviews(stale);
-      return attachmentsForBot(current, active?.id);
-    });
     setAttachmentNotice(null);
     setSendError(null);
     setDictationError(null);
   }, [active?.id]);
+
+  // Global keyboard shortcuts (v0.8.0): Cmd/Ctrl+/, Cmd/Ctrl+F, Cmd/Ctrl+I, Cmd/Ctrl+Shift+M
+  useEffect(() => {
+    function onGlobalKeyDown(event: KeyboardEvent) {
+      const mod = event.metaKey || event.ctrlKey;
+      if (mod && !event.altKey && event.key === "/") {
+        event.preventDefault();
+        setShortcutsOpen((prev) => !prev);
+        return;
+      }
+      if (mod && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "f") {
+        event.preventDefault();
+        setInChatSearchOpen(true);
+        window.setTimeout(() => inChatSearchInputRef.current?.focus(), 0);
+        return;
+      }
+      if (mod && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "i") {
+        const composer = document.querySelector<HTMLTextAreaElement>(
+          'textarea[name="chat-message"]:not(:disabled)',
+        );
+        if (composer) {
+          event.preventDefault();
+          composer.focus();
+        }
+        return;
+      }
+      if (mod && event.shiftKey && !event.altKey && event.key.toLowerCase() === "m") {
+        event.preventDefault();
+        setPluginsOpen(true);
+        return;
+      }
+      if (event.key === "Escape") {
+        if (shortcutsOpen) {
+          setShortcutsOpen(false);
+          return;
+        }
+        if (inChatSearchOpen) {
+          setInChatSearchOpen(false);
+          setInChatSearchQuery("");
+        }
+      }
+    }
+    window.addEventListener("keydown", onGlobalKeyDown);
+    return () => window.removeEventListener("keydown", onGlobalKeyDown);
+  }, [shortcutsOpen, inChatSearchOpen]);
 
   useEffect(() => {
     if (!computerOpen) return;
@@ -1331,7 +1381,32 @@ export function ShellPage() {
             ) : null}
             <button
               type="button"
-              title="Agent computer"
+              title="Rechercher dans la conversation (⌘/Ctrl+F)"
+              aria-label="Rechercher dans la conversation"
+              data-testid="in-chat-search-trigger"
+              onClick={() => {
+                setInChatSearchOpen((v) => !v);
+                window.setTimeout(() => inChatSearchInputRef.current?.focus(), 0);
+              }}
+              className="grid h-[30px] w-[34px] place-items-center rounded-[9px] text-[13px] text-[#A8A8AD] hover:bg-[#1B1B1E]"
+              style={{ background: inChatSearchOpen ? "#1B1B1E" : "transparent" }}
+            >
+              ⌕
+            </button>
+            <button
+              type="button"
+              title="Raccourcis clavier (⌘/Ctrl+/)"
+              aria-label="Raccourcis clavier"
+              data-testid="keyboard-shortcuts-trigger"
+              onClick={() => setShortcutsOpen((v) => !v)}
+              className="grid h-[30px] w-[34px] place-items-center rounded-[9px] text-[13px] font-medium text-[#A8A8AD] hover:bg-[#1B1B1E]"
+              style={{ background: shortcutsOpen ? "#1B1B1E" : "transparent" }}
+            >
+              ?
+            </button>
+            <button
+              type="button"
+              title="Ordinateur de l'agent"
               onClick={() => setPanel((p) => (p === "computer" ? null : "computer"))}
               className="grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-[#1B1B1E]"
               style={{ background: panel ? "#1B1B1E" : "transparent" }}
@@ -1340,10 +1415,62 @@ export function ShellPage() {
             </button>
           </div>
         </div>
+        {inChatSearchOpen ? (
+          <div
+            data-testid="in-chat-search-bar"
+            className="flex items-center gap-2 border-b border-[#1D1D20] bg-[#111114] px-4 py-2"
+          >
+            <input
+              ref={inChatSearchInputRef}
+              type="search"
+              value={inChatSearchQuery}
+              onChange={(e) => setInChatSearchQuery(e.target.value)}
+              placeholder="Rechercher dans ce fil de discussion…"
+              aria-label="Rechercher dans ce fil de discussion"
+              className="flex-1 rounded-lg border border-[#26262A] bg-[#0B0B0D] px-3 py-1.5 text-[13.5px] text-[#ECECEE] outline-none focus:border-[#4A4A50]"
+            />
+            <span className="text-[12px] text-[#85858A]" data-testid="in-chat-search-count">
+              {inChatSearchQuery.trim()
+                ? `${
+                    (snapshot?.messages ?? []).filter((m) =>
+                      m.blocks.some(
+                        (b) =>
+                          "text" in b &&
+                          typeof b.text === "string" &&
+                          b.text.toLowerCase().includes(inChatSearchQuery.trim().toLowerCase()),
+                      ),
+                    ).length
+                  } résultat(s)`
+                : ""}
+            </span>
+            <button
+              type="button"
+              aria-label="Fermer la recherche"
+              onClick={() => {
+                setInChatSearchOpen(false);
+                setInChatSearchQuery("");
+              }}
+              className="rounded px-2 py-1 text-[12px] text-[#85858A] hover:bg-[#1B1B1E] hover:text-[#ECECEE]"
+            >
+              ✕
+            </button>
+          </div>
+        ) : null}
         <Transcript
           scrollRef={messageScroll}
           botId={active?.id ?? ""}
-          messages={snapshot?.messages ?? []}
+          messages={
+            inChatSearchOpen && inChatSearchQuery.trim()
+              ? (snapshot?.messages ?? []).filter((m) =>
+                  m.blocks.some(
+                    (b) =>
+                      "text" in b &&
+                      typeof b.text === "string" &&
+                      b.text.toLowerCase().includes(inChatSearchQuery.trim().toLowerCase()),
+                  ),
+                )
+              : (snapshot?.messages ?? [])
+          }
           olderCursor={snapshot?.olderCursor ?? null}
           loadingOlder={loadingOlder}
           answerableAskMessageId={answerableAskMessageId}
@@ -1363,7 +1490,7 @@ export function ShellPage() {
         />
         {recordingSkill ? (
           <div className="px-6 pb-2 text-center text-[13px] text-[#EF4444]">
-            Teaching in progress — stop teaching before sending a new message.
+            Apprentissage en cours — arrêtez l'apprentissage avant d'envoyer un nouveau message.
           </div>
         ) : null}
         <Composer
@@ -1830,6 +1957,59 @@ export function ShellPage() {
         {skillLibraryOpen ? (
           <SkillLibraryOverlay onClose={() => setSkillLibraryOpen(false)} />
         ) : null}
+        {shortcutsOpen ? (
+          <div
+            data-testid="keyboard-shortcuts-dialog"
+            role="dialog"
+            aria-label="Raccourcis clavier"
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+          >
+            <button
+              type="button"
+              aria-label="Fermer l'aide des raccourcis clavier"
+              onClick={() => setShortcutsOpen(false)}
+              className="absolute inset-0 h-full w-full cursor-default bg-black/70 backdrop-blur-sm"
+            />
+            <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#26262A] bg-[#141416] p-6 text-[#ECECEE] shadow-2xl">
+              <div className="mb-4 flex items-center justify-between">
+                <h3 className="text-lg font-medium text-[#F1F1F2]">Raccourcis clavier</h3>
+                <button
+                  type="button"
+                  aria-label="Fermer les raccourcis clavier"
+                  onClick={() => setShortcutsOpen(false)}
+                  className="text-[#85858A] hover:text-[#ECECEE]"
+                >
+                  ✕
+                </button>
+              </div>
+              <dl className="divide-y divide-[#202023] text-sm">
+                {[
+                  { label: "Rechercher dans la conversation", keys: ["⌘/Ctrl", "F"] },
+                  { label: "Placer le curseur dans la saisie", keys: ["⌘/Ctrl", "I"] },
+                  { label: "Connecteurs & MCP Souverains", keys: ["⌘/Ctrl", "⇧", "M"] },
+                  { label: "Envoyer le message", keys: ["Entrée"] },
+                  { label: "Nouvelle ligne", keys: ["⇧", "Entrée"] },
+                  { label: "Fermer un panneau / Arrêter", keys: ["Échap"] },
+                  { label: "Afficher cette aide", keys: ["⌘/Ctrl", "/"] },
+                ].map((row) => (
+                  <div key={row.label} className="flex items-center justify-between gap-4 py-2.5">
+                    <dt className="text-[#C9C9CE]">{row.label}</dt>
+                    <dd className="flex shrink-0 items-center gap-1.5">
+                      {row.keys.map((key) => (
+                        <kbd
+                          key={key}
+                          className="rounded border border-[#2C2C32] bg-[#0E0E10] px-2 py-0.5 font-mono text-xs text-[#A8A8AD]"
+                        >
+                          {key}
+                        </kbd>
+                      ))}
+                    </dd>
+                  </div>
+                ))}
+              </dl>
+            </div>
+          </div>
+        ) : null}
       </Suspense>
 
       <Suspense fallback={null}>
@@ -2210,7 +2390,9 @@ export const Composer = memo(function Composer({
         >
           <div className="flex items-center gap-2 min-w-0">
             <span className="text-rose-400 font-bold shrink-0">⚠️ Erreur :</span>
-            <span className="truncate">{formatUserFacingRunError(sendError ?? dictationError ?? "")}</span>
+            <span className="truncate">
+              {formatUserFacingRunError(sendError ?? dictationError ?? "")}
+            </span>
           </div>
           {onClearError ? (
             <button
@@ -2408,7 +2590,7 @@ function parseProgressTool(text: string): {
 
   // 2. Check for tool log format: e.g. "Running tool: search" or "Executing tool read_file..." or "[tool: searxng]"
   const match =
-    /^(?:\[tool:\s*|running tool:\s*|executing tool:\s*|tool:\s*|outil:\s*)([a-zA-Z0-9_\-]+)(.*)$/i.exec(
+    /^(?:\[tool:\s*|running tool:\s*|executing tool:\s*|tool:\s*|outil:\s*)([a-zA-Z0-9_-]+)(.*)$/i.exec(
       trimmed,
     );
   if (match) {
@@ -2579,7 +2761,10 @@ export const MessageView = memo(function MessageView({
         if ((block as any).kind === "tool") {
           const tb = block as any;
           return (
-            <div key={i} className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%]">
+            <div
+              key={i}
+              className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%]"
+            >
               <ToolActivityAccordion
                 toolName={tb.toolName || tb.name || "mcp_tool"}
                 status={tb.status || "completed"}
@@ -2595,7 +2780,10 @@ export const MessageView = memo(function MessageView({
           const toolInfo = parseProgressTool(block.text);
           if (toolInfo) {
             return (
-              <div key={i} className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%]">
+              <div
+                key={i}
+                className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%]"
+              >
                 <ToolActivityAccordion
                   toolName={toolInfo.toolName}
                   status={toolInfo.status}
@@ -2809,11 +2997,7 @@ export const MessageView = memo(function MessageView({
             durationMs={executionMeta?.durationMs}
             latencyMs={executionMeta?.latencyMs}
           />
-          <MessageActionBar
-            text={textContent}
-            messageId={message.id}
-            onReact={onReact}
-          />
+          <MessageActionBar text={textContent} messageId={message.id} onReact={onReact} />
         </div>
       ) : (
         <div className="mt-1 flex justify-end px-1">

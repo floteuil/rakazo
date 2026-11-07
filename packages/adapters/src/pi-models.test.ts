@@ -22,4 +22,10 @@ describe("Pi model catalog", () => {
     expect(grok?.signIn).toBe("device-code");
     expect(scriptedCatalogEntry.provider).toBe("scripted");
   });
+
+  it("annotates catalog models with image input support", () => {
+    const catalog = listPiCatalog();
+    expect(catalog.some((entry) => entry.images === true)).toBe(true);
+    expect(catalog.some((entry) => entry.images === false)).toBe(true);
+  });
 });
