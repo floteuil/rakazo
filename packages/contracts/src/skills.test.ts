@@ -23,6 +23,13 @@ import {
   slugify,
 } from "./skill-parser.js";
 import {
+  buildBlueprintMcpConfig,
+  buildInterAgentRelayBriefFr,
+  getBlueprintSkillIds,
+  SOVEREIGN_AGENT_BLUEPRINTS,
+  SOVEREIGN_ROUTINE_TEMPLATES,
+} from "./sovereign-agent-blueprints.js";
+import {
   extractSovereignSkillSlug,
   getSovereignPackById,
   getSovereignSkillBySlug,
@@ -440,6 +447,46 @@ Règles impératives :
         expect(englishBoilerplate.test(skill.description)).toBe(false);
         expect(skill.tags.length).toBeGreaterThanOrEqual(1);
         expect(skill.tags.every((t) => !t.includes("_"))).toBe(true);
+      }
+    });
+
+    it("5.5 validates all 6 Sovereign Agent Blueprints (<= 10 skills/blueprint, valid MCP connectors & French contractual rules)", () => {
+      expect(SOVEREIGN_AGENT_BLUEPRINTS).toHaveLength(6);
+      for (const bp of SOVEREIGN_AGENT_BLUEPRINTS) {
+        const skillIds = getBlueprintSkillIds(bp.packId);
+        expect(skillIds.length).toBeGreaterThanOrEqual(1);
+        expect(skillIds.length).toBeLessThanOrEqual(MAX_SKILLS_PER_PACK);
+        const mcpConfig = buildBlueprintMcpConfig(bp.connectorIds);
+        for (const connId of bp.connectorIds) {
+          expect(mcpConfig.connectors?.[connId]).toBe(true);
+        }
+        expect(bp.instructions).toContain("AGIR SEUL");
+        expect(bp.instructions).toContain("METTRE EN ATTENTE DE VALIDATION");
+      }
+    });
+
+    it("5.6 builds deterministic French Inter-Agent Relay Brief (5 lines) and validates Routine Templates", () => {
+      const brief = buildInterAgentRelayBriefFr({
+        sourceBotName: "Atlas SEO",
+        targetBotName: "Plume Sociale",
+        directive: "Rédige un post LinkedIn à partir des mots-clés validés.",
+        messages: [
+          { role: "user", text: "Analyse le mot-clé automatisation IA PME." },
+          {
+            role: "assistant",
+            text: "Le mot-clé automatisation IA PME présente un volume de 1200 recherches/mois et une difficulté SEO faible de 18.",
+          },
+        ],
+      });
+      expect(brief).toContain("PASSAGE DE RELAIS INTER-AGENTS (Atlas SEO ➔ Plume Sociale)");
+      expect(brief).toContain("1. **Origine & Contexte**");
+      expect(brief).toContain("4. **Ordre de mission pour Plume Sociale**");
+      expect(brief).toContain("Rédige un post LinkedIn à partir des mots-clés validés.");
+
+      expect(SOVEREIGN_ROUTINE_TEMPLATES).toHaveLength(5);
+      for (const tpl of SOVEREIGN_ROUTINE_TEMPLATES) {
+        expect(tpl.time24h).toMatch(/^\d{2}:\d{2}$/);
+        expect(tpl.daysOfWeek.length).toBeGreaterThanOrEqual(1);
       }
     });
   });

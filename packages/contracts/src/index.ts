@@ -8,4 +8,5 @@ export * from "./prompt-compiler.js";
 export * from "./rpc.js";
 export * from "./search.js";
 export * from "./skill-parser.js";
+export * from "./sovereign-agent-blueprints.js";
 export * from "./sovereign-skills-catalog.js";

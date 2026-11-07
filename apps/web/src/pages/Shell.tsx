@@ -23,6 +23,12 @@ import {
   ATTACHMENT_ALLOWED_MIME_TYPES,
   ATTACHMENT_MAX_BYTES,
   ATTACHMENT_MAX_COUNT,
+  buildBlueprintMcpConfig,
+  buildInterAgentRelayBriefFr,
+  getBlueprintSkillIds,
+  SOVEREIGN_AGENT_BLUEPRINTS,
+  SOVEREIGN_ROUTINE_TEMPLATES,
+  type SovereignAgentBlueprint,
 } from "@rakazo/contracts";
 import {
   abortableDelay,
@@ -51,6 +57,8 @@ import {
   Plus,
   Puzzle,
   Settings,
+  Share2,
+  ShieldCheck,
   Sparkles,
   Square,
   Volume2,
@@ -131,6 +139,7 @@ import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelecto
 import { BotSkillSelector } from "./BotSkillSelector";
 import { HostComputerPrompt } from "./HostComputerPrompt";
 import { PromptCompilerModal } from "./PromptCompilerModal";
+import type { InitialDraftSkill } from "./SkillLibraryOverlay";
 import { WindowChrome } from "./WindowChrome";
 import { WorkspaceSearchResults } from "./WorkspaceSearch";
 
@@ -142,6 +151,11 @@ const ModelSettingsOverlay = lazy(() =>
 );
 const PluginsOverlay = lazy(() =>
   import("./PluginsOverlay").then((module) => ({ default: module.PluginsOverlay })),
+);
+const SovereignCockpitOverlay = lazy(() =>
+  import("./SovereignCockpitOverlay").then((module) => ({
+    default: module.SovereignCockpitOverlay,
+  })),
 );
 const SkillLibraryOverlay = lazy(() =>
   import("./SkillLibraryOverlay").then((module) => ({ default: module.SkillLibraryOverlay })),
@@ -197,7 +211,9 @@ export function ShellPage() {
   const [computer, setComputer] = useState<ComputerStatus | null>(null);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [pluginsOpen, setPluginsOpen] = useState(false);
+  const [cockpitOpen, setCockpitOpen] = useState(false);
   const [skillLibraryOpen, setSkillLibraryOpen] = useState(false);
+  const [skillLibraryDraft, setSkillLibraryDraft] = useState<InitialDraftSkill | null>(null);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
@@ -226,6 +242,11 @@ export function ShellPage() {
   const [remasterDraft, setRemasterDraft] = useState("");
   const [remasterCopied, setRemasterCopied] = useState(false);
   const [remasterApplying, setRemasterApplying] = useState(false);
+  const [relayOpen, setRelayOpen] = useState(false);
+  const [relayTargetBotId, setRelayTargetBotId] = useState("");
+  const [relayDirective, setRelayDirective] = useState("");
+  const [relayDraft, setRelayDraft] = useState("");
+  const [relayApplying, setRelayApplying] = useState(false);
   const [editingRoutine, setEditingRoutine] = useState<Routine | null>(null);
   const [deleteRoutineTarget, setDeleteRoutineTarget] = useState<Routine | null>(null);
   const [savingRoutine, setSavingRoutine] = useState(false);
@@ -1263,7 +1284,22 @@ export function ShellPage() {
         </div>
         <button
           type="button"
+          data-testid="open-sovereign-cockpit-btn"
           onClick={() => {
+            setCockpitOpen(true);
+            setSidebarOpen(false);
+          }}
+          className="mx-3 mb-1 flex items-center gap-3 rounded-[11px] px-2.5 py-2 hover:bg-[#131315]"
+        >
+          <span className="grid h-[30px] w-[30px] place-items-center rounded-full bg-emerald-500/10 text-emerald-400">
+            <ShieldCheck size={15} strokeWidth={1.7} />
+          </span>
+          <span className="text-[14.5px] text-[#C9C9CE]">Cockpit & Sobriété IA</span>
+        </button>
+        <button
+          type="button"
+          onClick={() => {
+            setSkillLibraryDraft(null);
             setSkillLibraryOpen(true);
             setSidebarOpen(false);
           }}
@@ -1415,6 +1451,40 @@ export function ShellPage() {
                 ) : null}
               </button>
             ) : null}
+            {active &&
+            (snapshot?.messages?.length ?? 0) >= 1 &&
+            bots.some((b) => b.id !== active.id) ? (
+              <button
+                type="button"
+                data-testid="relay-thread-trigger"
+                title="Transférer la mission à un autre Agent (Relais contrôlé en 5 lignes)"
+                aria-label="Transférer la mission à un autre Agent"
+                onClick={() => {
+                  const otherBots = bots.filter((b) => b.id !== active.id);
+                  const target = otherBots[0];
+                  if (!target) return;
+                  setRelayTargetBotId(target.id);
+                  setRelayDirective("");
+                  const mappedMsgs = (snapshot?.messages ?? []).map((m) => ({
+                    role: m.role,
+                    text: speechFromBlocks(m.blocks) || "",
+                  }));
+                  setRelayDraft(
+                    buildInterAgentRelayBriefFr({
+                      sourceBotName: active.name,
+                      targetBotName: target.name,
+                      directive: "",
+                      messages: mappedMsgs,
+                    }),
+                  );
+                  setRelayOpen(true);
+                }}
+                className="flex h-[30px] items-center gap-1.5 rounded-[9px] border border-[#26262A] bg-[#141417] px-2 text-[12px] font-medium text-[#C9C9CE] hover:bg-[#1B1B1E] transition-colors sm:px-2.5"
+              >
+                <Share2 size={13} strokeWidth={1.8} className="shrink-0 text-emerald-400" />
+                <span className="hidden sm:inline">Transférer</span>
+              </button>
+            ) : null}
             {active ? (
               <button
                 type="button"
@@ -1538,6 +1608,25 @@ export function ShellPage() {
           onReact={handleReact}
           onRefresh={refreshActiveThread}
           onAddRoutine={addSkillRoutine}
+          onMemorizeSkill={(text) => {
+            const firstHeading =
+              /^#+\s+(.+)$/m.exec(text)?.[1]?.trim() ||
+              `Méthode ${active?.name || "Souveraine"} (${new Date().toLocaleDateString("fr-FR")})`;
+            const cleanTitle = firstHeading.replace(/[*_`]/g, "").slice(0, 80);
+            const firstPara =
+              text
+                .split("\n")
+                .map((l) => l.trim())
+                .find((l) => l.length > 25 && !l.startsWith("#")) ||
+              `Compétence capitalisée depuis une session avec ${active?.name || "votre agent"}.`;
+            setSkillLibraryDraft({
+              name: cleanTitle,
+              description: firstPara.slice(0, 220),
+              tags: [active?.name || "Agent", "Capitalisation"],
+              content: text,
+            });
+            setSkillLibraryOpen(true);
+          }}
           voiceReady={Boolean(voiceStatus?.ready)}
           speakingMessageId={speakingMessageId}
           onSpeak={speakMessage}
@@ -1818,6 +1907,54 @@ export function ShellPage() {
                     <X size={16} strokeWidth={1.8} />
                   </button>
                 </div>
+
+                {/* IDÉE N°4 : Modèles de Routines Quotidiennes (Heure de Paris) */}
+                <div
+                  data-testid="routine-templates-bar"
+                  className="mb-5 rounded-xl border border-[#26262A] bg-[#121215] p-3"
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-[#ECECEE] mb-1">
+                    <Sparkles size={13} className="text-amber-400 shrink-0" />
+                    <span>Modèles de Routines Prêts à l'Emploi (Heure de Paris)</span>
+                  </div>
+                  <p className="text-[11px] text-[#85858A] mb-2.5">
+                    Cliquez sur un modèle pour pré-remplir le titre, l'horaire français 24h et les
+                    instructions :
+                  </p>
+                  <div className="flex flex-col gap-1.5">
+                    {SOVEREIGN_ROUTINE_TEMPLATES.map((tpl) => (
+                      <button
+                        key={tpl.id}
+                        type="button"
+                        data-testid={`routine-template-${tpl.id}`}
+                        onClick={() => {
+                          const [hh, mm] = tpl.time24h.split(":");
+                          const dow = tpl.daysOfWeek.length === 7 ? "*" : tpl.daysOfWeek.join(",");
+                          const cronStr = `${Number(mm)} ${Number(hh)} * * ${dow}`;
+                          setRoutineDraft({
+                            name: tpl.title,
+                            prompt: tpl.prompt,
+                            schedule: presetFromCron(cronStr),
+                            silentMode: tpl.silentGuard,
+                          });
+                        }}
+                        className="flex flex-col items-start rounded-lg border border-[#26262A] bg-[#17171B] px-3 py-2 text-left hover:border-[#3F3F46] hover:bg-[#1E1E24] transition-colors min-h-[44px]"
+                      >
+                        <div className="flex w-full items-center justify-between gap-2">
+                          <span className="text-xs font-medium text-[#ECECEE] truncate">
+                            {tpl.title}
+                          </span>
+                          <span className="shrink-0 rounded-full bg-[#232329] px-2 py-0.5 font-mono text-[10px] text-amber-300">
+                            {tpl.badge}
+                          </span>
+                        </div>
+                        <span className="mt-0.5 text-[11px] text-[#85858A] line-clamp-1">
+                          {tpl.description}
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
                 <label className="text-[14px] text-[#85858A]">
                   Nom de la routine
                   <input
@@ -2057,8 +2194,175 @@ export function ShellPage() {
         ) : null}
 
         {pluginsOpen ? <PluginsOverlay onClose={() => setPluginsOpen(false)} /> : null}
+        {cockpitOpen ? (
+          <SovereignCockpitOverlay
+            bots={bots}
+            initialUsage={usage}
+            onClose={() => setCockpitOpen(false)}
+          />
+        ) : null}
         {skillLibraryOpen ? (
-          <SkillLibraryOverlay onClose={() => setSkillLibraryOpen(false)} />
+          <SkillLibraryOverlay
+            initialDraftSkill={skillLibraryDraft}
+            onClose={() => {
+              setSkillLibraryOpen(false);
+              setSkillLibraryDraft(null);
+            }}
+          />
+        ) : null}
+        {relayOpen && active ? (
+          <div
+            data-testid="inter-agent-relay-dialog"
+            role="dialog"
+            aria-label="Transférer la mission à un autre Agent"
+            className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-5"
+          >
+            <button
+              type="button"
+              aria-label="Fermer le transfert inter-agents"
+              onClick={() => {
+                if (!relayApplying) setRelayOpen(false);
+              }}
+              className="absolute inset-0 h-full w-full cursor-default bg-black/75 backdrop-blur-sm"
+            />
+            <div className="relative z-10 flex max-h-[90dvh] w-full max-w-xl flex-col overflow-y-auto rounded-t-2xl sm:rounded-2xl border border-[#2C2C34] bg-[#141418] p-4 pb-[max(1rem,env(safe-area-inset-bottom))] text-[#ECECEE] shadow-2xl sm:p-6">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <div className="flex flex-wrap items-center gap-2">
+                    <Share2 size={17} strokeWidth={1.8} className="shrink-0 text-emerald-400" />
+                    <h3 className="text-[16px] font-semibold text-[#F1F1F4] sm:text-[17.5px]">
+                      Passer le relais à un autre Agent
+                    </h3>
+                  </div>
+                  <p className="mt-1 text-[12.5px] leading-relaxed text-[#9A9AA0] sm:text-[13px]">
+                    Transmet les conclusions de <strong>{active.name}</strong> à un autre agent sous
+                    forme d'un brief synthétique de 5 lignes validé par vous (0 boucle autonome
+                    inter-agents).
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Fermer la modale de transfert"
+                  disabled={relayApplying}
+                  onClick={() => setRelayOpen(false)}
+                  className="grid min-h-[44px] min-w-[44px] sm:min-h-0 sm:min-w-0 shrink-0 place-items-center rounded-lg p-1.5 text-[#85858A] hover:bg-[#1F1F24] hover:text-[#ECECEE]"
+                >
+                  <X size={16} strokeWidth={1.8} />
+                </button>
+              </div>
+
+              <label className="mt-4 block text-[12.5px] font-medium text-[#C9C9CE] sm:text-[13px]">
+                Agent destinataire
+                <select
+                  data-testid="relay-target-bot-select"
+                  value={relayTargetBotId}
+                  onChange={(e) => {
+                    const nextBotId = e.target.value;
+                    setRelayTargetBotId(nextBotId);
+                    const targetBot = bots.find((b) => b.id === nextBotId);
+                    if (targetBot) {
+                      const mappedMsgs = (snapshot?.messages ?? []).map((m) => ({
+                        role: m.role,
+                        text: speechFromBlocks(m.blocks) || "",
+                      }));
+                      setRelayDraft(
+                        buildInterAgentRelayBriefFr({
+                          sourceBotName: active.name,
+                          targetBotName: targetBot.name,
+                          directive: relayDirective,
+                          messages: mappedMsgs,
+                        }),
+                      );
+                    }
+                  }}
+                  className="mt-1.5 w-full rounded-xl border border-[#2C2C34] bg-[#0B0B0D] px-3 py-2.5 text-[16px] sm:text-[13.5px] text-[#ECECEE] outline-none focus:border-emerald-500/60"
+                >
+                  {bots
+                    .filter((b) => b.id !== active.id)
+                    .map((b) => (
+                      <option key={b.id} value={b.id}>
+                        {b.name} — {b.title}
+                      </option>
+                    ))}
+                </select>
+              </label>
+
+              <label className="mt-3 block text-[12.5px] font-medium text-[#C9C9CE] sm:text-[13px]">
+                Ordre de mission spécifique (optionnel)
+                <input
+                  type="text"
+                  data-testid="relay-directive-input"
+                  value={relayDirective}
+                  onChange={(e) => {
+                    const nextDir = e.target.value;
+                    setRelayDirective(nextDir);
+                    const targetBot = bots.find((b) => b.id === relayTargetBotId);
+                    if (targetBot) {
+                      const mappedMsgs = (snapshot?.messages ?? []).map((m) => ({
+                        role: m.role,
+                        text: speechFromBlocks(m.blocks) || "",
+                      }));
+                      setRelayDraft(
+                        buildInterAgentRelayBriefFr({
+                          sourceBotName: active.name,
+                          targetBotName: targetBot.name,
+                          directive: nextDir,
+                          messages: mappedMsgs,
+                        }),
+                      );
+                    }
+                  }}
+                  placeholder="Ex: Rédige l'article WordPress complet à partir de ce brief SEO..."
+                  className="mt-1.5 w-full rounded-xl border border-[#2C2C34] bg-[#0B0B0D] px-3 py-2 text-[16px] sm:text-[13px] text-[#ECECEE] outline-none focus:border-emerald-500/60"
+                />
+              </label>
+
+              <label className="mt-3 block text-[12.5px] font-medium text-[#C9C9CE] sm:text-[13px]">
+                Dossier de transmission (modifiable avant envoi)
+                <textarea
+                  data-testid="relay-draft-textarea"
+                  value={relayDraft}
+                  onChange={(e) => setRelayDraft(e.target.value)}
+                  rows={6}
+                  className="mt-1.5 w-full rounded-xl border border-[#2C2C34] bg-[#0B0B0D] px-3 py-2.5 font-mono text-[16px] leading-relaxed text-[#ECECEE] outline-none focus:border-emerald-500/60 sm:text-[12.5px]"
+                />
+              </label>
+
+              <div className="mt-4 flex flex-col-reverse gap-2 sm:flex-row sm:items-center sm:justify-end">
+                <button
+                  type="button"
+                  disabled={relayApplying}
+                  onClick={() => setRelayOpen(false)}
+                  className="w-full min-h-[44px] sm:min-h-0 rounded-xl px-3.5 py-2.5 text-[13.5px] text-[#9A9AA0] hover:bg-[#1F1F24] sm:w-auto"
+                >
+                  Annuler
+                </button>
+                <button
+                  type="button"
+                  data-testid="relay-thread-apply"
+                  disabled={relayApplying || !relayTargetBotId || !relayDraft.trim()}
+                  onClick={async () => {
+                    if (!relayTargetBotId || relayApplying) return;
+                    const destBotId = relayTargetBotId;
+                    const briefToSend = relayDraft.trim();
+                    setRelayApplying(true);
+                    try {
+                      setRelayOpen(false);
+                      navigate(`/app/${destBotId}`);
+                      await rpc.threads.send({ botId: destBotId, text: briefToSend });
+                      await refreshThread(destBotId);
+                      await refreshBots();
+                    } finally {
+                      setRelayApplying(false);
+                    }
+                  }}
+                  className="w-full min-h-[44px] sm:min-h-0 rounded-xl bg-emerald-500 px-4 py-2.5 text-[13.5px] font-semibold text-black shadow-sm hover:bg-emerald-400 disabled:opacity-50 sm:w-auto"
+                >
+                  {relayApplying ? "Transmission…" : "Transférer & Lancer la mission"}
+                </button>
+              </div>
+            </div>
+          </div>
         ) : null}
         {shortcutsOpen ? (
           <div
@@ -2403,6 +2707,7 @@ export const Transcript = memo(function Transcript({
   onReact,
   onRefresh,
   onAddRoutine,
+  onMemorizeSkill,
   voiceReady,
   speakingMessageId,
   onSpeak,
@@ -2421,6 +2726,7 @@ export const Transcript = memo(function Transcript({
   onReact?: (messageId: string, reaction: "up" | "down" | null) => void;
   onRefresh: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
+  onMemorizeSkill?: (text: string) => void;
   voiceReady: boolean;
   speakingMessageId: string | null;
   onSpeak: (message: ThreadMessage) => void;
@@ -2453,6 +2759,7 @@ export const Transcript = memo(function Transcript({
             onReact={onReact}
             onRefresh={onRefresh}
             onAddRoutine={onAddRoutine}
+            onMemorizeSkill={onMemorizeSkill}
             voiceReady={voiceReady}
             speaking={speakingMessageId === message.id}
             onSpeak={() => onSpeak(message)}
@@ -2949,6 +3256,7 @@ export const MessageView = memo(function MessageView({
   onOpenBot,
   onRefresh,
   onAddRoutine,
+  onMemorizeSkill,
   onSelectChoice,
   onReact,
   voiceReady,
@@ -2962,6 +3270,7 @@ export const MessageView = memo(function MessageView({
   onOpenBot: (botId: string) => void;
   onRefresh: () => Promise<void>;
   onAddRoutine: (name: string, prompt: string) => void;
+  onMemorizeSkill?: (text: string) => void;
   onSelectChoice?: (text: string) => void | Promise<void>;
   onReact?: (messageId: string, reaction: "up" | "down" | null) => void;
   voiceReady: boolean;
@@ -3240,7 +3549,21 @@ export const MessageView = memo(function MessageView({
             durationMs={executionMeta?.durationMs}
             latencyMs={executionMeta?.latencyMs}
           />
-          <MessageActionBar text={textContent} messageId={message.id} onReact={onReact} />
+          <div className="flex flex-wrap items-center gap-1.5">
+            {onMemorizeSkill && textContent.trim().length > 20 ? (
+              <button
+                type="button"
+                data-testid="memorize-as-skill-btn"
+                onClick={() => onMemorizeSkill(textContent)}
+                title="Mémoriser cette réponse en Compétence (Skill)"
+                className="inline-flex min-h-[28px] items-center gap-1 rounded-lg border border-[#2C2C34] bg-[#16161A] px-2 py-0.5 text-[11px] font-medium text-[#A78BFA] hover:border-[#8B5CF6]/40 hover:bg-[#1E1E24] hover:text-[#DDD6FE] transition-colors"
+              >
+                <Sparkles size={11} />
+                <span>Mémoriser en Skill</span>
+              </button>
+            ) : null}
+            <MessageActionBar text={textContent} messageId={message.id} onReact={onReact} />
+          </div>
         </div>
       ) : (
         <div className="mt-1 flex justify-end px-1">
@@ -3627,6 +3950,33 @@ function CreateBotForm({
   const [mcpConfig, setMcpConfig] = useState<BotMcpConfig>(() => getRecommendedMcpConfig());
   const [inferenceMode, setInferenceMode] = useState<InferenceMode>("premium");
   const [usageTags, setUsageTags] = useState<InferenceUsageTag[]>([]);
+  const [selectedBlueprintId, setSelectedBlueprintId] = useState<string | null>(null);
+
+  const applyBlueprint = (bp: SovereignAgentBlueprint) => {
+    setSelectedBlueprintId(bp.id);
+    setName(bp.name);
+    setTitle(bp.title);
+    setDescription(bp.description);
+    setInstructions(bp.instructions);
+    setComputerMode(bp.computerMode);
+    setSelectedSkillIds(getBlueprintSkillIds(bp.packId));
+    setMcpConfig(buildBlueprintMcpConfig(bp.connectorIds));
+    setInferenceMode(bp.inferenceMode);
+    setUsageTags(bp.usageTags);
+  };
+
+  const resetBlueprint = () => {
+    setSelectedBlueprintId(null);
+    setName("");
+    setTitle("");
+    setDescription("");
+    setInstructions("");
+    setComputerMode("team");
+    setSelectedSkillIds([]);
+    setMcpConfig(getRecommendedMcpConfig());
+    setInferenceMode("premium");
+    setUsageTags([]);
+  };
 
   useEffect(() => {
     void rpc.skills
@@ -3651,9 +4001,90 @@ function CreateBotForm({
     <div>
       <div className="mb-4 flex items-center justify-between">
         <span className="text-[13.5px] text-[#85858A]">Nouvel agent</span>
-        <button type="button" onClick={onCancel} aria-label="Fermer">
+        <button
+          type="button"
+          onClick={onCancel}
+          aria-label="Fermer"
+          className="grid min-h-[40px] min-w-[40px] place-items-center rounded-lg text-[#85858A] hover:bg-[#232326] hover:text-white"
+        >
           <X size={16} strokeWidth={1.8} />
         </button>
+      </div>
+
+      {/* IDÉE N°1 : Galerie de Blueprints Clé en Main en 1 Clic */}
+      <div
+        data-testid="agent-blueprints-gallery"
+        className="mb-6 rounded-xl border border-[#26262A] bg-[#141417] p-3.5 sm:p-4"
+      >
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Sparkles size={14} className="text-indigo-400 shrink-0" />
+              <span className="text-xs font-semibold text-[#ECECEE]">
+                Profils d'Agents Clé en Main (1 clic)
+              </span>
+            </div>
+            <p className="mt-0.5 text-[11px] text-[#85858A]">
+              Pré-remplit le prompt contractuel, les outils MCP et le pack de compétences (≤ 10
+              skills).
+            </p>
+          </div>
+          {selectedBlueprintId ? (
+            <button
+              type="button"
+              data-testid="reset-blueprint-btn"
+              onClick={resetBlueprint}
+              className="self-start sm:self-auto min-h-[36px] rounded-lg border border-[#3F3F46] bg-[#1C1C1F] px-2.5 py-1 text-[11px] font-medium text-[#A1A1AA] hover:text-white transition-colors"
+            >
+              Réinitialiser à zéro
+            </button>
+          ) : null}
+        </div>
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+          {SOVEREIGN_AGENT_BLUEPRINTS.map((bp) => {
+            const isSelected = selectedBlueprintId === bp.id;
+            const skillCount = getBlueprintSkillIds(bp.packId).length;
+            return (
+              <button
+                key={bp.id}
+                type="button"
+                data-testid={`agent-blueprint-${bp.id}`}
+                onClick={() => applyBlueprint(bp)}
+                className={`flex flex-col items-start justify-between rounded-xl border p-3 text-left transition-all min-h-[76px] ${
+                  isSelected
+                    ? "border-indigo-500/60 bg-indigo-500/10 text-white shadow-sm"
+                    : "border-[#26262A] bg-[#18181B] text-[#D4D4D8] hover:border-[#3F3F46] hover:bg-[#1E1E22]"
+                }`}
+              >
+                <div className="flex w-full items-center justify-between gap-2">
+                  <span className="text-xs font-semibold text-[#ECECEE] truncate">
+                    {bp.name} · {bp.title}
+                  </span>
+                  <span
+                    className={`shrink-0 rounded-full px-2 py-0.5 text-[10px] font-medium ${
+                      isSelected
+                        ? "bg-indigo-500/30 text-indigo-200 border border-indigo-400/40"
+                        : "bg-[#232329] text-[#A1A1AA]"
+                    }`}
+                  >
+                    {isSelected ? "Appliqué ✓" : bp.badge}
+                  </span>
+                </div>
+                <p className="mt-1 text-[11px] text-[#85858A] line-clamp-2 leading-relaxed">
+                  {bp.description}
+                </p>
+                <div className="mt-2 flex flex-wrap items-center gap-1.5 text-[10px] text-[#A1A1AA]">
+                  <span className="rounded bg-[#232329] px-1.5 py-0.5">
+                    {bp.connectorIds.length} MCP
+                  </span>
+                  <span className="rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1.5 py-0.5">
+                    {skillCount} skills pré-cochés
+                  </span>
+                </div>
+              </button>
+            );
+          })}
+        </div>
       </div>
       <label className="mt-6 block text-[14px] text-[#85858A]">
         Nom de l'agent

@@ -49,10 +49,18 @@ export interface SkillCardProps {
   onDelete?: (id: string) => void;
 }
 
+export interface InitialDraftSkill {
+  name: string;
+  description: string;
+  content: string;
+  tags?: string[];
+}
+
 export interface SkillLibraryOverlayProps {
   skills?: SkillItem[];
   searchQuery?: string;
   selectedTag?: string;
+  initialDraftSkill?: InitialDraftSkill | null;
   onClose?: () => void;
   onSelectSkill?: (skill: SkillItem) => void;
 }
@@ -315,6 +323,7 @@ export function SkillLibraryOverlay({
   skills: initialSkills,
   searchQuery: initialSearchQuery = "",
   selectedTag: initialSelectedTag = "Tous",
+  initialDraftSkill = null,
   onClose,
   onSelectSkill,
 }: SkillLibraryOverlayProps) {
@@ -340,18 +349,26 @@ export function SkillLibraryOverlay({
   const [skills, setSkills] = useState<SkillItem[]>(initialSkills ?? defaultCatalogItems);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(
+    initialDraftSkill
+      ? "Réponse de l'agent pré-chargée en compétence — vérifiez le titre et cliquez sur Enregistrer."
+      : null,
+  );
   const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [selectedTag, setSelectedTag] = useState(initialSelectedTag);
-  const [viewMode, setViewMode] = useState<ViewMode>("catalog");
+  const [viewMode, setViewMode] = useState<ViewMode>(initialDraftSkill ? "editor" : "catalog");
 
   // Editor State
   const [editingSkill, setEditingSkill] = useState<SkillItem | null>(null);
-  const [editorName, setEditorName] = useState("");
-  const [editorSlug, setEditorSlug] = useState("");
-  const [editorDescription, setEditorDescription] = useState("");
-  const [editorTags, setEditorTags] = useState("");
-  const [editorContent, setEditorContent] = useState("");
+  const [editorName, setEditorName] = useState(initialDraftSkill?.name ?? "");
+  const [editorSlug, setEditorSlug] = useState(
+    initialDraftSkill?.name ? slugify(initialDraftSkill.name) : "",
+  );
+  const [editorDescription, setEditorDescription] = useState(initialDraftSkill?.description ?? "");
+  const [editorTags, setEditorTags] = useState(
+    initialDraftSkill?.tags?.length ? initialDraftSkill.tags.join(", ") : "Méthode, Capitalisation",
+  );
+  const [editorContent, setEditorContent] = useState(initialDraftSkill?.content ?? "");
   const [saving, setSaving] = useState(false);
 
   // Deletion State

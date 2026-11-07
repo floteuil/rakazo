@@ -1,7 +1,12 @@
 import {
   type BotMcpConfig,
+  buildBlueprintMcpConfig,
+  buildInterAgentRelayBriefFr,
+  getBlueprintSkillIds,
   MAX_SKILLS_PER_PACK,
+  SOVEREIGN_AGENT_BLUEPRINTS,
   SOVEREIGN_MCP_CONNECTORS,
+  SOVEREIGN_ROUTINE_TEMPLATES,
   SOVEREIGN_SKILL_PACKS,
   SOVEREIGN_SKILLS_CATALOG,
   toSovereignSkillId,
@@ -17,6 +22,7 @@ import { ModelSettingsOverlay } from "./ModelSettingsOverlay";
 import { PluginsOverlay } from "./PluginsOverlay";
 import { RoutineSchedule } from "./RoutineSchedule";
 import { SkillLibraryOverlay } from "./SkillLibraryOverlay";
+import { SovereignCockpitOverlay } from "./SovereignCockpitOverlay";
 import { VoiceSettingsOverlay } from "./VoiceSettingsOverlay";
 
 // ============================================================================
@@ -403,6 +409,62 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       expect(html).toContain("à la demande par agent");
       expect(html).toContain("skill-card-sov-skill:seo");
       expect(html).toContain("skill-card-sov-skill:webdriverio-skill");
+    });
+
+    it("5.5 (Idées 1 à 5) validates Sovereign Agent Blueprints, Inter-Agent Relay, Cockpit Overlay, Routine Templates & Memorize-as-Skill", () => {
+      // Idée n°1 : Blueprints Clé en Main
+      expect(SOVEREIGN_AGENT_BLUEPRINTS).toHaveLength(6);
+      for (const bp of SOVEREIGN_AGENT_BLUEPRINTS) {
+        const skills = getBlueprintSkillIds(bp.packId);
+        expect(skills.length).toBeLessThanOrEqual(MAX_SKILLS_PER_PACK);
+        const mcp = buildBlueprintMcpConfig(bp.connectorIds);
+        expect(Object.keys(mcp.connectors ?? {}).length).toBe(18);
+      }
+
+      // Idée n°2 : Passage de Relais Inter-Agents en 1 Clic
+      const relayBrief = buildInterAgentRelayBriefFr({
+        sourceBotName: "Atlas SEO",
+        targetBotName: "Plume Sociale",
+        directive: "Transforme ce brief en post LinkedIn.",
+        messages: [
+          { role: "user", text: "Analyse les mots-clés SEO." },
+          { role: "assistant", text: "Voici les 3 mots-clés retenus." },
+        ],
+      });
+      expect(relayBrief).toContain("PASSAGE DE RELAIS INTER-AGENTS (Atlas SEO ➔ Plume Sociale)");
+
+      // Idée n°3 : Cockpit de Sobriété & Météo des Connecteurs
+      const cockpitHtml = renderToStaticMarkup(
+        <SovereignCockpitOverlay
+          bots={[]}
+          initialUsage={{ inputTokens: 1200, outputTokens: 800, runs: 5 }}
+          onClose={() => {}}
+        />,
+      );
+      expect(cockpitHtml).toContain("sovereign-cockpit-overlay");
+      expect(cockpitHtml).toContain("7 / 7 actifs");
+      expect(cockpitHtml).toContain("18 serveurs · 87 outils");
+      expect(cockpitHtml).toContain("379 skills (51 packs)");
+
+      // Idée n°4 : Modèles de Routines Quotidiennes (Heure de Paris)
+      expect(SOVEREIGN_ROUTINE_TEMPLATES).toHaveLength(5);
+      expect(SOVEREIGN_ROUTINE_TEMPLATES[0]?.time24h).toBe("08:30");
+
+      // Idée n°5 : Mémoriser en Compétence (Skill) depuis le Chat
+      const editorHtml = renderToStaticMarkup(
+        <SkillLibraryOverlay
+          initialDraftSkill={{
+            name: "Méthode Atlas SEO — Cocon Sémantique",
+            description: "Guide capitalisé depuis une session de chat.",
+            tags: ["SEO", "Capitalisation"],
+            content: "# Méthode Cocon Sémantique\n\n1. Identifier le pilier.",
+          }}
+          onClose={() => {}}
+        />,
+      );
+      expect(editorHtml).toContain("Créer une nouvelle compétence");
+      expect(editorHtml).toContain("Méthode Atlas SEO — Cocon Sémantique");
+      expect(editorHtml).toContain("Réponse de l&#x27;agent pré-chargée en compétence");
     });
   });
 });
