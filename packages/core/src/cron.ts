@@ -1,5 +1,7 @@
 const WEEKDAYS = "1-5";
 
+export const DEFAULT_ROUTINE_TIMEZONE = "Europe/Paris";
+
 export const CRON_FREQS = [
   "Every hour",
   "Every day",
@@ -132,32 +134,169 @@ export function formatCron(cron: string): string {
   return formatSchedule(presetFromCron(cron));
 }
 
-export function nextCronDate(cron: string, from: Date, timezone = "UTC"): Date {
+export function formatClock24Fr(timeOrHour: string | number, minuteArg = 0): string {
+  if (typeof timeOrHour === "number") {
+    const h = Math.min(23, Math.max(0, Math.floor(timeOrHour)));
+    const m = Math.min(59, Math.max(0, Math.floor(minuteArg)));
+    return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+  }
+  const { hour, minute } = parseClock(timeOrHour);
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+export function describeCronPresetFr(preset: CronPreset): { lead: string; detail: string } {
+  if (preset.freq === "Interval") {
+    const unitFr =
+      preset.unit === "hours" ? "heures" : preset.unit === "days" ? "jours" : "minutes";
+    const lead = preset.unit === "days" ? "Tous les" : "Toutes les";
+    return { lead, detail: `${preset.n} ${unitFr}` };
+  }
+  if (preset.freq === "Every hour") {
+    return { lead: "Toutes les heures", detail: "" };
+  }
+  if (preset.freq === "Advanced") {
+    return {
+      lead: "Cron",
+      detail: preset.cron || "*/3 * * * *",
+    };
+  }
+  const time24 = formatClock24Fr(preset.time);
+  if (preset.freq === "Weekdays") {
+    return { lead: "Du lundi au vendredi", detail: `à ${time24}` };
+  }
+  if (preset.freq === "Every week") {
+    return { lead: "Chaque lundi", detail: `à ${time24}` };
+  }
+  if (preset.freq === "Every month") {
+    return { lead: "Le 1er du mois", detail: `à ${time24}` };
+  }
+  return { lead: "Tous les jours", detail: `à ${time24}` };
+}
+
+export function formatScheduleFr(preset: CronPreset): string {
+  const { lead, detail } = describeCronPresetFr(preset);
+  return [lead, detail].filter(Boolean).join(" ");
+}
+
+export function formatCronFr(cron: string): string {
+  return formatScheduleFr(presetFromCron(cron));
+}
+
+const formatterCache = new Map<string, Intl.DateTimeFormat>();
+const WEEKDAY_MAP: Record<string, number> = {
+  Sun: 0,
+  Mon: 1,
+  Tue: 2,
+  Wed: 3,
+  Thu: 4,
+  Fri: 5,
+  Sat: 6,
+};
+
+function getZonedFormatter(timezone: string): Intl.DateTimeFormat {
+  const tz = timezone?.trim() || DEFAULT_ROUTINE_TIMEZONE;
+  const cached = formatterCache.get(tz);
+  if (cached) return cached;
+  try {
+    const fmt = new Intl.DateTimeFormat("en-US", {
+      timeZone: tz,
+      hourCycle: "h23",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      weekday: "short",
+    });
+    formatterCache.set(tz, fmt);
+    return fmt;
+  } catch {
+    const fallback = new Intl.DateTimeFormat("en-US", {
+      timeZone: DEFAULT_ROUTINE_TIMEZONE,
+      hourCycle: "h23",
+      month: "numeric",
+      day: "numeric",
+      hour: "numeric",
+      minute: "numeric",
+      weekday: "short",
+    });
+    formatterCache.set(tz, fallback);
+    return fallback;
+  }
+}
+
+export function getZonedCronParts(
+  date: Date,
+  timezone = DEFAULT_ROUTINE_TIMEZONE,
+): { month: number; day: number; hour: number; minute: number; dayOfWeek: number } {
+  const parts = getZonedFormatter(timezone).formatToParts(date);
+  let month = 1;
+  let day = 1;
+  let hour = 0;
+  let minute = 0;
+  let dayOfWeek = 0;
+  for (const part of parts) {
+    if (part.type === "month") month = Number(part.value);
+    else if (part.type === "day") day = Number(part.value);
+    else if (part.type === "hour") hour = Number(part.value) % 24;
+    else if (part.type === "minute") minute = Number(part.value);
+    else if (part.type === "weekday") dayOfWeek = WEEKDAY_MAP[part.value] ?? 0;
+  }
+  return { month, day, hour, minute, dayOfWeek };
+}
+
+function matchDowField(expr: string, dayOfWeek: number): boolean {
+  if (matchField(expr, dayOfWeek, 0, 7)) return true;
+  if (dayOfWeek === 0 && matchField(expr, 7, 0, 7)) return true;
+  return false;
+}
+
+export function nextCronDate(cron: string, from: Date, timezone = DEFAULT_ROUTINE_TIMEZONE): Date {
   const parts = cron.trim().split(/\s+/);
   if (parts.length < 5) {
     return new Date(from.getTime() + 60_000);
   }
-  const [minuteExpr, hourExpr] = parts;
+  const [minuteExpr, hourExpr, dayExpr, monthExpr, dowExpr] = parts;
   const candidate = new Date(from.getTime() + 60_000);
   candidate.setSeconds(0, 0);
-  for (let i = 0; i < 24 * 60 + 2; i += 1) {
-    const minute = candidate.getUTCMinutes();
-    const hour = candidate.getUTCHours();
-    if (matchField(minuteExpr ?? "*", minute, 0, 59) && matchField(hourExpr ?? "*", hour, 0, 23)) {
-      void timezone;
+
+  const maxMinutes = 366 * 24 * 60;
+  let elapsedMinutes = 0;
+  while (elapsedMinutes <= maxMinutes) {
+    const zoned = getZonedCronParts(candidate, timezone);
+    const monthOk = matchField(monthExpr ?? "*", zoned.month, 1, 12);
+    const dayOk = matchField(dayExpr ?? "*", zoned.day, 1, 31);
+    const dowOk = matchDowField(dowExpr ?? "*", zoned.dayOfWeek);
+    const hourOk = matchField(hourExpr ?? "*", zoned.hour, 0, 23);
+
+    if (!monthOk || !dayOk || !dowOk || !hourOk) {
+      const jumpMinutes = Math.max(1, 60 - zoned.minute);
+      candidate.setTime(candidate.getTime() + jumpMinutes * 60_000);
+      elapsedMinutes += jumpMinutes;
+      continue;
+    }
+
+    if (matchField(minuteExpr ?? "*", zoned.minute, 0, 59)) {
       return candidate;
     }
-    candidate.setUTCMinutes(candidate.getUTCMinutes() + 1);
+
+    candidate.setTime(candidate.getTime() + 60_000);
+    elapsedMinutes += 1;
   }
   return new Date(from.getTime() + 60_000);
 }
 
 function parseClock(time: string): { hour: number; minute: number } {
-  const [rawH, rest] = time.split(":");
-  const minute = Number((rest ?? "00").slice(0, 2));
-  let hour = Number(rawH);
-  if (/pm/i.test(time) && hour < 12) hour += 12;
-  if (/am/i.test(time) && hour === 12) hour = 0;
+  const normalized = time.trim();
+  const hasMeridiem = /\b(?:am|pm)\b/i.test(normalized);
+  const cleaned = normalized.replace(/\b(?:am|pm)\b/gi, "").trim();
+  const [rawH, rest] = cleaned.split(/[:hH]/);
+  const minute = Math.min(59, Math.max(0, Number((rest ?? "00").slice(0, 2)) || 0));
+  let hour = Number(rawH) || 0;
+  if (hasMeridiem) {
+    if (/pm/i.test(normalized) && hour < 12) hour += 12;
+    if (/am/i.test(normalized) && hour === 12) hour = 0;
+  }
+  hour = Math.min(23, Math.max(0, hour));
   return { hour, minute };
 }
 

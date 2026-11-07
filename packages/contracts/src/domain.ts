@@ -110,7 +110,7 @@ export const CreateRoutineInput = z.object({
   name: z.string().min(1).max(80),
   prompt: z.string().min(1),
   cron: z.string().min(1),
-  timezone: z.string().default("UTC"),
+  timezone: z.string().default("Europe/Paris"),
   notify: z.boolean().default(true),
   active: z.boolean().default(false),
 });

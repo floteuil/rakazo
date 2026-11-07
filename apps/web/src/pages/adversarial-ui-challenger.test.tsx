@@ -170,6 +170,20 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} />);
       expect(html).toContain("Filtrer les connecteurs &amp; outils...");
     });
+
+    it("2.6 audits RoutineSchedule French 24h standard (Europe/Paris) and >= 16px mobile select sizing", () => {
+      const html = renderToStaticMarkup(
+        <RoutineSchedule
+          value={{ freq: "Every day", n: 3, unit: "minutes", time: "9:00 AM", cron: "" }}
+          onChange={() => {}}
+        />,
+      );
+      expect(html).toContain("Tous les jours");
+      expect(html).toContain("à 09:00");
+      expect(html).toContain("Heure de Paris (24h)");
+      expect(html).toContain("Jours ouvrés (Lun–Ven)");
+      expect(html).toContain("text-[16px] sm:text-[14px]");
+    });
   });
 
   // --------------------------------------------------------------------------

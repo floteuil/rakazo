@@ -2,8 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   type CronPreset,
   cronFromPreset,
+  DEFAULT_ROUTINE_TIMEZONE,
   describeCronPreset,
+  describeCronPresetFr,
+  formatClock24Fr,
   formatCron,
+  formatCronFr,
+  nextCronDate,
   presetFromCron,
 } from "./cron.js";
 
@@ -97,5 +102,54 @@ describe("formatCron", () => {
       lead: "Every hour",
       detail: "",
     });
+  });
+});
+
+describe("French Time Standard (Europe/Paris, 24h format & DST)", () => {
+  it("uses Europe/Paris as DEFAULT_ROUTINE_TIMEZONE", () => {
+    expect(DEFAULT_ROUTINE_TIMEZONE).toBe("Europe/Paris");
+  });
+
+  it("parses both 24-hour French times and 12-hour times into cron and 24h display", () => {
+    expect(cronFromPreset(preset({ freq: "Every day", time: "09:00" }))).toBe("0 9 * * *");
+    expect(cronFromPreset(preset({ freq: "Every day", time: "14:30" }))).toBe("30 14 * * *");
+    expect(cronFromPreset(preset({ freq: "Weekdays", time: "08h30" }))).toBe("30 8 * * 1-5");
+
+    expect(formatClock24Fr("9:00 AM")).toBe("09:00");
+    expect(formatClock24Fr("3:00 PM")).toBe("15:00");
+    expect(formatClock24Fr("12:00 PM")).toBe("12:00");
+    expect(formatClock24Fr("12:00 AM")).toBe("00:00");
+    expect(formatClock24Fr("18:30")).toBe("18:30");
+  });
+
+  it("formats schedules in French with 24-hour clock", () => {
+    expect(formatCronFr("0 9 * * *")).toBe("Tous les jours à 09:00");
+    expect(formatCronFr("0 8 * * 1-5")).toBe("Du lundi au vendredi à 08:00");
+    expect(formatCronFr("0 14 * * 1")).toBe("Chaque lundi à 14:00");
+    expect(formatCronFr("0 9 1 * *")).toBe("Le 1er du mois à 09:00");
+    expect(formatCronFr("*/15 * * * *")).toBe("Toutes les 15 minutes");
+    expect(formatCronFr("0 */2 * * *")).toBe("Toutes les 2 heures");
+    expect(formatCronFr("0 0 */3 * *")).toBe("Tous les 3 jours");
+    expect(describeCronPresetFr(preset({ freq: "Every hour" }))).toEqual({
+      lead: "Toutes les heures",
+      detail: "",
+    });
+  });
+
+  it("computes nextCronDate at 09:00 Europe/Paris across winter (CET UTC+1) and summer (CEST UTC+2)", () => {
+    // Winter (January 15, 2026 — CET is UTC+1): 09:00 Paris = 08:00 UTC
+    const winterFrom = new Date("2026-01-15T06:30:00.000Z");
+    const nextWinter = nextCronDate("0 9 * * *", winterFrom, "Europe/Paris");
+    expect(nextWinter.toISOString()).toBe("2026-01-15T08:00:00.000Z");
+
+    // Summer (July 15, 2026 — CEST is UTC+2): 09:00 Paris = 07:00 UTC
+    const summerFrom = new Date("2026-07-15T06:30:00.000Z");
+    const nextSummer = nextCronDate("0 9 * * *", summerFrom, "Europe/Paris");
+    expect(nextSummer.toISOString()).toBe("2026-07-15T07:00:00.000Z");
+
+    // Weekday filtering (Saturday Jan 17, 2026 -> jumps to Monday Jan 19, 2026 at 09:00 Paris = 08:00 UTC)
+    const saturdayWinter = new Date("2026-01-17T07:00:00.000Z");
+    const nextWeekday = nextCronDate("0 9 * * 1-5", saturdayWinter, "Europe/Paris");
+    expect(nextWeekday.toISOString()).toBe("2026-01-19T08:00:00.000Z");
   });
 });

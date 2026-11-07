@@ -28,8 +28,9 @@ import {
   abortableDelay,
   attachmentsForBot,
   cronFromPreset,
+  DEFAULT_ROUTINE_TIMEZONE,
   defaultCronPreset,
-  formatCron,
+  formatCronFr,
   inferAttachmentMimeType,
   isActive,
   presetFromCron,
@@ -1709,7 +1710,7 @@ export function ShellPage() {
                       NO_SIGNAL
                     </span>
                     <span className="shrink-0 text-[13px] text-[#6C6C70]">
-                      {formatCron(routine.cron)}
+                      {formatCronFr(routine.cron)}
                     </span>
                   </button>
                 ))}
@@ -1892,6 +1893,10 @@ export function ShellPage() {
                             name: routineDraft.name || "Routine",
                             prompt: finalRoutinePrompt,
                             cron: cronFromPreset(routineDraft.schedule),
+                            timezone:
+                              targetRoutine.timezone === "UTC"
+                                ? DEFAULT_ROUTINE_TIMEZONE
+                                : targetRoutine.timezone,
                           });
                         } else {
                           await rpc.routines.create({
@@ -1899,7 +1904,7 @@ export function ShellPage() {
                             name: routineDraft.name || "Routine",
                             prompt: finalRoutinePrompt,
                             cron: cronFromPreset(routineDraft.schedule),
-                            timezone: "UTC",
+                            timezone: DEFAULT_ROUTINE_TIMEZONE,
                             active: true,
                             notify: true,
                           });
