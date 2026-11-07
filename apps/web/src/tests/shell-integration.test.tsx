@@ -9,11 +9,7 @@ import {
   TimestampBadge,
   ToolActivityAccordion,
 } from "../components/chat/index.js";
-import {
-  Composer,
-  MessageView,
-  Transcript,
-} from "../pages/Shell.js";
+import { Composer, MessageView, Transcript } from "../pages/Shell.js";
 import {
   mergeThreadSnapshot,
   prependThreadMessagePage,
@@ -63,7 +59,9 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
           threadId: "th-1",
           seq: 2,
           role: "bot",
-          blocks: [{ kind: "text", text: "Le monorepo contient 19 packages configurés avec pnpm 9." }],
+          blocks: [
+            { kind: "text", text: "Le monorepo contient 19 packages configurés avec pnpm 9." },
+          ],
           createdAt: "2026-09-02T14:00:02.000Z",
         },
       ];
@@ -71,11 +69,25 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
       const markup = renderToStaticMarkup(
         <div data-testid="chat-transcript" className="space-y-4">
           {messages.map((m) => (
-            <div key={m.id} data-testid={`message-${m.role}`} className="p-3 rounded-lg bg-neutral-900">
+            <div
+              key={m.id}
+              data-testid={`message-${m.role}`}
+              className="p-3 rounded-lg bg-neutral-900"
+            >
               <div className="text-xs text-neutral-400 font-semibold uppercase">{m.role}</div>
-              <div className="text-sm text-neutral-100 mt-1">{m.blocks[0]?.kind === "text" ? m.blocks[0].text : ""}</div>
-              <TimestampBadge createdAt={m.createdAt} durationMs={m.role === "bot" ? 1400 : undefined} />
-              {m.role === "bot" && <MessageActionBar text={m.blocks[0]?.kind === "text" ? m.blocks[0].text : ""} messageId={m.id} />}
+              <div className="text-sm text-neutral-100 mt-1">
+                {m.blocks[0]?.kind === "text" ? m.blocks[0].text : ""}
+              </div>
+              <TimestampBadge
+                createdAt={m.createdAt}
+                durationMs={m.role === "bot" ? 1400 : undefined}
+              />
+              {m.role === "bot" && (
+                <MessageActionBar
+                  text={m.blocks[0]?.kind === "text" ? m.blocks[0].text : ""}
+                  messageId={m.id}
+                />
+              )}
             </div>
           ))}
         </div>,
@@ -127,7 +139,10 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
     });
 
     it("1.4 renders @mention menu popover in composer context", () => {
-      const bots = [makeBot({ id: "bot-1", name: "Coding Bot" }), makeBot({ id: "bot-2", name: "Security Bot" })];
+      const bots = [
+        makeBot({ id: "bot-1", name: "Coding Bot" }),
+        makeBot({ id: "bot-2", name: "Security Bot" }),
+      ];
       const popover = (
         <MentionPopover
           query="Sec"
@@ -145,12 +160,20 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
 
     it("1.5 renders unified red error banner on run failure", () => {
       const errorBanner = (
-        <div data-testid="run-error-banner" className="bg-rose-950/80 border border-rose-800 text-rose-200 p-3 rounded-xl flex items-center justify-between">
+        <div
+          data-testid="run-error-banner"
+          className="bg-rose-950/80 border border-rose-800 text-rose-200 p-3 rounded-xl flex items-center justify-between"
+        >
           <div className="flex items-center gap-2">
             <span className="text-rose-400 font-bold">⚠️ Erreur :</span>
-            <span className="text-sm">Capacité gratuite temporairement indisponible. Veuillez réessayer.</span>
+            <span className="text-sm">
+              Capacité gratuite temporairement indisponible. Veuillez réessayer.
+            </span>
           </div>
-          <button type="button" className="px-3 py-1 bg-rose-800 hover:bg-rose-700 text-rose-100 rounded text-xs font-semibold">
+          <button
+            type="button"
+            className="px-3 py-1 bg-rose-800 hover:bg-rose-700 text-rose-100 rounded text-xs font-semibold"
+          >
             Réessayer
           </button>
         </div>
@@ -280,7 +303,7 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
       expect(markup).toContain("Réponse générée sans coût");
       expect(markup).toContain("Gratuit");
       expect(markup).toContain("A réfléchi pendant 850ms");
-      expect(markup).toContain("data-testid=\"turn-execution-metadata\"");
+      expect(markup).toContain('data-testid="turn-execution-metadata"');
     });
 
     it("2.4 renders Composer with red error banner when sendError or dictationError is set", () => {
@@ -307,7 +330,7 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
         />,
       );
 
-      expect(markup).toContain("data-testid=\"composer-error-banner\"");
+      expect(markup).toContain('data-testid="composer-error-banner"');
       expect(markup).toContain("bg-rose-950/80");
       expect(markup).toContain("border-rose-800/80");
       expect(markup).toContain("Votre fournisseur de modèle a atteint son plafond de dépenses.");
@@ -347,9 +370,70 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
         />,
       );
 
-      expect(markup).toContain("data-testid=\"transcript\"");
+      expect(markup).toContain('data-testid="transcript"');
       expect(markup).toContain("Bonjour !");
       expect(markup).toContain("Réflexion en cours…");
+    });
+
+    it("2.6 confirms complete removal of speech synthesis & dictation UI in MessageView and Composer while preserving Memorize-as-Skill", () => {
+      const fileInputRef = createRef<HTMLInputElement>();
+      const botMessage: ThreadMessage = {
+        id: "m-bot-voice-check",
+        threadId: "th-1",
+        seq: 2,
+        role: "bot",
+        blocks: [
+          { kind: "text", text: "Voici la stratégie SEO souveraine complète pour votre domaine." },
+        ],
+        createdAt: "2026-11-07T21:00:00.000Z",
+      };
+
+      const messageMarkup = renderToStaticMarkup(
+        <MessageView
+          botId="bot-1"
+          canAnswer={false}
+          message={botMessage}
+          onAnswer={async () => {}}
+          onOpenBot={() => {}}
+          onRefresh={async () => {}}
+          onAddRoutine={() => {}}
+          onMemorizeSkill={() => {}}
+          voiceReady={true}
+          speaking={true}
+          onSpeak={() => {}}
+        />,
+      );
+
+      expect(messageMarkup).not.toContain(">Speak<");
+      expect(messageMarkup).not.toContain(">Stop<");
+      expect(messageMarkup).toContain("memorize-as-skill-btn");
+      expect(messageMarkup).toContain("Mémoriser en Skill");
+
+      const composerMarkup = renderToStaticMarkup(
+        <Composer
+          activeName="Atlas SEO"
+          running={false}
+          pendingAttachments={[]}
+          attachmentNotice={null}
+          sendError={null}
+          dictationError={null}
+          onClearError={() => {}}
+          sending={false}
+          fileInputRef={fileInputRef}
+          onAttachmentPick={() => {}}
+          onRemoveAttachment={() => {}}
+          onSend={async () => {}}
+          onStop={async () => {}}
+          dictating={true}
+          transcribe={true}
+          onDictateStart={() => {}}
+          onDictateStop={() => {}}
+        />,
+      );
+
+      expect(composerMarkup).not.toContain("Dictate message");
+      expect(composerMarkup).not.toContain("Stop dictation");
+      expect(composerMarkup).not.toContain("lucide-mic");
     });
   });
 
@@ -378,9 +462,9 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
     });
 
     it("3.3 Invariant 4: Zero-Cost Barrier $0.00 strict enforcement", () => {
-      const maxCostUsd = 0.00;
+      const maxCostUsd = 0.0;
       const isFreeMode = true;
-      const responseCost = isFreeMode ? 0.00 : 0.002;
+      const responseCost = isFreeMode ? 0.0 : 0.002;
       expect(responseCost).toBeLessThanOrEqual(maxCostUsd);
     });
 
@@ -389,12 +473,12 @@ describe("Shell.tsx Master UI/UX & Transcript Integration Suite (Feature 11)", (
         threadId: "th-123",
         provider: "openrouter",
         model: "openai/gpt-oss-120b",
-        responseCostUsd: 0.00,
+        responseCostUsd: 0.0,
         upstreamLatencyMs: 245,
         totalTokens: 1420,
       };
       expect(telemetryRecord.provider).toBe("openrouter");
-      expect(telemetryRecord.responseCostUsd).toBe(0.00);
+      expect(telemetryRecord.responseCostUsd).toBe(0.0);
       expect(telemetryRecord.upstreamLatencyMs).toBe(245);
     });
 

@@ -45,23 +45,21 @@ import {
 import { BotAvatar, Button } from "@rakazo/ui-web";
 import {
   ArrowUp,
+  CalendarClock,
   ChevronLeft,
   Cpu,
   Gauge,
   LogOut,
   Menu,
-  Mic,
-  Monitor,
   Paperclip,
-  Phone,
   Plus,
   Puzzle,
+  Search,
   Settings,
   Share2,
   ShieldCheck,
   Sparkles,
   Square,
-  Volume2,
   X,
 } from "lucide-react";
 import {
@@ -1036,43 +1034,12 @@ export function ShellPage() {
     setDictationError(null);
   }, [active?.id]);
 
-  // Global keyboard shortcuts (v0.8.0): Cmd/Ctrl+/, Cmd/Ctrl+F, Cmd/Ctrl+I, Cmd/Ctrl+Shift+M
+  // Escape key closes active modal or search bar
   useEffect(() => {
     function onGlobalKeyDown(event: KeyboardEvent) {
-      const mod = event.metaKey || event.ctrlKey;
-      if (mod && !event.altKey && event.key === "/") {
-        event.preventDefault();
-        setShortcutsOpen((prev) => !prev);
-        return;
-      }
-      if (mod && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "f") {
-        event.preventDefault();
-        setInChatSearchOpen(true);
-        window.setTimeout(() => inChatSearchInputRef.current?.focus(), 0);
-        return;
-      }
-      if (mod && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "i") {
-        const composer = document.querySelector<HTMLTextAreaElement>(
-          'textarea[name="chat-message"]:not(:disabled)',
-        );
-        if (composer) {
-          event.preventDefault();
-          composer.focus();
-        }
-        return;
-      }
-      if (mod && event.shiftKey && !event.altKey && event.key.toLowerCase() === "m") {
-        event.preventDefault();
-        setPluginsOpen(true);
-        return;
-      }
       if (event.key === "Escape") {
         if (remasterOpen && !remasterApplying) {
           setRemasterOpen(false);
-          return;
-        }
-        if (shortcutsOpen) {
-          setShortcutsOpen(false);
           return;
         }
         if (inChatSearchOpen) {
@@ -1083,7 +1050,7 @@ export function ShellPage() {
     }
     window.addEventListener("keydown", onGlobalKeyDown);
     return () => window.removeEventListener("keydown", onGlobalKeyDown);
-  }, [shortcutsOpen, inChatSearchOpen, remasterOpen, remasterApplying]);
+  }, [inChatSearchOpen, remasterOpen, remasterApplying]);
 
   useEffect(() => {
     if (!computerOpen) return;
@@ -1170,7 +1137,7 @@ export function ShellPage() {
           </button>
         </div>
         <div className="mx-3.5 mb-3 flex items-center gap-2.5 rounded-xl border border-[#202023] bg-[#141416] px-3 py-2 text-[14px] text-[#6C6C70]">
-          <span>⌕</span>
+          <Search size={17} strokeWidth={2} className="shrink-0 text-[#85858A]" />
           <input
             value={query}
             onChange={(e) => setQuery(e.target.value)}
@@ -1340,20 +1307,6 @@ export function ShellPage() {
               </button>
               <button
                 type="button"
-                onClick={() => {
-                  setMenuOpen(false);
-                  setSidebarOpen(false);
-                  setVoiceOpen(true);
-                }}
-                className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
-              >
-                <Volume2 size={16} strokeWidth={1.7} className="text-[#9A9AA0]" />
-                <span className="flex-1 text-left text-[14.5px] text-[#ECECEE]">
-                  Synthèse vocale
-                </span>
-              </button>
-              <button
-                type="button"
                 className="flex w-full items-center gap-3 rounded-[11px] px-3 py-2.5 hover:bg-[#232327]"
                 onClick={async () => {
                   setUsage(await rpc.usage.summary());
@@ -1485,58 +1438,47 @@ export function ShellPage() {
                 <span className="hidden sm:inline">Transférer</span>
               </button>
             ) : null}
-            {active ? (
+            <div className="group relative">
               <button
                 type="button"
-                title={voiceStatus?.ready ? "Appel vocal" : "Configurer la voix pour appeler"}
-                aria-label="Appel vocal"
+                title="Rechercher dans la discussion"
+                aria-label="Rechercher dans la conversation"
+                data-testid="in-chat-search-trigger"
                 onClick={() => {
-                  if (!voiceStatus?.ready) {
-                    setVoiceOpen(true);
-                    return;
-                  }
-                  setCallOpen(true);
+                  setInChatSearchOpen((v) => !v);
+                  window.setTimeout(() => inChatSearchInputRef.current?.focus(), 0);
                 }}
-                className="grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-[#1B1B1E]"
-                style={{ background: callOpen ? "#1B1B1E" : "transparent" }}
+                className="grid h-[34px] w-[36px] place-items-center rounded-[10px] border border-[#26262A] bg-[#141417] text-[#C9C9CE] hover:border-[#3F3F46] hover:bg-[#1E1E24] hover:text-white transition-colors"
+                style={{ background: inChatSearchOpen ? "#1E1E24" : undefined }}
               >
-                <Phone size={16} strokeWidth={1.6} className="text-[#A8A8AD]" />
+                <Search size={18} strokeWidth={2.1} />
               </button>
-            ) : null}
-            <button
-              type="button"
-              title="Rechercher dans la conversation (⌘/Ctrl+F)"
-              aria-label="Rechercher dans la conversation"
-              data-testid="in-chat-search-trigger"
-              onClick={() => {
-                setInChatSearchOpen((v) => !v);
-                window.setTimeout(() => inChatSearchInputRef.current?.focus(), 0);
-              }}
-              className="grid h-[30px] w-[34px] place-items-center rounded-[9px] text-[13px] text-[#A8A8AD] hover:bg-[#1B1B1E]"
-              style={{ background: inChatSearchOpen ? "#1B1B1E" : "transparent" }}
-            >
-              ⌕
-            </button>
-            <button
-              type="button"
-              title="Raccourcis clavier (⌘/Ctrl+/)"
-              aria-label="Raccourcis clavier"
-              data-testid="keyboard-shortcuts-trigger"
-              onClick={() => setShortcutsOpen((v) => !v)}
-              className="grid h-[30px] w-[34px] place-items-center rounded-[9px] text-[13px] font-medium text-[#A8A8AD] hover:bg-[#1B1B1E]"
-              style={{ background: shortcutsOpen ? "#1B1B1E" : "transparent" }}
-            >
-              ?
-            </button>
-            <button
-              type="button"
-              title="Ordinateur de l'agent"
-              onClick={() => setPanel((p) => (p === "computer" ? null : "computer"))}
-              className="grid h-[30px] w-[34px] place-items-center rounded-[9px] hover:bg-[#1B1B1E]"
-              style={{ background: panel ? "#1B1B1E" : "transparent" }}
-            >
-              <Monitor size={18} strokeWidth={1.6} className="text-[#A8A8AD]" />
-            </button>
+              <span className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden whitespace-nowrap rounded-lg border border-[#2C2C34] bg-[#141418] px-2.5 py-1 text-[11.5px] font-medium text-[#ECECEE] shadow-xl group-hover:block">
+                Rechercher dans la discussion
+              </span>
+            </div>
+            <div className="group relative">
+              <button
+                type="button"
+                data-testid="routines-panel-trigger"
+                title="Routines programmées & Automatisation de l'agent"
+                aria-label="Routines programmées & Automatisation de l'agent"
+                onClick={() => setPanel((p) => (p === "computer" ? null : "computer"))}
+                className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-[#26262A] bg-[#141417] px-2.5 text-[12.5px] font-medium text-[#ECECEE] hover:border-[#3F3F46] hover:bg-[#1E1E24] transition-colors"
+                style={{ background: panel ? "#1E1E24" : undefined }}
+              >
+                <CalendarClock size={18} strokeWidth={1.9} className="shrink-0 text-amber-400" />
+                <span className="hidden md:inline">Routines</span>
+                {activeRoutines.length > 0 ? (
+                  <span className="rounded-full bg-amber-500/20 border border-amber-500/30 px-1.5 py-0.2 text-[10px] font-semibold text-amber-300">
+                    {activeRoutines.length}
+                  </span>
+                ) : null}
+              </button>
+              <span className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden whitespace-nowrap rounded-lg border border-[#2C2C34] bg-[#141418] px-2.5 py-1 text-[11.5px] font-medium text-[#ECECEE] shadow-xl group-hover:block">
+                Routines programmées & Automatisation de l'agent
+              </span>
+            </div>
           </div>
         </div>
         {inChatSearchOpen ? (
@@ -2364,59 +2306,6 @@ export function ShellPage() {
             </div>
           </div>
         ) : null}
-        {shortcutsOpen ? (
-          <div
-            data-testid="keyboard-shortcuts-dialog"
-            role="dialog"
-            aria-label="Raccourcis clavier"
-            className="fixed inset-0 z-50 flex items-center justify-center p-4"
-          >
-            <button
-              type="button"
-              aria-label="Fermer l'aide des raccourcis clavier"
-              onClick={() => setShortcutsOpen(false)}
-              className="absolute inset-0 h-full w-full cursor-default bg-black/70 backdrop-blur-sm"
-            />
-            <div className="relative z-10 w-full max-w-md rounded-2xl border border-[#26262A] bg-[#141416] p-6 text-[#ECECEE] shadow-2xl">
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-medium text-[#F1F1F2]">Raccourcis clavier</h3>
-                <button
-                  type="button"
-                  aria-label="Fermer les raccourcis clavier"
-                  onClick={() => setShortcutsOpen(false)}
-                  className="text-[#85858A] hover:text-[#ECECEE]"
-                >
-                  ✕
-                </button>
-              </div>
-              <dl className="divide-y divide-[#202023] text-sm">
-                {[
-                  { label: "Rechercher dans la conversation", keys: ["⌘/Ctrl", "F"] },
-                  { label: "Placer le curseur dans la saisie", keys: ["⌘/Ctrl", "I"] },
-                  { label: "Connecteurs & MCP Souverains", keys: ["⌘/Ctrl", "⇧", "M"] },
-                  { label: "Envoyer le message", keys: ["Entrée"] },
-                  { label: "Nouvelle ligne", keys: ["⇧", "Entrée"] },
-                  { label: "Fermer un panneau / Arrêter", keys: ["Échap"] },
-                  { label: "Afficher cette aide", keys: ["⌘/Ctrl", "/"] },
-                ].map((row) => (
-                  <div key={row.label} className="flex items-center justify-between gap-4 py-2.5">
-                    <dt className="text-[#C9C9CE]">{row.label}</dt>
-                    <dd className="flex shrink-0 items-center gap-1.5">
-                      {row.keys.map((key) => (
-                        <kbd
-                          key={key}
-                          className="rounded border border-[#2C2C32] bg-[#0E0E10] px-2 py-0.5 font-mono text-xs text-[#A8A8AD]"
-                        >
-                          {key}
-                        </kbd>
-                      ))}
-                    </dd>
-                  </div>
-                ))}
-              </dl>
-            </div>
-          </div>
-        ) : null}
         {remasterOpen && active ? (
           <div
             data-testid="remaster-thread-dialog"
@@ -2561,29 +2450,6 @@ export function ShellPage() {
 
       <Suspense fallback={null}>
         {modelsOpen ? <ModelSettingsOverlay onClose={() => setModelsOpen(false)} /> : null}
-        {voiceOpen ? (
-          <VoiceSettingsOverlay
-            onClose={() => {
-              setVoiceOpen(false);
-              void rpc.voice
-                .status()
-                .then(setVoiceStatus)
-                .catch(() => undefined);
-            }}
-          />
-        ) : null}
-        {callOpen && active ? (
-          <CallView
-            botId={active.id}
-            botName={active.name}
-            transcribe={Boolean(voiceStatus?.transcribe)}
-            snapshot={snapshot}
-            onSend={sendMessage}
-            onFollowUp={followUpMessage}
-            onAnswer={answerMessage}
-            onClose={() => setCallOpen(false)}
-          />
-        ) : null}
       </Suspense>
 
       {booting ? (
@@ -3020,31 +2886,6 @@ export const Composer = memo(function Composer({
           >
             <Plus size={17} strokeWidth={1.8} />
           </button>
-          <button
-            type="button"
-            aria-label={dictating ? "Stop dictation" : "Dictate"}
-            onMouseDown={(event) => {
-              event.preventDefault();
-              onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
-            }}
-            onMouseUp={onDictateStop}
-            onMouseLeave={() => {
-              if (dictating) onDictateStop();
-            }}
-            onTouchStart={(event) => {
-              event.preventDefault();
-              onDictateStart((text) => setDraft((current) => `${current} ${text}`.trim()));
-            }}
-            onTouchEnd={onDictateStop}
-            className={`grid h-9 w-9 sm:h-[34px] sm:w-[34px] shrink-0 place-items-center rounded-full border transition-colors cursor-pointer ${
-              dictating
-                ? "border-[#4ECB71] bg-[rgba(48,162,75,.16)] text-[#4ECB71]"
-                : "border-[#26262A] text-[#9A9AA0] hover:bg-[#1C1C1F] hover:text-white"
-            }`}
-            title={transcribe ? "Maintenir pour parler" : "Maintenir pour parler (dictée vocale)"}
-          >
-            <Mic size={16} strokeWidth={1.8} />
-          </button>
           <input
             ref={inputRef}
             value={draft}
@@ -3471,16 +3312,6 @@ export const MessageView = memo(function MessageView({
             <div key={i} className="flex justify-start w-full">
               <div className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%] rounded-[20px] bg-[#1A1A1D] px-4 py-3 sm:px-[18px] text-[15px] sm:text-[15.5px] leading-[1.5] text-[#DFDFE2]">
                 <ChatMarkdown>{block.text}</ChatMarkdown>
-                {voiceReady ? (
-                  <button
-                    type="button"
-                    aria-label={speaking ? "Stop speaking" : "Speak this reply"}
-                    onClick={onSpeak}
-                    className="mt-2 text-[12px] text-[#85858A] hover:text-[#ECECEE]"
-                  >
-                    {speaking ? "Stop" : "Speak"}
-                  </button>
-                ) : null}
               </div>
             </div>
           );
@@ -4350,31 +4181,6 @@ function BotSettings({
         disabled={saving}
       />
 
-      <label className="mt-5 flex cursor-pointer items-center gap-3 text-[14px] text-[#C9C9CE]">
-        <input
-          type="checkbox"
-          checked={autoSpeak}
-          onChange={(event) => setAutoSpeak(event.target.checked)}
-        />
-        Lire les réponses à voix haute
-      </label>
-      {voices.length ? (
-        <label className="mt-4 block text-[14px] text-[#85858A]">
-          Voix
-          <select
-            value={voiceId}
-            onChange={(event) => setVoiceId(event.target.value)}
-            className="mt-2 w-full rounded-[11px] border border-[#26262A] bg-transparent px-3.5 py-3 text-[#ECECEE]"
-          >
-            <option value="">Par défaut du compte</option>
-            {voices.map((voice) => (
-              <option key={voice.id} value={voice.id}>
-                {voice.label}
-              </option>
-            ))}
-          </select>
-        </label>
-      ) : null}
       {error ? <p className="mt-2 text-[13px] text-[#E65707]">{error}</p> : null}
       {savedSuccess ? (
         <p className="mt-2 text-[13px] font-medium text-emerald-400">
