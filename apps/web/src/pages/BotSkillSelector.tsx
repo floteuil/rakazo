@@ -429,19 +429,19 @@ export function BotSkillSelector({
               Max {MAX_SKILLS_PER_PACK} skills / pack
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-[#85858A]">
-            Par défaut, aucun skill n'est activé. Activez uniquement les packs ou compétences utiles
-            à la mission de cet agent.
+          <p className="mt-0.5 text-xs leading-relaxed text-[#85858A]">
+            Par défaut, aucune compétence n'est activée. Activez à la demande les packs ou
+            compétences adaptés à la mission de cet agent (création ou modification).
           </p>
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
           <span
             data-testid="bot-skill-active-counter"
-            className="rounded-lg border border-[#26262A] bg-[#141417] px-2.5 py-1 text-xs font-medium text-[#ECECEE]"
+            className="rounded-lg border border-[#26262A] bg-[#141417] px-2.5 py-1.5 text-xs font-medium text-[#ECECEE]"
           >
             {activeSkillsResolved.length === 0
-              ? "0 compétence active"
+              ? "0 compétence active (Aucune par défaut)"
               : `${activeSkillsResolved.length} active(s) · ${directCount} directe(s) (${(
                   directBytes / 1024
                 ).toFixed(1)} Ko), ${indexedCount} indexée(s)`}
@@ -452,7 +452,7 @@ export function BotSkillSelector({
               data-testid="bot-skill-clear-all"
               disabled={disabled}
               onClick={() => onChange([])}
-              className="min-h-[36px] rounded-lg border border-rose-500/30 bg-rose-500/10 px-2.5 py-1 text-xs font-medium text-rose-300 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
+              className="min-h-[44px] sm:min-h-[36px] rounded-lg border border-rose-500/30 bg-rose-500/10 px-3 py-1.5 text-xs font-medium text-rose-300 transition-colors hover:bg-rose-500/20 disabled:opacity-40"
             >
               Tout désactiver
             </button>
@@ -540,11 +540,11 @@ export function BotSkillSelector({
         </div>
 
         {/* Category Pills */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1">
+        <div className="rk-scroll flex gap-1.5 overflow-x-auto pb-1">
           <button
             type="button"
             onClick={() => setSelectedCategory("all")}
-            className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            className={`min-h-[40px] sm:min-h-[32px] shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               selectedCategory === "all"
                 ? "bg-white text-black"
                 : "border border-[#26262A] bg-[#16161A] text-[#A1A1AA] hover:text-white"
@@ -555,7 +555,7 @@ export function BotSkillSelector({
           <button
             type="button"
             onClick={() => setSelectedCategory("active")}
-            className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+            className={`min-h-[40px] sm:min-h-[32px] shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
               selectedCategory === "active"
                 ? "bg-emerald-500 text-black"
                 : "border border-[#26262A] bg-[#16161A] text-[#A1A1AA] hover:text-white"
@@ -568,7 +568,7 @@ export function BotSkillSelector({
               key={cat.id}
               type="button"
               onClick={() => setSelectedCategory(cat.id)}
-              className={`shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors ${
+              className={`min-h-[40px] sm:min-h-[32px] shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors ${
                 selectedCategory === cat.id
                   ? "bg-white text-black"
                   : "border border-[#26262A] bg-[#16161A] text-[#A1A1AA] hover:text-white"
@@ -726,7 +726,7 @@ export function BotSkillSelector({
                             onClick={() => void handleOpenPreview(skill)}
                             title={`Aperçu de ${skill.name}`}
                             aria-label={`Aperçu de ${skill.name}`}
-                            className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-[#26262A] bg-[#18181C] text-[#A1A1AA] transition-colors hover:border-[#3A3A40] hover:text-white"
+                            className="flex min-h-[40px] min-w-[40px] sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 shrink-0 items-center justify-center rounded-lg border border-[#26262A] bg-[#18181C] text-[#A1A1AA] transition-colors hover:border-[#3A3A40] hover:text-white"
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </button>
@@ -747,7 +747,7 @@ export function BotSkillSelector({
           data-testid="bot-skill-preview-modal"
           role="dialog"
           aria-modal="true"
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 p-3 backdrop-blur-xs sm:p-6"
+          className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/75 p-0 sm:p-6 backdrop-blur-xs"
         >
           <button
             type="button"
@@ -755,9 +755,9 @@ export function BotSkillSelector({
             className="fixed inset-0 cursor-default"
             onClick={() => setPreviewSkill(null)}
           />
-          <div className="relative z-10 flex max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-2xl border border-[#2C2C32] bg-[#141417] shadow-2xl">
-            <div className="flex items-center justify-between border-b border-[#26262A] px-5 py-3.5">
-              <div className="min-w-0">
+          <div className="relative z-10 flex max-h-[90dvh] sm:max-h-[85vh] w-full max-w-2xl flex-col overflow-hidden rounded-t-2xl sm:rounded-2xl border border-[#2C2C32] bg-[#141417] pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:pb-0 shadow-2xl">
+            <div className="flex items-center justify-between border-b border-[#26262A] px-4 py-3 sm:px-5 sm:py-3.5">
+              <div className="min-w-0 pr-2">
                 <h4 className="truncate text-sm font-semibold text-[#F1F1F3]">
                   {previewSkill.name}
                 </h4>
@@ -767,12 +767,12 @@ export function BotSkillSelector({
                 type="button"
                 aria-label="Fermer l'aperçu"
                 onClick={() => setPreviewSkill(null)}
-                className="flex h-8 w-8 items-center justify-center rounded-lg text-[#85858A] hover:bg-[#232326] hover:text-white"
+                className="flex min-h-[44px] min-w-[44px] sm:h-8 sm:w-8 sm:min-h-0 sm:min-w-0 items-center justify-center rounded-lg text-[#85858A] hover:bg-[#232326] hover:text-white"
               >
                 <X className="h-4 w-4" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto p-5 text-xs leading-relaxed text-[#D4D4D8]">
+            <div className="rk-scroll flex-1 overflow-y-auto p-4 sm:p-5 text-xs leading-relaxed text-[#D4D4D8]">
               {previewSkill.loading ? (
                 <p className="text-[#85858A]">Chargement du contenu de la compétence…</p>
               ) : (

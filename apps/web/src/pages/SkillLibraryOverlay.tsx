@@ -272,13 +272,13 @@ export function SkillCard({
             </span>
           ))}
         </div>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1">
           {onPreview ? (
             <>
               <button
                 type="button"
                 onClick={() => onPreview(id)}
-                className="text-xs text-[#A1A1AA] hover:text-white transition-colors flex items-center gap-1"
+                className="min-h-[36px] px-1.5 py-1 text-xs text-[#A1A1AA] hover:text-white transition-colors inline-flex items-center gap-1"
                 title="Prévisualiser"
               >
                 Prévisualiser
@@ -289,7 +289,7 @@ export function SkillCard({
           <button
             type="button"
             onClick={() => onEdit?.(id)}
-            className="text-xs text-[#A1A1AA] hover:text-white transition-colors"
+            className="min-h-[36px] px-1.5 py-1 text-xs text-[#A1A1AA] hover:text-white transition-colors inline-flex items-center"
           >
             Éditer
           </button>
@@ -297,7 +297,7 @@ export function SkillCard({
           <button
             type="button"
             onClick={() => onDelete?.(id)}
-            className="text-xs text-rose-400/80 hover:text-rose-300 transition-colors"
+            className="min-h-[36px] px-1.5 py-1 text-xs text-rose-400/80 hover:text-rose-300 transition-colors inline-flex items-center"
           >
             Supprimer
           </button>
@@ -715,56 +715,66 @@ export function SkillLibraryOverlay({
     >
       <div className="flex h-full w-full sm:h-[min(760px,100%)] md:h-[760px] md:w-[1080px] max-w-full flex-col overflow-hidden rounded-none sm:rounded-[20px] md:rounded-[26px] border border-[#26262A] bg-[#141416] shadow-[0_40px_90px_rgba(0,0,0,.55)] text-[#EDEDEF]">
         {/* Modal Header */}
-        <div className="flex items-center justify-between border-b border-[#26262A] px-6 py-4">
-          <div className="flex items-center gap-3">
-            {viewMode !== "catalog" ? (
-              <button
-                type="button"
-                onClick={() => setViewMode("catalog")}
-                className="grid h-8 w-8 place-items-center rounded-lg border border-[#26262A] bg-[#17171A] text-[#A1A1AA] hover:bg-[#232326] hover:text-white transition-colors"
-                title="Retour au catalogue"
-              >
-                <ArrowLeft size={16} />
-              </button>
-            ) : (
-              <span className="grid h-8 w-8 place-items-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                <Sparkles size={16} />
-              </span>
-            )}
-            <div>
-              <h2 className="text-lg font-semibold text-[#EDEDEF]">
-                {viewMode === "editor"
-                  ? editingSkill
-                    ? `Modifier : ${editingSkill.name}`
-                    : "Créer une nouvelle compétence"
-                  : viewMode === "preview"
-                    ? `Aperçu : ${editingSkill?.name || "Compétence"}`
-                    : "Bibliothèque de Compétences"}
-              </h2>
-              <p className="text-xs text-[#71717A]">
-                {viewMode === "editor"
-                  ? "Configurez les instructions, métadonnées et directives souveraines pour vos agents."
-                  : viewMode === "preview"
-                    ? "Rendu en direct des instructions Markdown telles qu'injectées dans le prompt de l'agent."
-                    : "Gérez vos instructions spécialisées souveraines et assignez-les à vos agents."}
-              </p>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between border-b border-[#26262A] px-4 py-3.5 sm:px-6 sm:py-4">
+          <div className="flex items-start justify-between gap-3 sm:items-center">
+            <div className="flex items-center gap-3 min-w-0">
+              {viewMode !== "catalog" ? (
+                <button
+                  type="button"
+                  onClick={() => setViewMode("catalog")}
+                  className="grid min-h-[40px] min-w-[40px] sm:h-8 sm:w-8 shrink-0 place-items-center rounded-lg border border-[#26262A] bg-[#17171A] text-[#A1A1AA] hover:bg-[#232326] hover:text-white transition-colors"
+                  title="Retour au catalogue"
+                >
+                  <ArrowLeft size={16} />
+                </button>
+              ) : (
+                <span className="grid h-9 w-9 sm:h-8 sm:w-8 shrink-0 place-items-center rounded-lg bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  <Sparkles size={16} />
+                </span>
+              )}
+              <div className="min-w-0">
+                <h2 className="text-base sm:text-lg font-semibold text-[#EDEDEF] truncate">
+                  {viewMode === "editor"
+                    ? editingSkill
+                      ? `Modifier : ${editingSkill.name}`
+                      : "Créer une nouvelle compétence"
+                    : viewMode === "preview"
+                      ? `Aperçu : ${editingSkill?.name || "Compétence"}`
+                      : "Bibliothèque de Compétences"}
+                </h2>
+                <p className="text-xs text-[#71717A] line-clamp-2 sm:line-clamp-1">
+                  {viewMode === "editor"
+                    ? "Configurez les instructions, métadonnées et directives souveraines pour vos agents."
+                    : viewMode === "preview"
+                      ? "Rendu en direct des instructions Markdown telles qu'injectées dans le prompt de l'agent."
+                      : "Gérez vos instructions spécialisées souveraines et assignez-les à vos agents."}
+                </p>
+              </div>
             </div>
+            <button
+              type="button"
+              aria-label="Fermer"
+              onClick={onClose}
+              className="grid min-h-[44px] min-w-[44px] sm:hidden shrink-0 place-items-center rounded-lg text-[#85858A] hover:bg-[#232326] hover:text-white transition-colors"
+            >
+              <X size={18} />
+            </button>
           </div>
 
-          <div className="flex items-center gap-3">
+          <div className="flex flex-wrap items-center gap-2 sm:gap-3">
             {viewMode === "catalog" ? (
               <>
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  className="rounded-lg bg-white px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-neutral-200 transition-colors shadow-sm"
+                  className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 rounded-lg bg-white px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-black hover:bg-neutral-200 transition-colors shadow-sm"
                 >
                   + Importer un skill (.md)
                 </button>
                 <button
                   type="button"
                   onClick={openCreateSkill}
-                  className="rounded-lg border border-[#3F3F46] bg-[#1C1C1F] px-3.5 py-1.5 text-xs font-medium text-[#EDEDEF] hover:bg-[#27272A] transition-colors"
+                  className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 rounded-lg border border-[#3F3F46] bg-[#1C1C1F] px-3.5 py-2 sm:py-1.5 text-xs font-medium text-[#EDEDEF] hover:bg-[#27272A] transition-colors"
                 >
                   + Créer un skill
                 </button>
@@ -774,7 +784,7 @@ export function SkillLibraryOverlay({
                 <button
                   type="button"
                   onClick={() => setViewMode("preview")}
-                  className="rounded-lg border border-[#3F3F46] bg-[#1C1C1F] px-3.5 py-1.5 text-xs font-medium text-[#EDEDEF] hover:bg-[#27272A] transition-colors flex items-center gap-1.5"
+                  className="flex-1 sm:flex-initial justify-center min-h-[40px] sm:min-h-0 rounded-lg border border-[#3F3F46] bg-[#1C1C1F] px-3.5 py-2 sm:py-1.5 text-xs font-medium text-[#EDEDEF] hover:bg-[#27272A] transition-colors flex items-center gap-1.5"
                 >
                   <Eye size={13} />
                   Prévisualiser
@@ -783,7 +793,7 @@ export function SkillLibraryOverlay({
                   type="button"
                   onClick={() => void handleSaveSkill()}
                   disabled={saving}
-                  className="rounded-lg bg-emerald-500 px-4 py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
+                  className="flex-1 sm:flex-initial justify-center min-h-[40px] sm:min-h-0 rounded-lg bg-emerald-500 px-4 py-2 sm:py-1.5 text-xs font-semibold text-black hover:bg-emerald-400 transition-colors disabled:opacity-50 flex items-center gap-1.5 shadow-sm"
                 >
                   {saving ? "Enregistrement…" : "Enregistrer"}
                 </button>
@@ -792,16 +802,16 @@ export function SkillLibraryOverlay({
               <button
                 type="button"
                 onClick={() => setViewMode("editor")}
-                className="rounded-lg bg-white px-3.5 py-1.5 text-xs font-semibold text-black hover:bg-neutral-200 transition-colors"
+                className="flex-1 sm:flex-initial min-h-[40px] sm:min-h-0 rounded-lg bg-white px-3.5 py-2 sm:py-1.5 text-xs font-semibold text-black hover:bg-neutral-200 transition-colors"
               >
                 Modifier le contenu
               </button>
             )}
             <button
               type="button"
-              aria-label="Fermer"
+              aria-label="Fermer la bibliothèque"
               onClick={onClose}
-              className="grid h-8 w-8 place-items-center rounded-lg text-[#85858A] hover:bg-[#232326] hover:text-white transition-colors"
+              className="hidden sm:grid h-8 w-8 place-items-center rounded-lg text-[#85858A] hover:bg-[#232326] hover:text-white transition-colors"
             >
               <X size={16} />
             </button>
@@ -850,6 +860,23 @@ export function SkillLibraryOverlay({
         {/* CATALOG VIEW */}
         {viewMode === "catalog" ? (
           <>
+            {/* Explicit On-Demand Reserve Banner */}
+            <div
+              data-testid="skill-library-on-demand-banner"
+              className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 border-b border-indigo-500/20 bg-indigo-500/10 px-4 py-2.5 sm:px-6 text-xs text-indigo-200"
+            >
+              <div className="flex items-start sm:items-center gap-2">
+                <span className="mt-0.5 sm:mt-0 inline-flex shrink-0 items-center rounded-full border border-indigo-400/30 bg-indigo-500/20 px-2 py-0.5 text-[10px] font-semibold text-indigo-300">
+                  0 activée par défaut
+                </span>
+                <span>
+                  Toutes les compétences de cette bibliothèque sont <strong>en réserve</strong>.
+                  Elles s'activent <strong>à la demande par agent</strong> (lors de la création ou
+                  dans les paramètres d'un agent existant).
+                </span>
+              </div>
+            </div>
+
             {/* Search & Tag Filter Bar */}
             <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 sm:gap-4 border-b border-[#26262A] bg-[#111113] px-4 py-3 sm:px-6">
               <div className="flex items-center gap-1.5 overflow-x-auto rk-scroll py-0.5">
@@ -858,7 +885,7 @@ export function SkillLibraryOverlay({
                     key={tag}
                     type="button"
                     onClick={() => setSelectedTag(tag)}
-                    className={`cursor-pointer shrink-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
+                    className={`cursor-pointer shrink-0 min-h-[36px] sm:min-h-0 rounded-full px-3 py-1 text-xs font-medium transition-colors ${
                       tag === selectedTag
                         ? "bg-[#27272A] text-white font-semibold shadow-sm"
                         : "bg-transparent text-[#71717A] hover:text-[#EDEDEF]"

@@ -429,5 +429,18 @@ Règles impératives :
       expect(getSovereignSkillBySlug(id)?.slug).toBe(sample.slug);
       expect(getSovereignPackById(sample.packId)?.id).toBe(sample.packId);
     });
+
+    it("5.4 certifies 100% French localization across all 379 Sovereign Skills (names, descriptions, tags)", () => {
+      const englishBoilerplate =
+        /\b(Use when|You are an?|Triggers on|Always use this skill|Check for \.claude|Create interface designs)\b/i;
+      for (const skill of SOVEREIGN_SKILLS_CATALOG) {
+        expect(skill.name.trim().length).toBeGreaterThanOrEqual(3);
+        expect(skill.description.trim()).not.toBe(">");
+        expect(skill.description.trim().length).toBeGreaterThanOrEqual(20);
+        expect(englishBoilerplate.test(skill.description)).toBe(false);
+        expect(skill.tags.length).toBeGreaterThanOrEqual(1);
+        expect(skill.tags.every((t) => !t.includes("_"))).toBe(true);
+      }
+    });
   });
 });

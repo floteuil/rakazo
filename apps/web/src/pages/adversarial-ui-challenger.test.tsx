@@ -365,10 +365,11 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
         <BotSkillSelector selectedSkillIds={[]} onChange={() => {}} />,
       );
 
-      expect(html).toContain("0 compétence active");
+      expect(html).toContain("0 compétence active (Aucune par défaut)");
       expect(html).toContain(`Max ${MAX_SKILLS_PER_PACK} skills / pack`);
       expect(html).toContain("Tous (51 packs)");
       expect(html).toContain("text-[16px]"); // iOS Safari anti-auto-zoom
+      expect(html).toContain("min-h-[40px]"); // Mobile touch targets
     });
 
     it("5.2 renders selected pack skills with Tri-State indicators and active pills", () => {
@@ -382,6 +383,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       expect(html).toContain(`${selectedIds.length}/${selectedIds.length} skills`);
       expect(html).toContain(`pack-toggle-${firstPack.id}`);
       expect(html).toContain("Tout désactiver");
+      expect(html).toContain("min-h-[44px]");
     });
 
     it("5.3 displays Gemini 3.1 context sobriety warning when > 20 skills are selected", () => {
@@ -393,9 +395,12 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       expect(html).toContain("Sobriété Gemini 3.1 (25 compétences sélectionnées)");
     });
 
-    it("5.4 SkillLibraryOverlay pre-loads all 379 Sovereign Skills by default", () => {
+    it("5.4 SkillLibraryOverlay pre-loads all 379 Sovereign Skills in French with explicit on-demand reserve banner", () => {
       const html = renderToStaticMarkup(<SkillLibraryOverlay onClose={() => {}} />);
       expect(html).toContain("Bibliothèque de Compétences");
+      expect(html).toContain("skill-library-on-demand-banner");
+      expect(html).toContain("0 activée par défaut");
+      expect(html).toContain("à la demande par agent");
       expect(html).toContain("skill-card-sov-skill:seo");
       expect(html).toContain("skill-card-sov-skill:webdriverio-skill");
     });

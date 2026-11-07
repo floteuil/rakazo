@@ -3812,6 +3812,7 @@ function BotSettings({
   const [usageTags, setUsageTags] = useState<InferenceUsageTag[]>(bot.inference?.tags ?? []);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   useEffect(() => {
     void rpc.voice
@@ -3944,6 +3945,11 @@ function BotSettings({
         </label>
       ) : null}
       {error ? <p className="mt-2 text-[13px] text-[#E65707]">{error}</p> : null}
+      {savedSuccess ? (
+        <p className="mt-2 text-[13px] font-medium text-emerald-400">
+          Modifications et compétences enregistrées ✓
+        </p>
+      ) : null}
       <div className="mt-5 flex flex-col items-start gap-3">
         <button
           type="button"
@@ -3951,6 +3957,7 @@ function BotSettings({
           onClick={() => {
             setSaving(true);
             setError(null);
+            setSavedSuccess(false);
             void onSave({
               name,
               title,
@@ -3969,6 +3976,14 @@ function BotSettings({
                 tags: usageTags,
               },
             })
+              .then(async () => {
+                const updatedSkills = await rpc.skills
+                  .getBotSkills({ botId: bot.id })
+                  .catch(() => []);
+                setBotSkills(updatedSkills);
+                setSelectedSkillIds(updatedSkills.map((s) => s.id));
+                setSavedSuccess(true);
+              })
               .catch((err) =>
                 setError(err instanceof Error ? err.message : "Impossible d'enregistrer"),
               )

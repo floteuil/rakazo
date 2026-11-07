@@ -574,6 +574,8 @@ describe("Master Sovereign Sanctuary, Anti-Runaway & v0.8.0+ Certification Suite
         const content = getSovereignSkillContent(summary.slug);
         expect(typeof content).toBe("string");
         expect(content!.length).toBeGreaterThan(20);
+        expect(content).toContain("# 🇫🇷 ");
+        expect(content).toContain("Directive linguistique :");
         const full = getSovereignSkillFull(`sov-skill:${summary.slug}`);
         expect(full?.slug).toBe(summary.slug);
         expect(full?.name).toBe(summary.name);
