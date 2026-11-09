@@ -102,3 +102,16 @@ Ces composants constituent le cœur de l'application et sont vérifiés à chaqu
 | **Idée n°5 — Bouton « Mémoriser en Skill » depuis le Chat** | `apps/web/src/pages/Shell.tsx` (`MessageView`), `apps/web/src/pages/SkillLibraryOverlay.tsx` | Bouton d'action directe sous chaque réponse d'agent permettant d'ouvrir l'éditeur de la Bibliothèque de Compétences pré-rempli avec la méthodologie de la réponse pour la capitaliser en 1 clic. |
 | **Épuration UI & Ergonomie Multi-Support (Android, iOS, Tablette, PC)** | `apps/web/src/pages/Shell.tsx`, `apps/web/src/tests/shell-integration.test.tsx` | Suppression complète des interfaces de synthèse vocale, dictée micro et raccourcis clavier. Remplacement du bouton d'ordinateur par l'icône explicite `CalendarClock` (**« Routines programmées & Automatisation de l'agent »** avec infobulle au survol et compteur de routines actives) et agrandissement de la loupe de recherche (`<Search size={18} />`). Adaptation plein écran fluide des tiroirs latéraux sur smartphone Android/iOS. |
 
+---
+
+## 7. Innovations Architecturales Écosystème OpenMausBot (19k+ Stars) : Déduplication `same-request`, Plafonds Mémoire Dynamiques & Sentinel Zéro-LLM
+
+Issu de la rétro-ingénierie du dépôt amont de référence `OpenMausBot` (19 200+ étoiles), ce volet d'innovations renforce la frugalité et la résilience de Rakazo sans le moindre surcoût d'inférence.
+
+| Module d'Innovation | Fichiers Clés | Spécifications Techniques & Garanties |
+| :--- | :--- | :--- |
+| **1. Déduplication sémantique `same-request`** | `packages/contracts/src/same-request.ts`, `apps/api/src/router.ts` (`threads.send`) | Élimine les doubles requêtes accidentelles et les clics répétés : lorsque l'utilisateur envoie une requête de $\ge 40$ caractères rigoureusement équivalente (mots et ponctuation normalisés) à une tâche déjà en cours sur le même fil, Rakazo réutilise le run actif au lieu d'en déclencher un second. **Économie de tokens : 100 % sur les doubles envois.** |
+| **2. Plafonds Mémoire Dynamiques & Archivage LRU Automatique** | `packages/contracts/src/memory-budget.ts`, `packages/adapters/src/memory-context.ts`, `packages/adapters/src/executor.ts` | Remplace les plafonds mémoires statiques par des profils dynamiques calibrés par famille de LLM :<br>• **Famille Gemini 3.1 & 1.5 :** 250 lignes / 32 Ko (alerte 80 %)<br>• **Famille GPT-OSS 120B / ChatGPT :** 200 lignes / 24 Ko<br>• **Famille Mistral :** 150 lignes / 16 Ko<br>• **Défaut :** 200 lignes / 24 Ko.<br>Dès dépassement, les mémoires les plus anciennes sont automatiquement migrées dans `memory/archive.md`, conservant un fichier `MEMORY.md` toujours ultra-léger dans le prompt système actif. |
+| **3. Scanner de Santé Sentinel Zéro-LLM ($0.00)** | `packages/contracts/src/sentinel.ts`, `apps/api/src/router.ts` (`sentinel.report`), `apps/web/src/pages/SovereignCockpitOverlay.tsx` | Diagnostic en temps réel de l'état des 18 connecteurs MCP et catégorisation normalisée des signatures d'erreurs (codes normalisés, nettoyages regex des messages). Fonctionne en pure analyse déterministe en mémoire (**coût garanti : 0.00 € / 0 token LLM**). Intégré dans l'onglet 3 du Cockpit Souverain (*Sentinel & Sobriété Mémoire*). |
+
+

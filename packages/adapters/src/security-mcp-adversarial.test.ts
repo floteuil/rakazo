@@ -376,7 +376,10 @@ describe("Adversarial Security Challenge 1: Privilege Escalation & applyTool Exe
     const zeroEnterpriseConfig = {
       mcp: {
         connectors: Object.fromEntries(
-          SOVEREIGN_MCP_CONNECTORS.filter((c) => c.id !== "system_platform").map((c) => [c.id, false]),
+          SOVEREIGN_MCP_CONNECTORS.filter((c) => c.id !== "system_platform").map((c) => [
+            c.id,
+            false,
+          ]),
         ),
       },
     };
@@ -405,13 +408,17 @@ describe("Adversarial Security Challenge 1: Privilege Escalation & applyTool Exe
     const res1 = (await executeEnterpriseTool("stripe_create_payment", {})) as { error?: string };
     expect(res1.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
 
-    const res2 = (await executeEnterpriseTool("stripe_agence_list_customers", {})) as { error?: string };
+    const res2 = (await executeEnterpriseTool("stripe_agence_list_customers", {})) as {
+      error?: string;
+    };
     expect(res2.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
 
     // 2. Through applyTool executor gate
     const harness = createExecutorTestHarness({});
     const applyTool = await harness.getApplyTool();
-    const gateRes = (await applyTool("stripe_create_payment", {}, "exec-stripe-gate")) as { error?: string };
+    const gateRes = (await applyTool("stripe_create_payment", {}, "exec-stripe-gate")) as {
+      error?: string;
+    };
     expect(gateRes.error).toContain("Execution was blocked by security policy");
   });
 });

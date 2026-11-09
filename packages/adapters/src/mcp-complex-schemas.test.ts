@@ -310,7 +310,10 @@ describe("MCP Complex Schema & TypeBox Enum Normalization (Feature 1)", () => {
           description: "Alpha tool",
           inputSchema: {
             type: "object",
-            properties: { id: { type: "string" }, mode: { type: "string", enum: ["fast", "deep"] } },
+            properties: {
+              id: { type: "string" },
+              mode: { type: "string", enum: ["fast", "deep"] },
+            },
             required: ["id"],
           },
         },

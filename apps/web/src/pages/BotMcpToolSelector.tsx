@@ -109,7 +109,8 @@ export function getAllActiveMcpConfig(): BotMcpConfig {
 export function getRecommendedMcpConfig(): BotMcpConfig {
   const connectors: Record<string, boolean> = {};
   for (const connector of SOVEREIGN_MCP_CONNECTORS) {
-    connectors[connector.id] = connector.id === "searxng_scraperr" || connector.id === "system_platform";
+    connectors[connector.id] =
+      connector.id === "searxng_scraperr" || connector.id === "system_platform";
   }
   const tools: Record<string, boolean> = {};
   for (const connector of SOVEREIGN_MCP_CONNECTORS) {

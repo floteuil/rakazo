@@ -88,7 +88,9 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
 
       // Verify title & badges
       expect(markup).toContain("Connecteurs &amp; Outils MCP Souverains");
-      expect(markup).toContain(`${SOVEREIGN_MCP_CONNECTORS.reduce((acc, c) => acc + c.tools.length, 0)} outils actifs`);
+      expect(markup).toContain(
+        `${SOVEREIGN_MCP_CONNECTORS.reduce((acc, c) => acc + c.tools.length, 0)} outils actifs`,
+      );
 
       // Verify Quick Action Buttons
       expect(markup).toContain("Tout activer");

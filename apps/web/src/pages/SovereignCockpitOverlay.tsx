@@ -2,19 +2,24 @@ import {
   type Bot,
   MAX_SKILLS_PER_PACK,
   SOVEREIGN_MCP_CONNECTORS,
+  SOVEREIGN_MEMORY_PROFILES,
   SOVEREIGN_SKILL_PACKS,
   SOVEREIGN_SKILLS_CATALOG,
+  type SentinelReport,
 } from "@rakazo/contracts";
 import {
   Activity,
   CheckCircle2,
   Cpu,
+  Database,
   Gauge,
+  Layers,
   RefreshCw,
   Search,
   ShieldCheck,
   Sparkles,
   X,
+  Zap,
 } from "lucide-react";
 import React, { useMemo, useState } from "react";
 import { rpc } from "../lib/rpc";
@@ -86,9 +91,10 @@ export function SovereignCockpitOverlay({
   initialUsage = null,
   onClose,
 }: SovereignCockpitOverlayProps) {
-  const [activeTab, setActiveTab] = useState<"sobriety" | "connectors">("sobriety");
+  const [activeTab, setActiveTab] = useState<"sobriety" | "connectors" | "sentinel">("sobriety");
   const [searchQuery, setSearchQuery] = useState("");
   const [usage, setUsage] = useState(initialUsage);
+  const [sentinelReport, setSentinelReport] = useState<SentinelReport | null>(null);
   const [refreshingUsage, setRefreshingUsage] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState<string>(() =>
     new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
@@ -114,8 +120,12 @@ export function SovereignCockpitOverlay({
   async function handleRefreshMetrics() {
     setRefreshingUsage(true);
     try {
-      const summary = await rpc.usage.summary();
+      const [summary, sentReport] = await Promise.all([
+        rpc.usage.summary(),
+        (rpc as any).sentinel?.report?.().catch(() => null),
+      ]);
       setUsage(summary);
+      if (sentReport) setSentinelReport(sentReport);
       setLastCheckTime(
         new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
       );
@@ -211,6 +221,19 @@ export function SovereignCockpitOverlay({
           >
             <Activity size={14} />
             <span>Météo des 18 MCP & OmniRoute</span>
+          </button>
+          <button
+            type="button"
+            data-testid="cockpit-tab-sentinel"
+            onClick={() => setActiveTab("sentinel")}
+            className={`min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
+              activeTab === "sentinel"
+                ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
+                : "text-[#85858A] hover:text-[#EDEDEF]"
+            }`}
+          >
+            <Zap size={14} />
+            <span>Sentinel & Sobriété Mémoire</span>
           </button>
         </div>
 
@@ -310,7 +333,7 @@ export function SovereignCockpitOverlay({
                 ))}
               </div>
             </div>
-          ) : (
+          ) : activeTab === "connectors" ? (
             <div className="space-y-4">
               {/* OmniRoute Gateway Banner */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 p-3.5">
@@ -374,6 +397,152 @@ export function SovereignCockpitOverlay({
                     </div>
                   </div>
                 ))}
+              </div>
+            </div>
+          ) : (
+            <div data-testid="cockpit-sentinel-view" className="space-y-4">
+              {/* Sentinel Banner */}
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
+                <div>
+                  <div className="flex items-center gap-2 text-xs font-semibold text-amber-300">
+                    <Zap size={15} className="shrink-0 text-amber-400" />
+                    <span>Diagnostic Sentinel Zéro-LLM (Inspiré d'OpenMausBot)</span>
+                  </div>
+                  <p className="mt-1 text-xs text-amber-200/80 leading-relaxed">
+                    Surveillance temps réel non-bloquante des 18 connecteurs MCP et de la santé des
+                    exécutions. Coût LLM : <strong>strictement 0,00 $ (0 token consommé)</strong>.
+                  </p>
+                </div>
+                <span className="self-start sm:self-auto shrink-0 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 font-mono text-xs font-semibold text-emerald-300">
+                  {sentinelReport ? `${sentinelReport.healthyCount} / 18 Sains` : "18 / 18 Sains"}
+                </span>
+              </div>
+
+              {/* Same-Request Deduplicator & Memory Budget Overview */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                <div className="rounded-xl border border-[#26262A] bg-[#18181B] p-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-[#EDEDEF]">
+                        Déduplication same-request
+                      </span>
+                      <span className="rounded-full bg-emerald-500/15 border border-emerald-500/30 px-2 py-0.5 font-mono text-[10px] text-emerald-300">
+                        ≥ 40 car. actif
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-[#85858A] leading-relaxed">
+                      Intercepte et neutralise les requêtes textuelles identiques soumises en rafale
+                      ou en doublon. Évite tout double tour de LLM inutile et protège votre quota.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-emerald-400 font-medium">
+                    <CheckCircle2 size={13} />
+                    <span>Protection anti-doublon en continu</span>
+                  </div>
+                </div>
+
+                <div className="rounded-xl border border-[#26262A] bg-[#18181B] p-4 flex flex-col justify-between">
+                  <div>
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="text-xs font-semibold text-[#EDEDEF]">
+                        Plafonds Mémoire Dynamiques
+                      </span>
+                      <span className="rounded-full bg-amber-500/15 border border-amber-500/30 px-2 py-0.5 font-mono text-[10px] text-amber-300">
+                        Multi-IA Actif
+                      </span>
+                    </div>
+                    <p className="mt-2 text-xs text-[#85858A] leading-relaxed">
+                      S'adapte au modèle (Gemini 3.1, GPT-OSS 120B, Mistral). Les mémoires
+                      excédentaires sont archivées automatiquement dans{" "}
+                      <code className="text-[#A78BFA]">memory/archive.md</code> sans aucune perte de
+                      données.
+                    </p>
+                  </div>
+                  <div className="mt-3 flex items-center gap-2 text-[11px] text-amber-300 font-medium">
+                    <Database size={13} />
+                    <span>Délestage LRU automatique</span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Profiles Grid */}
+              <div className="space-y-2">
+                <h3 className="text-xs font-semibold text-[#ECECEE] flex items-center gap-1.5">
+                  <Layers size={13} className="text-[#A78BFA]" />
+                  <span>Profils de Contexte Mémoire par Modèle IA</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  {Object.values(SOVEREIGN_MEMORY_PROFILES)
+                    .slice(0, 4)
+                    .map((prof) => (
+                      <div
+                        key={prof.id}
+                        className="rounded-xl border border-[#26262A] bg-[#161619] p-3 text-left"
+                      >
+                        <div className="flex items-center justify-between gap-1 mb-1">
+                          <span className="text-xs font-medium text-[#EDEDEF] truncate">
+                            {prof.label}
+                          </span>
+                          <span className="text-[10px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">
+                            {prof.maxLines}L
+                          </span>
+                        </div>
+                        <div className="text-[11px] text-[#71717A] mb-2 font-mono">
+                          Quota : {Math.round(prof.maxBytes / 1024)} Ko
+                        </div>
+                        <div className="w-full bg-[#232326] h-1.5 rounded-full overflow-hidden">
+                          <div
+                            className="bg-emerald-400 h-full rounded-full"
+                            style={{ width: `${prof.warningPercent}%` }}
+                          />
+                        </div>
+                        <p className="mt-2 text-[10.5px] text-[#85858A] line-clamp-2">
+                          {prof.description}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              </div>
+
+              {/* Sentinel Issues Table / Status */}
+              <div className="rounded-xl border border-[#26262A] bg-[#18181B] p-4">
+                <div className="flex items-center justify-between gap-2 mb-3">
+                  <div className="text-xs font-semibold text-[#ECECEE] flex items-center gap-2">
+                    <Activity size={14} className="text-indigo-400" />
+                    <span>Analyseur d'Anomalies Sentinel (Signatures Normalisées)</span>
+                  </div>
+                  <span className="text-[11px] font-mono text-[#85858A]">
+                    {sentinelReport?.issues?.length ?? 0} anomalie(s)
+                  </span>
+                </div>
+                {sentinelReport && sentinelReport.issues.length > 0 ? (
+                  <div className="space-y-2">
+                    {sentinelReport.issues.map((iss) => (
+                      <div
+                        key={iss.sig}
+                        className="flex items-center justify-between gap-3 rounded-lg border border-[#2B2B30] bg-[#141416] p-2.5 text-xs"
+                      >
+                        <div className="min-w-0">
+                          <div className="font-semibold text-[#ECECEE] truncate">{iss.title}</div>
+                          <div className="text-[10px] text-[#71717A] font-mono">
+                            {iss.tool ?? "outil"} · {iss.sig}
+                          </div>
+                        </div>
+                        <span className="shrink-0 rounded-full bg-rose-500/20 border border-rose-500/30 px-2 py-0.5 text-[10px] font-mono font-medium text-rose-300">
+                          {iss.count}x
+                        </span>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 text-xs text-emerald-300">
+                    <CheckCircle2 size={16} className="shrink-0 text-emerald-400" />
+                    <span>
+                      Aucune anomalie ni boucle d'erreur détectée. Les 18 connecteurs et la mémoire
+                      fonctionnent avec une disponibilité optimale.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}

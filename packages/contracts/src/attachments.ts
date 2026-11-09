@@ -55,4 +55,3 @@ export function attachmentMaxBytes(config?: { maxUploadSizeBytes?: number } | nu
 export function attachmentSizeLabel(maxBytes: number): string {
   return `${maxBytes / (1024 * 1024)} MiB`;
 }
-

@@ -1406,15 +1406,31 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "twenty_list_people",
         label: "Liste des Contacts & Prospects",
-        description: "Lister ou rechercher des contacts et prospects dans Twenty CRM avec pagination et filtres.",
+        description:
+          "Lister ou rechercher des contacts et prospects dans Twenty CRM avec pagination et filtres.",
         connectorId: "twenty_crm",
         category: "workspace",
         isSensitive: false,
         requiredParams: [],
         parameters: [
-          { name: "limit", type: "number", description: "Nombre maximum d'enregistrements (défaut 20).", required: false },
-          { name: "startingAfter", type: "string", description: "Curseur de pagination.", required: false },
-          { name: "order_by", type: "string", description: "Champ de tri (ex: createdAt, name).", required: false },
+          {
+            name: "limit",
+            type: "number",
+            description: "Nombre maximum d'enregistrements (défaut 20).",
+            required: false,
+          },
+          {
+            name: "startingAfter",
+            type: "string",
+            description: "Curseur de pagination.",
+            required: false,
+          },
+          {
+            name: "order_by",
+            type: "string",
+            description: "Champ de tri (ex: createdAt, name).",
+            required: false,
+          },
         ],
         exampleInvocation: { limit: 10 },
       },
@@ -1427,7 +1443,12 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: false,
         requiredParams: ["id"],
         parameters: [
-          { name: "id", type: "string", description: "UUID du contact Twenty CRM.", required: true },
+          {
+            name: "id",
+            type: "string",
+            description: "UUID du contact Twenty CRM.",
+            required: true,
+          },
         ],
         exampleInvocation: { id: "55668c58-516f-49fb-ab26-84931e7b67bf" },
       },
@@ -1442,12 +1463,31 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         parameters: [
           { name: "firstName", type: "string", description: "Prénom du contact.", required: false },
           { name: "lastName", type: "string", description: "Nom de famille.", required: false },
-          { name: "email", type: "string", description: "Adresse email principale.", required: false },
+          {
+            name: "email",
+            type: "string",
+            description: "Adresse email principale.",
+            required: false,
+          },
           { name: "phone", type: "string", description: "Numéro de téléphone.", required: false },
-          { name: "jobTitle", type: "string", description: "Poste ou fonction occupée.", required: false },
-          { name: "city", type: "string", description: "Ville de résidence ou localisation.", required: false },
+          {
+            name: "jobTitle",
+            type: "string",
+            description: "Poste ou fonction occupée.",
+            required: false,
+          },
+          {
+            name: "city",
+            type: "string",
+            description: "Ville de résidence ou localisation.",
+            required: false,
+          },
         ],
-        exampleInvocation: { firstName: "Jean", lastName: "Dupont", email: "jean.dupont@example.com" },
+        exampleInvocation: {
+          firstName: "Jean",
+          lastName: "Dupont",
+          email: "jean.dupont@example.com",
+        },
       },
       {
         name: "twenty_update_person",
@@ -1458,14 +1498,32 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: true,
         requiredParams: ["id"],
         parameters: [
-          { name: "id", type: "string", description: "UUID du contact à modifier.", required: true },
+          {
+            name: "id",
+            type: "string",
+            description: "UUID du contact à modifier.",
+            required: true,
+          },
           { name: "firstName", type: "string", description: "Nouveau prénom.", required: false },
           { name: "lastName", type: "string", description: "Nouveau nom.", required: false },
-          { name: "email", type: "string", description: "Nouvelle adresse email.", required: false },
+          {
+            name: "email",
+            type: "string",
+            description: "Nouvelle adresse email.",
+            required: false,
+          },
           { name: "phone", type: "string", description: "Nouveau téléphone.", required: false },
-          { name: "jobTitle", type: "string", description: "Nouveau titre de fonction.", required: false },
+          {
+            name: "jobTitle",
+            type: "string",
+            description: "Nouveau titre de fonction.",
+            required: false,
+          },
         ],
-        exampleInvocation: { id: "55668c58-516f-49fb-ab26-84931e7b67bf", jobTitle: "Directeur Général" },
+        exampleInvocation: {
+          id: "55668c58-516f-49fb-ab26-84931e7b67bf",
+          jobTitle: "Directeur Général",
+        },
       },
       {
         name: "twenty_delete_person",
@@ -1476,7 +1534,12 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: true,
         requiredParams: ["id"],
         parameters: [
-          { name: "id", type: "string", description: "UUID du contact à supprimer.", required: true },
+          {
+            name: "id",
+            type: "string",
+            description: "UUID du contact à supprimer.",
+            required: true,
+          },
         ],
         exampleInvocation: { id: "55668c58-516f-49fb-ab26-84931e7b67bf" },
       },
@@ -1489,8 +1552,18 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: false,
         requiredParams: [],
         parameters: [
-          { name: "limit", type: "number", description: "Nombre maximum d'enregistrements.", required: false },
-          { name: "startingAfter", type: "string", description: "Curseur de pagination.", required: false },
+          {
+            name: "limit",
+            type: "number",
+            description: "Nombre maximum d'enregistrements.",
+            required: false,
+          },
+          {
+            name: "startingAfter",
+            type: "string",
+            description: "Curseur de pagination.",
+            required: false,
+          },
         ],
         exampleInvocation: { limit: 20 },
       },
@@ -1516,9 +1589,24 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: true,
         requiredParams: ["name"],
         parameters: [
-          { name: "name", type: "string", description: "Raison sociale de l'entreprise.", required: true },
-          { name: "domainName", type: "string", description: "Nom de domaine web (ex: acme.com).", required: false },
-          { name: "employees", type: "number", description: "Nombre de salariés estimé.", required: false },
+          {
+            name: "name",
+            type: "string",
+            description: "Raison sociale de l'entreprise.",
+            required: true,
+          },
+          {
+            name: "domainName",
+            type: "string",
+            description: "Nom de domaine web (ex: acme.com).",
+            required: false,
+          },
+          {
+            name: "employees",
+            type: "number",
+            description: "Nombre de salariés estimé.",
+            required: false,
+          },
           { name: "address", type: "string", description: "Adresse du siège.", required: false },
         ],
         exampleInvocation: { name: "Acme Corp", domainName: "acme.com" },
@@ -1532,11 +1620,24 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: true,
         requiredParams: ["id"],
         parameters: [
-          { name: "id", type: "string", description: "UUID de l'entreprise à modifier.", required: true },
+          {
+            name: "id",
+            type: "string",
+            description: "UUID de l'entreprise à modifier.",
+            required: true,
+          },
           { name: "name", type: "string", description: "Nouveau nom.", required: false },
-          { name: "domainName", type: "string", description: "Nouveau nom de domaine.", required: false },
+          {
+            name: "domainName",
+            type: "string",
+            description: "Nouveau nom de domaine.",
+            required: false,
+          },
         ],
-        exampleInvocation: { id: "c1234567-89ab-cdef-0123-456789abcdef", domainName: "acme-solutions.com" },
+        exampleInvocation: {
+          id: "c1234567-89ab-cdef-0123-456789abcdef",
+          domainName: "acme-solutions.com",
+        },
       },
       {
         name: "twenty_list_opportunities",
@@ -1547,8 +1648,18 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: false,
         requiredParams: [],
         parameters: [
-          { name: "limit", type: "number", description: "Nombre maximum d'opportunités.", required: false },
-          { name: "stage", type: "string", description: "Filtrer par phase du cycle de vente.", required: false },
+          {
+            name: "limit",
+            type: "number",
+            description: "Nombre maximum d'opportunités.",
+            required: false,
+          },
+          {
+            name: "stage",
+            type: "string",
+            description: "Filtrer par phase du cycle de vente.",
+            required: false,
+          },
         ],
         exampleInvocation: { limit: 10 },
       },
@@ -1562,10 +1673,30 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         requiredParams: ["name"],
         parameters: [
           { name: "name", type: "string", description: "Titre ou objet du deal.", required: true },
-          { name: "amount", type: "number", description: "Montant estimé en euros.", required: false },
-          { name: "stage", type: "string", description: "Étape de qualification commerciale.", required: false },
-          { name: "closeDate", type: "string", description: "Date cible de clôture (ISO-8601).", required: false },
-          { name: "companyId", type: "string", description: "UUID de l'entreprise associée.", required: false },
+          {
+            name: "amount",
+            type: "number",
+            description: "Montant estimé en euros.",
+            required: false,
+          },
+          {
+            name: "stage",
+            type: "string",
+            description: "Étape de qualification commerciale.",
+            required: false,
+          },
+          {
+            name: "closeDate",
+            type: "string",
+            description: "Date cible de clôture (ISO-8601).",
+            required: false,
+          },
+          {
+            name: "companyId",
+            type: "string",
+            description: "UUID de l'entreprise associée.",
+            required: false,
+          },
         ],
         exampleInvocation: { name: "Contrat Infogérance Annuel", amount: 15000, stage: "PROPOSAL" },
       },
@@ -1578,7 +1709,12 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: false,
         requiredParams: [],
         parameters: [
-          { name: "limit", type: "number", description: "Nombre maximum de tâches.", required: false },
+          {
+            name: "limit",
+            type: "number",
+            description: "Nombre maximum de tâches.",
+            required: false,
+          },
         ],
         exampleInvocation: { limit: 20 },
       },
@@ -1592,9 +1728,24 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         requiredParams: ["title"],
         parameters: [
           { name: "title", type: "string", description: "Intitulé de la tâche.", required: true },
-          { name: "body", type: "string", description: "Description ou consignes détaillées.", required: false },
-          { name: "dueAt", type: "string", description: "Échéance au format ISO-8601.", required: false },
-          { name: "status", type: "string", description: "Statut initial (TODO, IN_PROGRESS, DONE).", required: false },
+          {
+            name: "body",
+            type: "string",
+            description: "Description ou consignes détaillées.",
+            required: false,
+          },
+          {
+            name: "dueAt",
+            type: "string",
+            description: "Échéance au format ISO-8601.",
+            required: false,
+          },
+          {
+            name: "status",
+            type: "string",
+            description: "Statut initial (TODO, IN_PROGRESS, DONE).",
+            required: false,
+          },
         ],
         exampleInvocation: { title: "Rappeler le client pour proposition", status: "TODO" },
       },
@@ -1607,26 +1758,57 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: true,
         requiredParams: ["body"],
         parameters: [
-          { name: "body", type: "string", description: "Texte ou compte rendu de la note.", required: true },
+          {
+            name: "body",
+            type: "string",
+            description: "Texte ou compte rendu de la note.",
+            required: true,
+          },
           { name: "title", type: "string", description: "Titre de la note.", required: false },
-          { name: "targetPersonId", type: "string", description: "UUID du contact associé.", required: false },
-          { name: "targetCompanyId", type: "string", description: "UUID de l'entreprise associée.", required: false },
+          {
+            name: "targetPersonId",
+            type: "string",
+            description: "UUID du contact associé.",
+            required: false,
+          },
+          {
+            name: "targetCompanyId",
+            type: "string",
+            description: "UUID de l'entreprise associée.",
+            required: false,
+          },
         ],
-        exampleInvocation: { title: "Appel de cadrage", body: "Client très intéressé par l'intégration n8n et IA." },
+        exampleInvocation: {
+          title: "Appel de cadrage",
+          body: "Client très intéressé par l'intégration n8n et IA.",
+        },
       },
       {
         name: "twenty_graphql_query",
         label: "Requête GraphQL Twenty",
-        description: "Exécuter une requête GraphQL directe pour interroger ou muter le schéma Twenty CRM.",
+        description:
+          "Exécuter une requête GraphQL directe pour interroger ou muter le schéma Twenty CRM.",
         connectorId: "twenty_crm",
         category: "workspace",
         isSensitive: true,
         requiredParams: ["query"],
         parameters: [
-          { name: "query", type: "string", description: "Chaîne de requête GraphQL valide.", required: true },
-          { name: "variables", type: "object", description: "Variables d'exécution optionnelles.", required: false },
+          {
+            name: "query",
+            type: "string",
+            description: "Chaîne de requête GraphQL valide.",
+            required: true,
+          },
+          {
+            name: "variables",
+            type: "object",
+            description: "Variables d'exécution optionnelles.",
+            required: false,
+          },
         ],
-        exampleInvocation: { query: "{ people(first: 5) { edges { node { id name { firstName lastName } } } } }" },
+        exampleInvocation: {
+          query: "{ people(first: 5) { edges { node { id name { firstName lastName } } } } }",
+        },
       },
     ],
   },
@@ -1657,14 +1839,20 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: false,
         requiredParams: [],
         parameters: [
-          { name: "limit", type: "number", description: "Nombre maximum de documents (défaut 50).", required: false },
+          {
+            name: "limit",
+            type: "number",
+            description: "Nombre maximum de documents (défaut 50).",
+            required: false,
+          },
         ],
         exampleInvocation: { limit: 20 },
       },
       {
         name: "affine_get_doc",
         label: "Lecture d'un Document AFFiNE",
-        description: "Consulter le contenu intégral et les métadonnées d'un document AFFiNE par son identifiant.",
+        description:
+          "Consulter le contenu intégral et les métadonnées d'un document AFFiNE par son identifiant.",
         connectorId: "affine",
         category: "workspace",
         isSensitive: false,
@@ -1684,9 +1872,17 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         requiredParams: ["title"],
         parameters: [
           { name: "title", type: "string", description: "Titre du document.", required: true },
-          { name: "content", type: "string", description: "Contenu initial en Markdown.", required: false },
+          {
+            name: "content",
+            type: "string",
+            description: "Contenu initial en Markdown.",
+            required: false,
+          },
         ],
-        exampleInvocation: { title: "Documentation Architecture Rakazo", content: "# Architecture\nDocumentation des agents." },
+        exampleInvocation: {
+          title: "Documentation Architecture Rakazo",
+          content: "# Architecture\nDocumentation des agents.",
+        },
       },
       {
         name: "affine_append_markdown",
@@ -1698,9 +1894,17 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         requiredParams: ["docId", "markdown"],
         parameters: [
           { name: "docId", type: "string", description: "ID du document cible.", required: true },
-          { name: "markdown", type: "string", description: "Texte Markdown à insérer.", required: true },
+          {
+            name: "markdown",
+            type: "string",
+            description: "Texte Markdown à insérer.",
+            required: true,
+          },
         ],
-        exampleInvocation: { docId: "88214aa2-839b-43dd-8be5-11bdb6c10551", markdown: "\n## Nouvel ajout\nSection automatique." },
+        exampleInvocation: {
+          docId: "88214aa2-839b-43dd-8be5-11bdb6c10551",
+          markdown: "\n## Nouvel ajout\nSection automatique.",
+        },
       },
       {
         name: "affine_search_docs",
@@ -1738,29 +1942,56 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "context7_resolve_library_id",
         label: "Résolution d'ID Bibliothèque Context7",
-        description: "Résoudre le nom d'un framework ou package en identifiant Context7 compatible (ex: /vercel/next.js).",
+        description:
+          "Résoudre le nom d'un framework ou package en identifiant Context7 compatible (ex: /vercel/next.js).",
         connectorId: "context7",
         category: "search",
         isSensitive: false,
         requiredParams: ["libraryName", "query"],
         parameters: [
-          { name: "libraryName", type: "string", description: "Nom exact de la bibliothèque (ex: Next.js, React, Tailwind).", required: true },
-          { name: "query", type: "string", description: "Contexte de recherche pour affiner la sélection.", required: true },
+          {
+            name: "libraryName",
+            type: "string",
+            description: "Nom exact de la bibliothèque (ex: Next.js, React, Tailwind).",
+            required: true,
+          },
+          {
+            name: "query",
+            type: "string",
+            description: "Contexte de recherche pour affiner la sélection.",
+            required: true,
+          },
         ],
         exampleInvocation: { libraryName: "Next.js", query: "App router server actions" },
       },
       {
         name: "context7_query_docs",
         label: "Interrogation Documentation Context7",
-        description: "Récupérer la documentation à jour et des exemples de code récents pour une bibliothèque résolue.",
+        description:
+          "Récupérer la documentation à jour et des exemples de code récents pour une bibliothèque résolue.",
         connectorId: "context7",
         category: "search",
         isSensitive: false,
         requiredParams: ["libraryId", "query"],
         parameters: [
-          { name: "libraryId", type: "string", description: "ID bibliothèque Context7 obtenu via resolve (ex: /vercel/next.js).", required: true },
-          { name: "query", type: "string", description: "Concept technique ou question précise à rechercher.", required: true },
-          { name: "language", type: "string", description: "Langage de programmation cible (ex: TypeScript, Python).", required: false },
+          {
+            name: "libraryId",
+            type: "string",
+            description: "ID bibliothèque Context7 obtenu via resolve (ex: /vercel/next.js).",
+            required: true,
+          },
+          {
+            name: "query",
+            type: "string",
+            description: "Concept technique ou question précise à rechercher.",
+            required: true,
+          },
+          {
+            name: "language",
+            type: "string",
+            description: "Langage de programmation cible (ex: TypeScript, Python).",
+            required: false,
+          },
         ],
         exampleInvocation: { libraryId: "/vercel/next.js", query: "middleware and auth redirects" },
       },
@@ -1787,7 +2018,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "open_design_list_projects",
         label: "Liste des Projets Design",
-        description: "Lister les projets de maquettage et design disponibles sur l'instance Open Design.",
+        description:
+          "Lister les projets de maquettage et design disponibles sur l'instance Open Design.",
         connectorId: "open_design",
         category: "code",
         isSensitive: false,
@@ -1798,7 +2030,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "open_design_get_active_context",
         label: "Contexte Actif Open Design",
-        description: "Récupérer le projet et le fichier actuellement ouverts dans l'interface visuelle Open Design.",
+        description:
+          "Récupérer le projet et le fichier actuellement ouverts dans l'interface visuelle Open Design.",
         connectorId: "open_design",
         category: "code",
         isSensitive: false,
@@ -1809,63 +2042,111 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "open_design_create_project",
         label: "Création d'un Projet Design",
-        description: "Créer un nouveau projet vierge dans Open Design pour concevoir une interface.",
+        description:
+          "Créer un nouveau projet vierge dans Open Design pour concevoir une interface.",
         connectorId: "open_design",
         category: "code",
         isSensitive: true,
         requiredParams: ["name"],
         parameters: [
-          { name: "name", type: "string", description: "Nom du projet d'interface.", required: true },
+          {
+            name: "name",
+            type: "string",
+            description: "Nom du projet d'interface.",
+            required: true,
+          },
         ],
         exampleInvocation: { name: "Dashboard E-commerce" },
       },
       {
         name: "open_design_create_artifact",
         label: "Création d'un Artefact UI",
-        description: "Publier un nouvel artefact d'interface rendu (HTML, CSS, JSX) dans un projet Open Design.",
+        description:
+          "Publier un nouvel artefact d'interface rendu (HTML, CSS, JSX) dans un projet Open Design.",
         connectorId: "open_design",
         category: "code",
         isSensitive: true,
         requiredParams: ["name", "content"],
         parameters: [
-          { name: "name", type: "string", description: "Nom du fichier d'artefact (ex: index.html).", required: true },
-          { name: "content", type: "string", description: "Code source complet rendu de l'interface.", required: true },
-          { name: "project", type: "string", description: "ID ou slug du projet (utilise le projet actif par défaut).", required: false },
+          {
+            name: "name",
+            type: "string",
+            description: "Nom du fichier d'artefact (ex: index.html).",
+            required: true,
+          },
+          {
+            name: "content",
+            type: "string",
+            description: "Code source complet rendu de l'interface.",
+            required: true,
+          },
+          {
+            name: "project",
+            type: "string",
+            description: "ID ou slug du projet (utilise le projet actif par défaut).",
+            required: false,
+          },
         ],
-        exampleInvocation: { name: "index.html", content: "<div class='p-6'><h1>Aperçu</h1></div>" },
+        exampleInvocation: {
+          name: "index.html",
+          content: "<div class='p-6'><h1>Aperçu</h1></div>",
+        },
       },
       {
         name: "open_design_write_file",
         label: "Mise à Jour de Fichier Design",
-        description: "Modifier ou écraser un fichier existant dans le projet Open Design pour itérer sur la maquette.",
+        description:
+          "Modifier ou écraser un fichier existant dans le projet Open Design pour itérer sur la maquette.",
         connectorId: "open_design",
         category: "code",
         isSensitive: true,
         requiredParams: ["path", "content"],
         parameters: [
-          { name: "path", type: "string", description: "Chemin relatif du fichier dans le projet (ex: style.css).", required: true },
-          { name: "content", type: "string", description: "Nouveau contenu du fichier.", required: true },
-          { name: "project", type: "string", description: "ID ou nom du projet optionnel.", required: false },
+          {
+            name: "path",
+            type: "string",
+            description: "Chemin relatif du fichier dans le projet (ex: style.css).",
+            required: true,
+          },
+          {
+            name: "content",
+            type: "string",
+            description: "Nouveau contenu du fichier.",
+            required: true,
+          },
+          {
+            name: "project",
+            type: "string",
+            description: "ID ou nom du projet optionnel.",
+            required: false,
+          },
         ],
         exampleInvocation: { path: "style.css", content: "body { background: #0f172a; }" },
       },
       {
         name: "open_design_get_artifact",
         label: "Lecture d'Artefact Rendu",
-        description: "Récupérer le code source complet d'un artefact d'interface avec tous ses modules et tokens associés.",
+        description:
+          "Récupérer le code source complet d'un artefact d'interface avec tous ses modules et tokens associés.",
         connectorId: "open_design",
         category: "code",
         isSensitive: false,
         requiredParams: [],
         parameters: [
-          { name: "project", type: "string", description: "ID du projet design cible.", required: false },
+          {
+            name: "project",
+            type: "string",
+            description: "ID du projet design cible.",
+            required: false,
+          },
         ],
         exampleInvocation: {},
       },
       {
         name: "open_design_list_skills",
         label: "Liste des Compétences Design",
-        description: "Consulter le catalogue des compétences de design disponibles sur le moteur Open Design.",
+        description:
+          "Consulter le catalogue des compétences de design disponibles sur le moteur Open Design.",
         connectorId: "open_design",
         category: "code",
         isSensitive: false,
@@ -1895,15 +2176,31 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "image_optimize_compress",
         label: "Compression & Optimisation d'Image",
-        description: "Optimiser et compresser une image par URL ou chemin local avec cible de qualité et format.",
+        description:
+          "Optimiser et compresser une image par URL ou chemin local avec cible de qualité et format.",
         connectorId: "image_optimizer",
         category: "workspace",
         isSensitive: false,
         requiredParams: ["urls"],
         parameters: [
-          { name: "urls", type: "string", description: "URL ou chemin de l'image (séparés par virgule si multiples).", required: true },
-          { name: "quality", type: "number", description: "Qualité de compression de 1 à 100 (défaut 80).", required: false },
-          { name: "format", type: "string", description: "Format de sortie (webp, png, jpeg, avif).", required: false },
+          {
+            name: "urls",
+            type: "string",
+            description: "URL ou chemin de l'image (séparés par virgule si multiples).",
+            required: true,
+          },
+          {
+            name: "quality",
+            type: "number",
+            description: "Qualité de compression de 1 à 100 (défaut 80).",
+            required: false,
+          },
+          {
+            name: "format",
+            type: "string",
+            description: "Format de sortie (webp, png, jpeg, avif).",
+            required: false,
+          },
         ],
         exampleInvocation: { urls: "https://example.com/banner.png", quality: 80, format: "webp" },
       },
@@ -1930,7 +2227,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "qdrant_list_collections",
         label: "Liste des Collections Vectorielles",
-        description: "Lister toutes les collections vectorielles enregistrées sur l'instance Qdrant.",
+        description:
+          "Lister toutes les collections vectorielles enregistrées sur l'instance Qdrant.",
         connectorId: "qdrant",
         category: "search",
         isSensitive: false,
@@ -1941,32 +2239,71 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "qdrant_search_points",
         label: "Recherche de Voisins Proches (Points)",
-        description: "Rechercher des vecteurs similaires dans une collection Qdrant par vecteur d'embedding ou filtres.",
+        description:
+          "Rechercher des vecteurs similaires dans une collection Qdrant par vecteur d'embedding ou filtres.",
         connectorId: "qdrant",
         category: "search",
         isSensitive: false,
         requiredParams: ["collection_name", "vector"],
         parameters: [
-          { name: "collection_name", type: "string", description: "Nom de la collection vectorielle.", required: true },
-          { name: "vector", type: "array", description: "Vecteur numérique de dimension correspondante.", required: true },
-          { name: "limit", type: "number", description: "Nombre de résultats maximum (défaut 10).", required: false },
-          { name: "with_payload", type: "boolean", description: "Inclure le payload textuel associé.", required: false },
+          {
+            name: "collection_name",
+            type: "string",
+            description: "Nom de la collection vectorielle.",
+            required: true,
+          },
+          {
+            name: "vector",
+            type: "array",
+            description: "Vecteur numérique de dimension correspondante.",
+            required: true,
+          },
+          {
+            name: "limit",
+            type: "number",
+            description: "Nombre de résultats maximum (défaut 10).",
+            required: false,
+          },
+          {
+            name: "with_payload",
+            type: "boolean",
+            description: "Inclure le payload textuel associé.",
+            required: false,
+          },
         ],
-        exampleInvocation: { collection_name: "rakazo_docs", vector: [0.01, -0.05, 0.12], limit: 5 },
+        exampleInvocation: {
+          collection_name: "rakazo_docs",
+          vector: [0.01, -0.05, 0.12],
+          limit: 5,
+        },
       },
       {
         name: "qdrant_upsert_points",
         label: "Indexation de Points Vectoriels",
-        description: "Insérer ou mettre à jour des vecteurs avec métadonnées dans une collection Qdrant.",
+        description:
+          "Insérer ou mettre à jour des vecteurs avec métadonnées dans une collection Qdrant.",
         connectorId: "qdrant",
         category: "search",
         isSensitive: true,
         requiredParams: ["collection_name", "points"],
         parameters: [
-          { name: "collection_name", type: "string", description: "Nom de la collection.", required: true },
-          { name: "points", type: "array", description: "Liste d'objets { id, vector, payload } à indexer.", required: true },
+          {
+            name: "collection_name",
+            type: "string",
+            description: "Nom de la collection.",
+            required: true,
+          },
+          {
+            name: "points",
+            type: "array",
+            description: "Liste d'objets { id, vector, payload } à indexer.",
+            required: true,
+          },
         ],
-        exampleInvocation: { collection_name: "rakazo_docs", points: [{ id: "doc-1", vector: [0.1, 0.2], payload: { title: "Intro" } }] },
+        exampleInvocation: {
+          collection_name: "rakazo_docs",
+          points: [{ id: "doc-1", vector: [0.1, 0.2], payload: { title: "Intro" } }],
+        },
       },
     ],
   },
@@ -2002,27 +2339,44 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "coolify_get_application",
         label: "Détails d'une Application",
-        description: "Récupérer la configuration, l'état de santé et le statut d'un conteneur par son UUID Coolify.",
+        description:
+          "Récupérer la configuration, l'état de santé et le statut d'un conteneur par son UUID Coolify.",
         connectorId: "coolify",
         category: "infra",
         isSensitive: false,
         requiredParams: ["uuid"],
         parameters: [
-          { name: "uuid", type: "string", description: "UUID de l'application dans Coolify.", required: true },
+          {
+            name: "uuid",
+            type: "string",
+            description: "UUID de l'application dans Coolify.",
+            required: true,
+          },
         ],
         exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s" },
       },
       {
         name: "coolify_deploy_application",
         label: "Déploiement d'Application Coolify",
-        description: "Déclencher un nouveau build et déploiement pour une ressource Coolify par son UUID.",
+        description:
+          "Déclencher un nouveau build et déploiement pour une ressource Coolify par son UUID.",
         connectorId: "coolify",
         category: "infra",
         isSensitive: true,
         requiredParams: ["uuid"],
         parameters: [
-          { name: "uuid", type: "string", description: "UUID de la ressource applicative.", required: true },
-          { name: "force_rebuild", type: "boolean", description: "Forcer la reconstruction sans cache Docker.", required: false },
+          {
+            name: "uuid",
+            type: "string",
+            description: "UUID de la ressource applicative.",
+            required: true,
+          },
+          {
+            name: "force_rebuild",
+            type: "boolean",
+            description: "Forcer la reconstruction sans cache Docker.",
+            required: false,
+          },
         ],
         exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s", force_rebuild: false },
       },
@@ -2035,7 +2389,12 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: true,
         requiredParams: ["uuid"],
         parameters: [
-          { name: "uuid", type: "string", description: "UUID de l'application à redémarrer.", required: true },
+          {
+            name: "uuid",
+            type: "string",
+            description: "UUID de l'application à redémarrer.",
+            required: true,
+          },
         ],
         exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s" },
       },
@@ -2049,7 +2408,12 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         requiredParams: ["uuid"],
         parameters: [
           { name: "uuid", type: "string", description: "UUID de l'application.", required: true },
-          { name: "lines", type: "number", description: "Nombre de lignes de log à remonter (défaut 100).", required: false },
+          {
+            name: "lines",
+            type: "number",
+            description: "Nombre de lignes de log à remonter (défaut 100).",
+            required: false,
+          },
         ],
         exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s", lines: 50 },
       },
@@ -2076,7 +2440,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "flowise_list_chatflows",
         label: "Liste des Chatflows Flowise",
-        description: "Lister tous les flux conversationnels et agents orchestrés disponibles sur Flowise.",
+        description:
+          "Lister tous les flux conversationnels et agents orchestrés disponibles sur Flowise.",
         connectorId: "flowise",
         category: "automation",
         isSensitive: false,
@@ -2087,7 +2452,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "flowise_get_chatflow",
         label: "Détails d'un Chatflow",
-        description: "Consulter la configuration et les nœuds constitutifs d'un pipeline Flowise par son identifiant.",
+        description:
+          "Consulter la configuration et les nœuds constitutifs d'un pipeline Flowise par son identifiant.",
         connectorId: "flowise",
         category: "automation",
         isSensitive: false,
@@ -2100,17 +2466,36 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "flowise_run_prediction",
         label: "Exécution de Prédiction Flowise",
-        description: "Envoyer un prompt ou une requête à un chatflow Flowise pour obtenir son inférence ou réponse.",
+        description:
+          "Envoyer un prompt ou une requête à un chatflow Flowise pour obtenir son inférence ou réponse.",
         connectorId: "flowise",
         category: "automation",
         isSensitive: true,
         requiredParams: ["chatflow_id", "question"],
         parameters: [
-          { name: "chatflow_id", type: "string", description: "UUID du flux d'inférence cible.", required: true },
-          { name: "question", type: "string", description: "Message d'entrée ou question utilisateur.", required: true },
-          { name: "overrideConfig", type: "object", description: "Variables d'écrasement de configuration d'exécution.", required: false },
+          {
+            name: "chatflow_id",
+            type: "string",
+            description: "UUID du flux d'inférence cible.",
+            required: true,
+          },
+          {
+            name: "question",
+            type: "string",
+            description: "Message d'entrée ou question utilisateur.",
+            required: true,
+          },
+          {
+            name: "overrideConfig",
+            type: "object",
+            description: "Variables d'écrasement de configuration d'exécution.",
+            required: false,
+          },
         ],
-        exampleInvocation: { chatflow_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", question: "Résume ce rapport financier." },
+        exampleInvocation: {
+          chatflow_id: "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+          question: "Résume ce rapport financier.",
+        },
       },
     ],
   },
@@ -2135,7 +2520,8 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "pocketbase_health",
         label: "Santé Serveur PocketBase",
-        description: "Vérifier la disponibilité et l'état de santé de l'instance PocketBase (auth.hubtowrite.com).",
+        description:
+          "Vérifier la disponibilité et l'état de santé de l'instance PocketBase (auth.hubtowrite.com).",
         connectorId: "pocketbase",
         category: "infra",
         isSensitive: false,
@@ -2163,10 +2549,30 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: false,
         requiredParams: ["collection"],
         parameters: [
-          { name: "collection", type: "string", description: "Nom ou identifiant de la collection cible.", required: true },
-          { name: "filter", type: "string", description: "Filtre PocketBase (ex: status = 'active').", required: false },
-          { name: "sort", type: "string", description: "Critère de tri (ex: -created).", required: false },
-          { name: "perPage", type: "number", description: "Nombre d'enregistrements par page.", required: false },
+          {
+            name: "collection",
+            type: "string",
+            description: "Nom ou identifiant de la collection cible.",
+            required: true,
+          },
+          {
+            name: "filter",
+            type: "string",
+            description: "Filtre PocketBase (ex: status = 'active').",
+            required: false,
+          },
+          {
+            name: "sort",
+            type: "string",
+            description: "Critère de tri (ex: -created).",
+            required: false,
+          },
+          {
+            name: "perPage",
+            type: "number",
+            description: "Nombre d'enregistrements par page.",
+            required: false,
+          },
         ],
         exampleInvocation: { collection: "users", perPage: 10 },
       },
@@ -2179,10 +2585,23 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
         isSensitive: true,
         requiredParams: ["collection", "data"],
         parameters: [
-          { name: "collection", type: "string", description: "Nom de la collection cible.", required: true },
-          { name: "data", type: "object", description: "Objet JSON des données à insérer.", required: true },
+          {
+            name: "collection",
+            type: "string",
+            description: "Nom de la collection cible.",
+            required: true,
+          },
+          {
+            name: "data",
+            type: "object",
+            description: "Objet JSON des données à insérer.",
+            required: true,
+          },
         ],
-        exampleInvocation: { collection: "profiles", data: { username: "floteuil", verified: true } },
+        exampleInvocation: {
+          collection: "profiles",
+          data: { username: "floteuil", verified: true },
+        },
       },
     ],
   },
@@ -2206,27 +2625,44 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
       {
         name: "ubersuggest_keyword_overview",
         label: "Analyse Mots-Clés SEO Ubersuggest",
-        description: "Consulter le volume de recherche mensuel, le coût par clic (CPC) et le score de difficulté SEO pour des mots-clés.",
+        description:
+          "Consulter le volume de recherche mensuel, le coût par clic (CPC) et le score de difficulté SEO pour des mots-clés.",
         connectorId: "ubersuggest",
         category: "search",
         isSensitive: false,
         requiredParams: ["keyword"],
         parameters: [
-          { name: "keyword", type: "string", description: "Mot-clé ou expression à auditer.", required: true },
-          { name: "country", type: "string", description: "Code pays cible (ex: fr, us, en).", required: false },
+          {
+            name: "keyword",
+            type: "string",
+            description: "Mot-clé ou expression à auditer.",
+            required: true,
+          },
+          {
+            name: "country",
+            type: "string",
+            description: "Code pays cible (ex: fr, us, en).",
+            required: false,
+          },
         ],
         exampleInvocation: { keyword: "intelligence artificielle agence", country: "fr" },
       },
       {
         name: "ubersuggest_domain_overview",
         label: "Audit de Domaine SEO Ubersuggest",
-        description: "Analyser le trafic organique estimé, l'autorité de domaine et les positions d'un nom de domaine.",
+        description:
+          "Analyser le trafic organique estimé, l'autorité de domaine et les positions d'un nom de domaine.",
         connectorId: "ubersuggest",
         category: "search",
         isSensitive: false,
         requiredParams: ["domain"],
         parameters: [
-          { name: "domain", type: "string", description: "Nom de domaine web à auditer (ex: groupefloteuil.fr).", required: true },
+          {
+            name: "domain",
+            type: "string",
+            description: "Nom de domaine web à auditer (ex: groupefloteuil.fr).",
+            required: true,
+          },
         ],
         exampleInvocation: { domain: "groupefloteuil.fr" },
       },
@@ -2614,4 +3050,3 @@ export function isForbiddenMcpConnector(idOrSlug: string): boolean {
   const normalized = idOrSlug.toLowerCase().trim();
   return FORBIDDEN_MCP_CONNECTORS.some((forbidden) => normalized.includes(forbidden));
 }
-

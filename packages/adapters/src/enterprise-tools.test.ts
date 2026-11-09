@@ -1098,10 +1098,14 @@ describe("Enterprise MCP Connectors", () => {
 
     it("strictly blocks and rejects any Stripe tool invocation", async () => {
       const res1 = (await executeEnterpriseTool("stripe_create_charge", {})) as { error: string };
-      expect(res1.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
+      expect(res1.error).toContain(
+        "Stripe connector is strictly forbidden and isolated from Rakazo",
+      );
 
       const res2 = (await executeEnterpriseTool("stripe_agence_billing", {})) as { error: string };
-      expect(res2.error).toContain("Stripe connector is strictly forbidden and isolated from Rakazo");
+      expect(res2.error).toContain(
+        "Stripe connector is strictly forbidden and isolated from Rakazo",
+      );
     });
   });
 
@@ -1196,7 +1200,8 @@ describe("Enterprise MCP Connectors", () => {
 
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
-        text: async () => JSON.stringify({ libraryId: "/vercel/next.js", snippets: [{ title: "Middleware" }] }),
+        text: async () =>
+          JSON.stringify({ libraryId: "/vercel/next.js", snippets: [{ title: "Middleware" }] }),
       });
 
       const docRes = (await executeEnterpriseTool("context7_query_docs", {

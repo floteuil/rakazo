@@ -50,11 +50,14 @@ import {
 import type { Auth } from "@rakazo/auth";
 import {
   type Actor,
+  analyzeSentinelTelemetry,
   appContract,
   type BotInferenceConfig,
   type ComputerStatus,
   DEFAULT_PROMPT_COMPILER_MODEL,
+  findDuplicateActiveRun,
   type Me,
+  type TelemetryLogEntry,
   type ThreadSnapshot,
 } from "@rakazo/contracts";
 import {
@@ -475,6 +478,24 @@ export function createRouter(deps: RouterDeps) {
             where: { workspaceId: context.actor.workspaceId, clientNonce: input.clientNonce },
           });
           if (dup) return { taskId: dup.taskId, runId: dup.id, seq: 0 };
+        }
+        // Déduplication Sémantique same-request (Token Saver)
+        const activeRuns = await deps.prisma.run.findMany({
+          where: {
+            botId: bot.id,
+            status: { in: ["queued", "running"] },
+          },
+          select: { id: true, taskId: true, status: true, task: { select: { prompt: true } } },
+        });
+        const activeRunsMapped = activeRuns.map((r) => ({
+          id: r.id,
+          taskId: r.taskId,
+          status: r.status,
+          prompt: r.task.prompt,
+        }));
+        const duplicateRun = input.text ? findDuplicateActiveRun(activeRunsMapped, input.text) : null;
+        if (duplicateRun) {
+          return { taskId: duplicateRun.taskId, runId: duplicateRun.id, seq: 0 };
         }
         const { blocks: attachmentBlocks, artifacts } = await resolveSendAttachments(
           deps,
@@ -1574,6 +1595,29 @@ export function createRouter(deps: RouterDeps) {
           outputTokens: result._sum.outputTokens ?? 0,
           runs: result._count._all,
         };
+      }),
+    },
+    sentinel: {
+      report: authed.sentinel.report.handler(async ({ context }) => {
+        // Diagnostic de santé Zéro-LLM ($0.00) sur les exécutions et outils récents
+        const recentRuns = await deps.prisma.run.findMany({
+          where: { workspaceId: context.actor.workspaceId },
+          orderBy: { createdAt: "desc" },
+          take: 150,
+          select: {
+            id: true,
+            status: true,
+            error: true,
+            createdAt: true,
+          },
+        });
+        const telemetryLogs: TelemetryLogEntry[] = recentRuns.map((r) => ({
+          toolName: "run_execution",
+          ok: r.status === "completed" || r.status === "waiting_input",
+          error: r.error ?? undefined,
+          timestamp: r.createdAt,
+        }));
+        return analyzeSentinelTelemetry(telemetryLogs);
       }),
     },
     export: {

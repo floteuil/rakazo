@@ -743,9 +743,7 @@ function getPostizConfig() {
   const apiKey = process.env.POSTIZ_API_KEY?.trim();
   const rawUrl = process.env.POSTIZ_API_URL?.trim();
   const apiUrl = (
-    rawUrl && rawUrl.length > 0
-      ? rawUrl
-      : "https://postiz.workspacegroupefloteuil.eu"
+    rawUrl && rawUrl.length > 0 ? rawUrl : "https://postiz.workspacegroupefloteuil.eu"
   ).replace(/\/+$/, "");
 
   return { apiKey, apiUrl };
@@ -888,8 +886,7 @@ export async function callPostizMcpTool<T = any>(
     }
 
     if (parsed.result?.isError) {
-      const errText =
-        parsed.result.content?.[0]?.text || "Unknown Postiz tool execution error";
+      const errText = parsed.result.content?.[0]?.text || "Unknown Postiz tool execution error";
       return { ok: false, error: sanitizeToolError(errText) };
     }
 
@@ -979,7 +976,7 @@ export async function executePostizListIntegrations(
       name: item.name,
       identifier: item.identifier,
       provider: item.provider || item.type,
-      status: item.disabled ? "disabled" : (item.status || "connected"),
+      status: item.disabled ? "disabled" : item.status || "connected",
       picture: item.picture,
     })),
   };
@@ -1033,9 +1030,7 @@ export async function executePostizCreatePost(
   ];
 
   const targetChannels =
-    args.integrationIds && args.integrationIds.length > 0
-      ? args.integrationIds
-      : [];
+    args.integrationIds && args.integrationIds.length > 0 ? args.integrationIds : [];
 
   if (targetChannels.length > 0) {
     const socialPosts = targetChannels.map((intId) => ({
@@ -1059,15 +1054,10 @@ export async function executePostizCreatePost(
         ? mcpRes.data
         : (mcpRes.data as any)?.output || [];
       const firstId =
-        (mcpRes.data as any)?.id ||
-        outputList[0]?.postId ||
-        outputList[0]?.id ||
-        "post_created";
+        (mcpRes.data as any)?.id || outputList[0]?.postId || outputList[0]?.id || "post_created";
       const postStatus =
-        (mcpRes.data as any)?.status ||
-        (postType === "now" ? "published" : postType);
-      const postScheduledAt =
-        (mcpRes.data as any)?.scheduledAt || args.scheduledAt;
+        (mcpRes.data as any)?.status || (postType === "now" ? "published" : postType);
+      const postScheduledAt = (mcpRes.data as any)?.scheduledAt || args.scheduledAt;
 
       return {
         ok: true,
@@ -1168,12 +1158,8 @@ export async function executePostizListPosts(
   const { apiKey, apiUrl } = getPostizConfig();
   if (!apiKey) return { error: "Postiz integration is not configured. Please set POSTIZ_API_KEY." };
 
-  const start =
-    args.startDate ||
-    new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
-  const end =
-    args.endDate ||
-    new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString();
+  const start = args.startDate || new Date(Date.now() - 30 * 24 * 3600 * 1000).toISOString();
+  const end = args.endDate || new Date(Date.now() + 60 * 24 * 3600 * 1000).toISOString();
 
   const publicUrl = `${apiUrl}/api/public/v1/posts?startDate=${encodeURIComponent(start)}&endDate=${encodeURIComponent(end)}`;
   const publicRes = await safeFetchJson<{
@@ -1256,7 +1242,8 @@ export async function executePostizListPosts(
 
   return {
     posts: Array.isArray(res.data) ? res.data : res.data.posts || [],
-    total: res.data.total ?? (Array.isArray(res.data) ? res.data.length : res.data.posts?.length || 0),
+    total:
+      res.data.total ?? (Array.isArray(res.data) ? res.data.length : res.data.posts?.length || 0),
   };
 }
 
@@ -1273,18 +1260,15 @@ export async function executePostizGetIntegrationSchema(
   if (!apiKey) return { error: "Postiz integration is not configured. Please set POSTIZ_API_KEY." };
 
   const platform = (args.platform || "").trim().toLowerCase();
-  if (!platform) return { error: "'platform' is required (e.g. 'linkedin', 'x', 'facebook', 'instagram')." };
+  if (!platform)
+    return { error: "'platform' is required (e.g. 'linkedin', 'x', 'facebook', 'instagram')." };
 
   const mcpRes = await callPostizMcpTool<{
     rules?: string;
     maxLength?: number;
     settings?: string;
     tools?: any[];
-  }>(
-    "integrationSchema",
-    { platform, isPremium: Boolean(args.isPremium) },
-    context,
-  );
+  }>("integrationSchema", { platform, isPremium: Boolean(args.isPremium) }, context);
 
   if (!mcpRes.ok) return { error: mcpRes.error, status: mcpRes.status };
 
@@ -2636,9 +2620,7 @@ export async function executeEnterpriseTool(
           type: args.type as PostizCreatePostArgs["type"],
           tags: Array.isArray(args.tags) ? args.tags.map(String) : undefined,
           media: Array.isArray(args.media) ? args.media.map(String) : undefined,
-          comments: Array.isArray(args.comments)
-            ? args.comments.map(String)
-            : undefined,
+          comments: Array.isArray(args.comments) ? args.comments.map(String) : undefined,
           shortLink: Boolean(args.shortLink || args.short_link),
         },
         context,

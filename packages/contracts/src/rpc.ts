@@ -46,6 +46,7 @@ import { ProductEventSchema } from "./events.js";
 import { Id } from "./ids.js";
 import { PromptCompileInputSchema, PromptCompileOutputSchema } from "./prompt-compiler.js";
 import { SearchQueryOutputSchema } from "./search.js";
+import type { SentinelReport } from "./sentinel.js";
 
 const botId = z.object({ botId: Id });
 
@@ -321,6 +322,9 @@ export const appContract = {
         runs: z.number(),
       }),
     ),
+  },
+  sentinel: {
+    report: oc.output(z.custom<SentinelReport>()),
   },
   export: {
     bot: oc.input(botId).output(ExportManifestSchema),

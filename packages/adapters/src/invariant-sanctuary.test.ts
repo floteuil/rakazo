@@ -16,9 +16,7 @@ import {
   SUBAGENT_TOKEN_BUDGET_CEILING,
   SubagentExecutor,
 } from "./subagent-inheritance.js";
-import {
-  compactToolResult,
-} from "./tool-compacting.js";
+import { compactToolResult } from "./tool-compacting.js";
 
 describe("Invariant Sanctuary & 10 Core Architectural Constraints (Feature 12)", () => {
   describe("Invariant 1: OpenRouter Commercial Tier Isolation", () => {
@@ -130,7 +128,11 @@ describe("Invariant Sanctuary & 10 Core Architectural Constraints (Feature 12)",
   describe("Invariant 7: Semantic Tool Result Compacting", () => {
     it("7.1 compacts shell outputs and github lists to prevent context overflow", () => {
       const largeShellOutput = "line\n".repeat(1500);
-      const compactedShell = compactToolResult("shell", { stdout: largeShellOutput, stderr: "", exitCode: 0 });
+      const compactedShell = compactToolResult("shell", {
+        stdout: largeShellOutput,
+        stderr: "",
+        exitCode: 0,
+      });
       expect(compactedShell.length).toBeLessThan(largeShellOutput.length);
       expect(compactedShell).toContain("line");
 

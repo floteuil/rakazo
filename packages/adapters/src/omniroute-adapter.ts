@@ -82,8 +82,7 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
       "https://omniroute.workspacegroupefloteuil.eu/v1";
     this.baseUrl = rawUrl.replace(/\/+$/, "");
     this.apiKey =
-      options.apiKey ??
-      (process.env.OMNIROUTE_API_KEY || "sk-288dc7e9ac6f88e7-f6c3c2-3c01e8d4");
+      options.apiKey ?? (process.env.OMNIROUTE_API_KEY || "sk-288dc7e9ac6f88e7-f6c3c2-3c01e8d4");
     this.defaultModel = options.defaultModel || "combo/rakazo-fast";
     this.defaultTimeoutMs = options.timeoutMs ?? 30000;
     this.policyEngine = new RakazoFreePolicyEngine();
@@ -173,7 +172,8 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
       }
 
       const costHeader =
-        response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
+        response.headers.get("x-omniroute-response-cost") ??
+        response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
         if (Number.isNaN(cost) || !Number.isFinite(cost) || cost !== 0) {
@@ -286,7 +286,8 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
       }
 
       const costHeader =
-        response.headers.get("x-omniroute-response-cost") ?? response.headers.get("x-omniroute-cost");
+        response.headers.get("x-omniroute-response-cost") ??
+        response.headers.get("x-omniroute-cost");
       if (costHeader !== null && costHeader !== undefined) {
         const cost = Number.parseFloat(costHeader);
         if (Number.isNaN(cost) || !Number.isFinite(cost) || cost !== 0) {

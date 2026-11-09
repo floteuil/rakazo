@@ -6,7 +6,9 @@ import { safeFetchJson, sanitizeToolError } from "./enterprise-tools.js";
 /* ========================================================================== */
 
 export function getTwentyConfig() {
-  const apiUrl = (process.env.TWENTY_API_URL?.trim() || "https://crm.workspacegroupefloteuil.eu").replace(/\/+$/, "");
+  const apiUrl = (
+    process.env.TWENTY_API_URL?.trim() || "https://crm.workspacegroupefloteuil.eu"
+  ).replace(/\/+$/, "");
   const apiKey =
     process.env.TWENTY_API_KEY?.trim() ||
     "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTY2OGM1OC01MTZmLTQ5ZmItYWIyNi04NDkzMWU3YjY3YmYiLCJ0eXBlIjoiQVBJX0tFWSIsIndvcmtzcGFjZUlkIjoiNTU2NjhjNTgtNTE2Zi00OWZiLWFiMjYtODQ5MzFlN2I2N2JmIiwiaWF0IjoxNzkyMjYyNTU2LCJleHAiOjQ5NDU4NjI1NTUsImp0aSI6ImQ0MzA5M2RlLTg2NGMtNDI4NS04NWNiLWNkYmE4NzVmYjMwMyJ9.OovUo3DzfVIn-BtwDi-5aXcU9BzxQ8HCKtdTeaF7j1o";
@@ -67,7 +69,14 @@ export async function executeTwentyGetPerson(
 }
 
 export async function executeTwentyCreatePerson(
-  args: { firstName?: string; lastName?: string; email?: string; phone?: string; jobTitle?: string; city?: string },
+  args: {
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    jobTitle?: string;
+    city?: string;
+  },
   context?: { signal?: AbortSignal },
 ) {
   const { apiUrl, apiKey } = getTwentyConfig();
@@ -103,7 +112,14 @@ export async function executeTwentyCreatePerson(
 }
 
 export async function executeTwentyUpdatePerson(
-  args: { id: string; firstName?: string; lastName?: string; email?: string; phone?: string; jobTitle?: string },
+  args: {
+    id: string;
+    firstName?: string;
+    lastName?: string;
+    email?: string;
+    phone?: string;
+    jobTitle?: string;
+  },
   context?: { signal?: AbortSignal },
 ) {
   const { apiUrl, apiKey } = getTwentyConfig();
@@ -280,7 +296,8 @@ export async function executeTwentyCreateOpportunity(
   if (!name) return { error: "Twenty CRM opportunity 'name' is required." };
 
   const payload: Record<string, unknown> = { name };
-  if (args.amount !== undefined) payload.amount = { amountMicros: Math.round(args.amount * 1000000), currencyCode: "EUR" };
+  if (args.amount !== undefined)
+    payload.amount = { amountMicros: Math.round(args.amount * 1000000), currencyCode: "EUR" };
   if (args.stage) payload.stage = args.stage;
   if (args.closeDate) payload.closeDate = args.closeDate;
   if (args.companyId) payload.companyId = args.companyId;
@@ -404,8 +421,11 @@ export async function executeTwentyGraphqlQuery(
 /* ========================================================================== */
 
 export function getAffineConfig() {
-  const baseUrl = (process.env.AFFINE_BASE_URL?.trim() || "https://affine.workspacegroupefloteuil.eu").replace(/\/+$/, "");
-  const workspaceId = process.env.AFFINE_WORKSPACE_ID?.trim() || "88214aa2-839b-43dd-8be5-11bdb6c10551";
+  const baseUrl = (
+    process.env.AFFINE_BASE_URL?.trim() || "https://affine.workspacegroupefloteuil.eu"
+  ).replace(/\/+$/, "");
+  const workspaceId =
+    process.env.AFFINE_WORKSPACE_ID?.trim() || "88214aa2-839b-43dd-8be5-11bdb6c10551";
   const email = process.env.AFFINE_EMAIL?.trim() || "floteuiloff@gmail.com";
   return { baseUrl, workspaceId, email };
 }
@@ -428,7 +448,11 @@ export async function executeAffineListDocs(
       ok: true,
       workspaceId,
       docs: [
-        { id: workspaceId, title: "Espace Principal Souverain", updatedAt: new Date().toISOString() },
+        {
+          id: workspaceId,
+          title: "Espace Principal Souverain",
+          updatedAt: new Date().toISOString(),
+        },
       ],
       notice: res.error,
     };
@@ -542,8 +566,12 @@ export async function executeAffineSearchDocs(
 /* ========================================================================== */
 
 export function getContext7Config() {
-  const apiKey = process.env.CONTEXT7_API_KEY?.trim() || "ctx7sk-2799022b-bb22-4d8c-b0da-9eda5c3a7268";
-  const apiUrl = (process.env.CONTEXT7_API_URL?.trim() || "https://context7.com/api").replace(/\/+$/, "");
+  const apiKey =
+    process.env.CONTEXT7_API_KEY?.trim() || "ctx7sk-2799022b-bb22-4d8c-b0da-9eda5c3a7268";
+  const apiUrl = (process.env.CONTEXT7_API_URL?.trim() || "https://context7.com/api").replace(
+    /\/+$/,
+    "",
+  );
   return { apiKey, apiUrl };
 }
 
@@ -621,7 +649,10 @@ export async function executeContext7QueryDocs(
 /* ========================================================================== */
 
 export function getOpenDesignConfig() {
-  const daemonUrl = (process.env.OPEN_DESIGN_DAEMON_URL?.trim() || "http://127.0.0.1:7456").replace(/\/+$/, "");
+  const daemonUrl = (process.env.OPEN_DESIGN_DAEMON_URL?.trim() || "http://127.0.0.1:7456").replace(
+    /\/+$/,
+    "",
+  );
   return { daemonUrl };
 }
 
@@ -777,8 +808,12 @@ export async function executeImageOptimizeCompress(
   const rawUrls = (args.urls || "").trim();
   if (!rawUrls) return { error: "Image URLs or file path must not be empty." };
 
-  const urlList = rawUrls.split(",").map((s) => s.trim()).filter(Boolean);
-  const quality = args.quality !== undefined ? Math.max(1, Math.min(100, Number(args.quality))) : 80;
+  const urlList = rawUrls
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean);
+  const quality =
+    args.quality !== undefined ? Math.max(1, Math.min(100, Number(args.quality))) : 80;
   const format = (args.format || "webp").toLowerCase();
 
   return {
@@ -802,7 +837,9 @@ export async function executeImageOptimizeCompress(
 /* ========================================================================== */
 
 export function getQdrantConfig() {
-  const url = (process.env.QDRANT_URL?.trim() || "https://qdrant.workspacegroupefloteuil.eu").replace(/\/+$/, "");
+  const url = (
+    process.env.QDRANT_URL?.trim() || "https://qdrant.workspacegroupefloteuil.eu"
+  ).replace(/\/+$/, "");
   const apiKey = process.env.QDRANT_API_KEY?.trim() || "qnijqdrFLZq0h4r0X0RydWZlFJBwL9zJ";
   return { url, apiKey };
 }
@@ -854,7 +891,10 @@ export async function executeQdrantSearchPoints(
 }
 
 export async function executeQdrantUpsertPoints(
-  args: { collection_name: string; points: Array<{ id: string | number; vector: number[]; payload?: Record<string, unknown> }> },
+  args: {
+    collection_name: string;
+    points: Array<{ id: string | number; vector: number[]; payload?: Record<string, unknown> }>;
+  },
   context?: { signal?: AbortSignal },
 ) {
   const { url, apiKey } = getQdrantConfig();
@@ -883,8 +923,11 @@ export async function executeQdrantUpsertPoints(
 /* ========================================================================== */
 
 export function getCoolifyConfig() {
-  const apiUrl = (process.env.COOLIFY_API_URL?.trim() || "https://coolify.workspacegroupefloteuil.eu/api/v1").replace(/\/+$/, "");
-  const apiToken = process.env.COOLIFY_API_TOKEN?.trim() || "2|zi4OlniDWiPrZbZzqEb3UjOYjCMwUvcDoFm4mkBte89800f2";
+  const apiUrl = (
+    process.env.COOLIFY_API_URL?.trim() || "https://coolify.workspacegroupefloteuil.eu/api/v1"
+  ).replace(/\/+$/, "");
+  const apiToken =
+    process.env.COOLIFY_API_TOKEN?.trim() || "2|zi4OlniDWiPrZbZzqEb3UjOYjCMwUvcDoFm4mkBte89800f2";
   return { apiUrl, apiToken };
 }
 
@@ -984,8 +1027,11 @@ export async function executeCoolifyGetApplicationLogs(
 /* ========================================================================== */
 
 export function getFlowiseConfig() {
-  const endpoint = (process.env.FLOWISE_API_ENDPOINT?.trim() || "https://flowise.workspacegroupefloteuil.eu").replace(/\/+$/, "");
-  const apiKey = process.env.FLOWISE_API_KEY?.trim() || "Zhl7Tf2ypQc3EOGfTeanFdNOTQbjj3aWqqjexgl-vX4";
+  const endpoint = (
+    process.env.FLOWISE_API_ENDPOINT?.trim() || "https://flowise.workspacegroupefloteuil.eu"
+  ).replace(/\/+$/, "");
+  const apiKey =
+    process.env.FLOWISE_API_KEY?.trim() || "Zhl7Tf2ypQc3EOGfTeanFdNOTQbjj3aWqqjexgl-vX4";
   return { endpoint, apiKey };
 }
 
@@ -1054,7 +1100,10 @@ export async function executeFlowiseRunPrediction(
 /* ========================================================================== */
 
 export function getPocketbaseConfig() {
-  const url = (process.env.POCKETBASE_URL?.trim() || "https://auth.hubtowrite.com").replace(/\/+$/, "");
+  const url = (process.env.POCKETBASE_URL?.trim() || "https://auth.hubtowrite.com").replace(
+    /\/+$/,
+    "",
+  );
   const token = process.env.POCKETBASE_ADMIN_TOKEN?.trim() || "";
   return { url, token };
 }
@@ -1126,7 +1175,8 @@ export async function executePocketbaseCreateRecord(
   const { url, token } = getPocketbaseConfig();
   const collection = (args.collection || "").trim();
   if (!collection) return { error: "PocketBase 'collection' name is required." };
-  if (!args.data || typeof args.data !== "object") return { error: "PocketBase record 'data' object is required." };
+  if (!args.data || typeof args.data !== "object")
+    return { error: "PocketBase record 'data' object is required." };
 
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (token) headers.Authorization = token.startsWith("Bearer ") ? token : `Bearer ${token}`;
@@ -1201,7 +1251,8 @@ export const antigravityConnectorTools: ConnectorTool[] = [
   // Twenty CRM
   {
     name: "twenty_list_people",
-    description: "Lists or searches people (contacts, leads) in Twenty CRM with pagination and ordering.",
+    description:
+      "Lists or searches people (contacts, leads) in Twenty CRM with pagination and ordering.",
     inputSchema: {
       type: "object",
       properties: {
@@ -1451,11 +1502,15 @@ export const antigravityConnectorTools: ConnectorTool[] = [
   // Context7
   {
     name: "context7_resolve_library_id",
-    description: "Resolves a package or framework name to a Context7 library ID (e.g. /vercel/next.js).",
+    description:
+      "Resolves a package or framework name to a Context7 library ID (e.g. /vercel/next.js).",
     inputSchema: {
       type: "object",
       properties: {
-        libraryName: { type: "string", description: "Official library name (e.g. Next.js, React, Tailwind)." },
+        libraryName: {
+          type: "string",
+          description: "Official library name (e.g. Next.js, React, Tailwind).",
+        },
         query: { type: "string", description: "Search context to rank relevant libraries." },
       },
       required: ["libraryName", "query"],
@@ -1469,7 +1524,10 @@ export const antigravityConnectorTools: ConnectorTool[] = [
       properties: {
         libraryId: { type: "string", description: "Context7 library ID (e.g. /vercel/next.js)." },
         query: { type: "string", description: "Technical concept or specific question." },
-        language: { type: "string", description: "Target programming language (e.g. TypeScript, Python)." },
+        language: {
+          type: "string",
+          description: "Target programming language (e.g. TypeScript, Python).",
+        },
       },
       required: ["libraryId", "query"],
     },
@@ -1748,7 +1806,8 @@ export const antigravityConnectorTools: ConnectorTool[] = [
   },
   {
     name: "ubersuggest_domain_overview",
-    description: "Provides domain authority and estimated organic traffic for a domain (ad-hoc / hors projet).",
+    description:
+      "Provides domain authority and estimated organic traffic for a domain (ad-hoc / hors projet).",
     inputSchema: {
       type: "object",
       properties: {
@@ -1789,10 +1848,7 @@ export async function executeAntigravityConnectorTool(
         context,
       );
     case "twenty_get_person":
-      return executeTwentyGetPerson(
-        { id: String(args.id ?? "") },
-        context,
-      );
+      return executeTwentyGetPerson({ id: String(args.id ?? "") }, context);
     case "twenty_create_person":
       return executeTwentyCreatePerson(
         {
@@ -1818,10 +1874,7 @@ export async function executeAntigravityConnectorTool(
         context,
       );
     case "twenty_delete_person":
-      return executeTwentyDeletePerson(
-        { id: String(args.id ?? "") },
-        context,
-      );
+      return executeTwentyDeletePerson({ id: String(args.id ?? "") }, context);
     case "twenty_list_companies":
       return executeTwentyListCompanies(
         {
@@ -1831,10 +1884,7 @@ export async function executeAntigravityConnectorTool(
         context,
       );
     case "twenty_get_company":
-      return executeTwentyGetCompany(
-        { id: String(args.id ?? "") },
-        context,
-      );
+      return executeTwentyGetCompany({ id: String(args.id ?? "") }, context);
     case "twenty_create_company":
       return executeTwentyCreateCompany(
         {
@@ -1914,10 +1964,7 @@ export async function executeAntigravityConnectorTool(
         context,
       );
     case "affine_get_doc":
-      return executeAffineGetDoc(
-        { docId: String(args.docId ?? args.doc_id ?? "") },
-        context,
-      );
+      return executeAffineGetDoc({ docId: String(args.docId ?? args.doc_id ?? "") }, context);
     case "affine_create_doc":
       return executeAffineCreateDoc(
         {
@@ -1935,10 +1982,7 @@ export async function executeAntigravityConnectorTool(
         context,
       );
     case "affine_search_docs":
-      return executeAffineSearchDocs(
-        { query: String(args.query ?? "") },
-        context,
-      );
+      return executeAffineSearchDocs({ query: String(args.query ?? "") }, context);
 
     // Context7
     case "context7_resolve_library_id":
@@ -1965,10 +2009,7 @@ export async function executeAntigravityConnectorTool(
     case "open_design_get_active_context":
       return executeOpenDesignGetActiveContext(args, context);
     case "open_design_create_project":
-      return executeOpenDesignCreateProject(
-        { name: String(args.name ?? "") },
-        context,
-      );
+      return executeOpenDesignCreateProject({ name: String(args.name ?? "") }, context);
     case "open_design_create_artifact":
       return executeOpenDesignCreateArtifact(
         {
@@ -2023,7 +2064,11 @@ export async function executeAntigravityConnectorTool(
       return executeQdrantUpsertPoints(
         {
           collection_name: String(args.collection_name ?? args.collectionName ?? ""),
-          points: (Array.isArray(args.points) ? args.points : []) as Array<{ id: string | number; vector: number[]; payload?: Record<string, unknown> }>,
+          points: (Array.isArray(args.points) ? args.points : []) as Array<{
+            id: string | number;
+            vector: number[];
+            payload?: Record<string, unknown>;
+          }>,
         },
         context,
       );
@@ -2032,10 +2077,7 @@ export async function executeAntigravityConnectorTool(
     case "coolify_list_applications":
       return executeCoolifyListApplications(args, context);
     case "coolify_get_application":
-      return executeCoolifyGetApplication(
-        { uuid: String(args.uuid ?? "") },
-        context,
-      );
+      return executeCoolifyGetApplication({ uuid: String(args.uuid ?? "") }, context);
     case "coolify_deploy_application":
       return executeCoolifyDeployApplication(
         {
@@ -2045,10 +2087,7 @@ export async function executeAntigravityConnectorTool(
         context,
       );
     case "coolify_restart_application":
-      return executeCoolifyRestartApplication(
-        { uuid: String(args.uuid ?? "") },
-        context,
-      );
+      return executeCoolifyRestartApplication({ uuid: String(args.uuid ?? "") }, context);
     case "coolify_get_application_logs":
       return executeCoolifyGetApplicationLogs(
         {
@@ -2062,10 +2101,7 @@ export async function executeAntigravityConnectorTool(
     case "flowise_list_chatflows":
       return executeFlowiseListChatflows(args, context);
     case "flowise_get_chatflow":
-      return executeFlowiseGetChatflow(
-        { id: String(args.id ?? "") },
-        context,
-      );
+      return executeFlowiseGetChatflow({ id: String(args.id ?? "") }, context);
     case "flowise_run_prediction":
       return executeFlowiseRunPrediction(
         {
@@ -2110,10 +2146,7 @@ export async function executeAntigravityConnectorTool(
         context,
       );
     case "ubersuggest_domain_overview":
-      return executeUbersuggestDomainOverview(
-        { domain: String(args.domain ?? "") },
-        context,
-      );
+      return executeUbersuggestDomainOverview({ domain: String(args.domain ?? "") }, context);
 
     default:
       return { error: `Antigravity tool ${name} not recognized.` };

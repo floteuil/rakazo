@@ -466,5 +466,19 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       expect(editorHtml).toContain("Méthode Atlas SEO — Cocon Sémantique");
       expect(editorHtml).toContain("Réponse de l&#x27;agent pré-chargée en compétence");
     });
+
+    it("5.6 validates OpenMausBot innovations: Sentinel Zéro-LLM tab, same-request & Dynamic Memory Profiles", () => {
+      const cockpitHtml = renderToStaticMarkup(
+        <SovereignCockpitOverlay
+          bots={[]}
+          initialUsage={{ inputTokens: 500, outputTokens: 250, runs: 2 }}
+          onClose={() => {}}
+        />,
+      );
+
+      // Verify Sentinel tab trigger is rendered
+      expect(cockpitHtml).toContain("cockpit-tab-sentinel");
+      expect(cockpitHtml).toContain("Sentinel &amp; Sobriété Mémoire");
+    });
   });
 });

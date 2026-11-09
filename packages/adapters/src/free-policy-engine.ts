@@ -165,7 +165,10 @@ export class RakazoFreePolicyEngine {
     if (typeof provider !== "string" || provider.trim().length === 0) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     }
-    if (cost !== undefined && (typeof cost !== "number" || Number.isNaN(cost) || cost !== 0.0 || cost > 0 || cost < 0)) {
+    if (
+      cost !== undefined &&
+      (typeof cost !== "number" || Number.isNaN(cost) || cost !== 0.0 || cost > 0 || cost < 0)
+    ) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);
     }
     if (this.avoidedProviders.has(provider)) {
@@ -203,7 +206,8 @@ export class RakazoFreePolicyEngine {
     }
 
     const isCombo = lower.startsWith("combo/") || lower.startsWith("combo-") || lower === "combo";
-    const isFreeExplicit = lower.includes(":free") || lower.includes("free") || lower.includes("rakazo");
+    const isFreeExplicit =
+      lower.includes(":free") || lower.includes("free") || lower.includes("rakazo");
 
     if (!isCombo && !isFreeExplicit) {
       throw new Error(FREE_INFERENCE_UNAVAILABLE_MESSAGE);

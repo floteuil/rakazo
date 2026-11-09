@@ -190,4 +190,3 @@ describe("MCP Complex Schema & TypeBox Enum Normalization (Feature 1)", () => {
     expect(compiledProps.config).toBeDefined();
   });
 });
-

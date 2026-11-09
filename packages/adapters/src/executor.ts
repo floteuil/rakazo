@@ -19,6 +19,8 @@ import {
   ATTACHMENT_MAX_BYTES,
   type BotInferenceConfig,
   type BotMcpConfig,
+  buildMemoryArchiveEntry,
+  enforceMemoryBudget,
   getConnectorForTool,
   type InferenceMode,
   type InferenceUsageTag,
@@ -671,7 +673,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
           })),
         );
         const currentTurnImages = await loadCurrentTurnImages(deps, turnBlocks, context);
-        const memoryContext = await loadAgentMemoryContext(deps.memory, bot.id, context);
+        const botModelKey = run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
+        const memoryContext = await loadAgentMemoryContext(
+          deps.memory,
+          bot.id,
+          context,
+          botModelKey,
+        );
         const supermemoryEnabled = isSupermemoryEnabled(process.env.SUPERMEMORY_API_KEY);
         let recalledMemory = "";
         let recallSucceeded = false;
@@ -977,18 +985,48 @@ export function createRunExecutor(deps: ExecutorDeps) {
             }, finish);
           }
           if (name === "remember") {
+            const rawContent = String(args.content ?? "");
+            const targetPath = String(args.path ?? "MEMORY.md");
+            const modelKey = run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
+            const enforcement = enforceMemoryBudget(rawContent, modelKey);
+
             await deps.memory.commit(
               {
                 scope: "bot",
                 botId: bot.id,
-                path: String(args.path ?? "MEMORY.md"),
-                content: String(args.content ?? ""),
+                path: targetPath,
+                content: enforcement.activeContent,
                 sourceRunId: runId,
                 sourceThreadId: thread.id,
               },
               context,
             );
-            return finish({ ok: true });
+
+            // Archivage LRU automatique des lignes excédentaires pour préserver le contexte
+            if (enforcement.evictedLines.length > 0) {
+              const archiveEntry = buildMemoryArchiveEntry(enforcement.evictedLines);
+              await deps.memory
+                .commit(
+                  {
+                    scope: "bot",
+                    botId: bot.id,
+                    path: "memory/archive.md",
+                    content: archiveEntry,
+                    sourceRunId: runId,
+                    sourceThreadId: thread.id,
+                  },
+                  context,
+                )
+                .catch(() => undefined);
+            }
+
+            return finish({
+              ok: true,
+              capped: enforcement.stats.isTruncated,
+              lines: enforcement.stats.lineCount,
+              maxLines: enforcement.stats.maxLines,
+              status: enforcement.stats.status,
+            });
           }
           if (name === "request_takeover") return { ok: true };
           if (name === "run_subagent") {
@@ -1553,17 +1591,36 @@ export function createRunExecutor(deps: ExecutorDeps) {
               );
             }
             for (const mem of turn.memory ?? []) {
+              const modelKey =
+                run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
+              const enforcement = enforceMemoryBudget(mem.content, modelKey);
               await deps.memory.commit(
                 {
                   scope: mem.scope,
                   botId: mem.scope === "bot" ? bot.id : undefined,
                   path: mem.path,
-                  content: mem.content,
+                  content: enforcement.activeContent,
                   sourceRunId: runId,
                   sourceThreadId: thread.id,
                 },
                 context,
               );
+              if (enforcement.evictedLines.length > 0) {
+                const archiveEntry = buildMemoryArchiveEntry(enforcement.evictedLines);
+                await deps.memory
+                  .commit(
+                    {
+                      scope: mem.scope,
+                      botId: mem.scope === "bot" ? bot.id : undefined,
+                      path: "memory/archive.md",
+                      content: archiveEntry,
+                      sourceRunId: runId,
+                      sourceThreadId: thread.id,
+                    },
+                    context,
+                  )
+                  .catch(() => undefined);
+              }
               await deps.events.append({
                 workspaceId: run.workspaceId,
                 threadId: thread.id,
