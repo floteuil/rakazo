@@ -31,6 +31,7 @@ export interface SovereignCockpitOverlayProps {
     outputTokens: number;
     runs: number;
   } | null;
+  initialTab?: "sobriety" | "connectors" | "sentinel";
   onClose: () => void;
 }
 
@@ -89,9 +90,10 @@ const ANTI_RUNAWAY_LAYERS = [
 export function SovereignCockpitOverlay({
   bots = [],
   initialUsage = null,
+  initialTab = "sobriety",
   onClose,
 }: SovereignCockpitOverlayProps) {
-  const [activeTab, setActiveTab] = useState<"sobriety" | "connectors" | "sentinel">("sobriety");
+  const [activeTab, setActiveTab] = useState<"sobriety" | "connectors" | "sentinel">(initialTab);
   const [searchQuery, setSearchQuery] = useState("");
   const [usage, setUsage] = useState(initialUsage);
   const [sentinelReport, setSentinelReport] = useState<SentinelReport | null>(null);
@@ -501,6 +503,52 @@ export function SovereignCockpitOverlay({
                         </p>
                       </div>
                     ))}
+                </div>
+              </div>
+
+              {/* Innovations Entreprise OpenBot (Anti-Dangles, Checklist Routines, Standing Rules & Bouclier Secrets) */}
+              <div data-testid="cockpit-openbot-innovations" className="rounded-xl border border-[#26262A] bg-[#18181B] p-4 space-y-3">
+                <h3 className="text-xs font-semibold text-[#ECECEE] flex items-center gap-1.5">
+                  <ShieldCheck size={14} className="text-emerald-400" />
+                  <span>Innovations de Résilience & Gouvernance (Inspiré d'OpenBot)</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Anti-Dangles</span>
+                      <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">0.00 €</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Élagage pré-vol des appels d'outils orphelins (Stop / réseau) pour éliminer toute erreur 400.
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Checklist Routines</span>
+                      <span className="text-[10px] font-mono text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">2 à 10 étapes</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Validation obligatoire Fait / Bloqué / Ignoré de chaque étape avant clôture de routine.
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Standing Rules</span>
+                      <span className="text-[10px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">3 Niveaux</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Autorisation permanente par discussion ou par agent. Verrouillage strict des outils destructeurs.
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Bouclier Secrets</span>
+                      <span className="text-[10px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">Auto-Mask</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Masquage automatique des clés API, JWT, mots de passe, cartes et OTP dans les mémoires et skills.
+                    </div>
+                  </div>
                 </div>
               </div>
 

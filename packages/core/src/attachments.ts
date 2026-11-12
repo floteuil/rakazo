@@ -2,6 +2,7 @@ import {
   ATTACHMENT_MAX_BASE64_LENGTH,
   ATTACHMENT_MAX_BYTES,
   type AttachmentMimeType,
+  DECLINED_BY_PERSON_FR,
   isAllowedAttachmentMimeType,
   isAttachmentImageMimeType,
   type MessageBlock,
@@ -93,6 +94,15 @@ export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
       if (block.kind === "image") return `[image: ${block.name}]`;
       if (block.kind === "file") {
         return `[file: ${block.name} (${block.mimeType}, ${block.size} bytes)]`;
+      }
+      if (block.kind === "ask") {
+        if (block.status === "answered" && block.answer) {
+          if (block.answer === "declined" || block.answer === "refused") {
+            return `${block.text}\n${DECLINED_BY_PERSON_FR}`;
+          }
+          return `${block.text}\nRéponse de l'utilisateur : ${block.answer}`;
+        }
+        return block.text;
       }
       if ("text" in block && typeof block.text === "string") return block.text;
       return "";

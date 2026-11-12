@@ -26,6 +26,7 @@ import {
   buildBlueprintMcpConfig,
   buildInterAgentRelayBriefFr,
   getBlueprintSkillIds,
+  sanitizeSkillPlaybookContent,
   SOVEREIGN_AGENT_BLUEPRINTS,
   SOVEREIGN_ROUTINE_TEMPLATES,
   type SovereignAgentBlueprint,
@@ -1551,21 +1552,26 @@ export function ShellPage() {
           onRefresh={refreshActiveThread}
           onAddRoutine={addSkillRoutine}
           onMemorizeSkill={(text) => {
+            const { sanitized, maskedCount } = sanitizeSkillPlaybookContent(text);
             const firstHeading =
-              /^#+\s+(.+)$/m.exec(text)?.[1]?.trim() ||
+              /^#+\s+(.+)$/m.exec(sanitized)?.[1]?.trim() ||
               `Méthode ${active?.name || "Souveraine"} (${new Date().toLocaleDateString("fr-FR")})`;
             const cleanTitle = firstHeading.replace(/[*_`]/g, "").slice(0, 80);
             const firstPara =
-              text
+              sanitized
                 .split("\n")
                 .map((l) => l.trim())
                 .find((l) => l.length > 25 && !l.startsWith("#")) ||
               `Compétence capitalisée depuis une session avec ${active?.name || "votre agent"}.`;
+            const tags = [active?.name || "Agent", "Capitalisation"];
+            if (maskedCount > 0) {
+              tags.push("Secrets protégés");
+            }
             setSkillLibraryDraft({
               name: cleanTitle,
               description: firstPara.slice(0, 220),
-              tags: [active?.name || "Agent", "Capitalisation"],
-              content: text,
+              tags,
+              content: sanitized,
             });
             setSkillLibraryOpen(true);
           }}
@@ -3434,6 +3440,7 @@ function AskCard({
   onAnswer: (text: string) => Promise<void>;
 }) {
   const [editing, setEditing] = useState(false);
+  const [showStandingOptions, setShowStandingOptions] = useState(false);
   const [answer, setAnswer] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -3448,6 +3455,15 @@ function AskCard({
     }
   }
 
+  const formatAnswerText = (ans?: string) => {
+    if (!ans) return "Répondu";
+    if (ans === "declined" || ans === "refused") return "Refusé par l'utilisateur";
+    if (ans === "approved" || ans === "approved:once") return "Autorisé une seule fois";
+    if (ans === "approved:thread") return "Autorisé pour toute la discussion";
+    if (ans === "approved:agent") return "Toujours autorisé pour cet agent";
+    return `Répondu : ${ans}`;
+  };
+
   return (
     <div className="w-full max-w-[98%] sm:max-w-[88%] md:max-w-[78%] lg:max-w-[74%] rounded-[20px] border border-[#242428] bg-[#141417] px-4 py-3.5 sm:px-5 sm:py-[17px]">
       <div className="text-[15.5px] leading-[1.5] text-[#ECECEE]">
@@ -3460,10 +3476,10 @@ function AskCard({
       ) : null}
       {block.status === "answered" ? (
         <div className="mt-3.5 text-[13.5px] font-medium text-[#4ECB71]">
-          {block.answer ? `Answered: ${block.answer}` : "Answered"}
+          {formatAnswerText(block.answer)}
         </div>
       ) : !canAnswer ? (
-        <div className="mt-3.5 text-[13.5px] font-medium text-[#85858A]">No longer active</div>
+        <div className="mt-3.5 text-[13.5px] font-medium text-[#85858A]">Demande expirée ou inactive</div>
       ) : editing ? (
         <form
           className="mt-3.5 flex flex-col gap-2"
@@ -3476,16 +3492,16 @@ function AskCard({
             aria-label="Answer"
             value={answer}
             onChange={(event) => setAnswer(event.target.value)}
-            placeholder="Type your answer"
+            placeholder="Saisissez votre réponse ou vos instructions spécifiques…"
             className="rounded-[11px] border border-[#303035] bg-[#0E0E10] px-3.5 py-2.5 text-[14.5px] text-[#ECECEE] outline-none focus:border-[#66666D]"
           />
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <button
               type="submit"
               disabled={!answer.trim() || submitting}
               className="rounded-[11px] bg-[#F1F1EF] px-[17px] py-2 text-[14.5px] font-medium text-[#17171A] disabled:opacity-50"
             >
-              {submitting ? "Sending…" : "Send answer"}
+              {submitting ? "Envoi…" : "Envoyer la réponse"}
             </button>
             <button
               type="button"
@@ -3496,28 +3512,69 @@ function AskCard({
               }}
               className="rounded-[11px] border border-[#26262A] px-[17px] py-2 text-[14.5px] text-[#C9C9CE] disabled:opacity-50"
             >
-              Cancel
+              Annuler
             </button>
           </div>
         </form>
       ) : (
-        <div className="mt-3.5 flex gap-2">
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => void submitAnswer("approved")}
-            className="rounded-[11px] bg-[#F1F1EF] px-[17px] py-2 text-[14.5px] font-medium text-[#17171A] disabled:opacity-50"
-          >
-            {submitting ? "Sending…" : "Send it"}
-          </button>
-          <button
-            type="button"
-            disabled={submitting}
-            onClick={() => setEditing(true)}
-            className="rounded-[11px] border border-[#26262A] px-[17px] py-2 text-[14.5px] text-[#C9C9CE] disabled:opacity-50"
-          >
-            Edit first
-          </button>
+        <div className="mt-3.5 space-y-2.5">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => void submitAnswer("approved")}
+              className="rounded-[11px] bg-[#F1F1EF] px-[17px] py-2 text-[14.5px] font-medium text-[#17171A] hover:bg-white disabled:opacity-50 transition-colors"
+            >
+              {submitting ? "Envoi…" : "Autoriser"}
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => void submitAnswer("declined")}
+              className="rounded-[11px] border border-red-500/30 bg-red-500/10 px-[15px] py-2 text-[14.5px] font-medium text-red-300 hover:bg-red-500/20 disabled:opacity-50 transition-colors"
+            >
+              Refuser
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setShowStandingOptions(!showStandingOptions)}
+              className="rounded-[11px] border border-[#2C2C32] bg-[#1A1A1E] px-[14px] py-2 text-[13.5px] text-[#A1A1AA] hover:text-[#EDEDEF] disabled:opacity-50 transition-colors"
+            >
+              {showStandingOptions ? "Moins d'options ▲" : "Toujours autoriser… ▼"}
+            </button>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => setEditing(true)}
+              className="rounded-[11px] border border-[#26262A] px-[14px] py-2 text-[13.5px] text-[#85858A] hover:text-[#C9C9CE] disabled:opacity-50 transition-colors"
+            >
+              Préciser…
+            </button>
+          </div>
+
+          {showStandingOptions ? (
+            <div className="flex flex-wrap gap-2 pt-1 border-t border-[#26262A]">
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void submitAnswer("approved:thread")}
+                title="Règle permanente pour toute cette discussion"
+                className="rounded-[9px] border border-indigo-500/30 bg-indigo-500/10 px-3 py-1.5 text-xs font-medium text-indigo-300 hover:bg-indigo-500/20 disabled:opacity-50 transition-colors"
+              >
+                ⚡ Toujours autoriser dans cette discussion
+              </button>
+              <button
+                type="button"
+                disabled={submitting}
+                onClick={() => void submitAnswer("approved:agent")}
+                title="Règle permanente pour cet agent sur l'ensemble de ses fils"
+                className="rounded-[9px] border border-purple-500/30 bg-purple-500/10 px-3 py-1.5 text-xs font-medium text-purple-300 hover:bg-purple-500/20 disabled:opacity-50 transition-colors"
+              >
+                🛡️ Toujours autoriser pour cet agent
+              </button>
+            </div>
+          ) : null}
         </div>
       )}
     </div>

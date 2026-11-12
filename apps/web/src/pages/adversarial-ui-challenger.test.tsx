@@ -480,5 +480,23 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       expect(cockpitHtml).toContain("cockpit-tab-sentinel");
       expect(cockpitHtml).toContain("Sentinel &amp; Sobriété Mémoire");
     });
+
+    it("5.7 validates OpenBot enterprise innovations: Anti-Dangles, Multi-part Routine Checklists, Standing Rules & Sensitive Data Masking", () => {
+      const cockpitHtml = renderToStaticMarkup(
+        <SovereignCockpitOverlay
+          bots={[]}
+          initialUsage={{ inputTokens: 500, outputTokens: 250, runs: 2 }}
+          initialTab="sentinel"
+          onClose={() => {}}
+        />,
+      );
+
+      expect(cockpitHtml).toContain("cockpit-tab-sentinel");
+      expect(cockpitHtml).toContain("Innovations de Résilience &amp; Gouvernance (Inspiré d&#x27;OpenBot)");
+      expect(cockpitHtml).toContain("Anti-Dangles");
+      expect(cockpitHtml).toContain("Checklist Routines");
+      expect(cockpitHtml).toContain("Standing Rules");
+      expect(cockpitHtml).toContain("Bouclier Secrets");
+    });
   });
 });

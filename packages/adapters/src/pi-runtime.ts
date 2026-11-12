@@ -35,6 +35,7 @@ import {
   SUBAGENT_TOKEN_BUDGET_CEILING,
 } from "./subagent-inheritance.js";
 import { compactToolResult } from "./tool-compacting.js";
+import { sanitizeSeededHistory } from "@rakazo/contracts";
 
 const running = new Map<string, AbortController>();
 const catalogModels = builtinModels();
@@ -177,10 +178,11 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             threadId: request.threadId || "default-thread",
           });
 
+          const sanitizedMessages = sanitizeSeededHistory(messages);
           for await (const chunk of transport.stream({
             model: request.model.id,
             provider: request.model.provider,
-            messages,
+            messages: sanitizedMessages,
             tools: toolDefs,
             signal,
             sessionId: sessionKey,

@@ -20,12 +20,19 @@ import {
   type BotInferenceConfig,
   type BotMcpConfig,
   buildMemoryArchiveEntry,
+  buildRoutineChecklistNudgeFr,
+  DECLINED_BY_PERSON_FR,
   enforceMemoryBudget,
+  extractRoutineParts,
   getConnectorForTool,
+  HANDLED_BY_PERSON_FR,
+  identifyOpenRoutineParts,
   type InferenceMode,
   type InferenceUsageTag,
   isAttachmentImageMimeType,
+  isRoutineChecklistComplete,
   isSovereignTool,
+  maskSensitiveData,
 } from "@rakazo/contracts";
 import {
   assertTransition,
@@ -986,9 +993,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
           }
           if (name === "remember") {
             const rawContent = String(args.content ?? "");
+            const sanitizedContent = maskSensitiveData(rawContent);
             const targetPath = String(args.path ?? "MEMORY.md");
             const modelKey = run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
-            const enforcement = enforceMemoryBudget(rawContent, modelKey);
+            const enforcement = enforceMemoryBudget(sanitizedContent, modelKey);
 
             await deps.memory.commit(
               {
@@ -1593,7 +1601,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
             for (const mem of turn.memory ?? []) {
               const modelKey =
                 run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
-              const enforcement = enforceMemoryBudget(mem.content, modelKey);
+              const sanitizedMemContent = maskSensitiveData(mem.content);
+              const enforcement = enforceMemoryBudget(sanitizedMemContent, modelKey);
               await deps.memory.commit(
                 {
                   scope: mem.scope,
@@ -1635,7 +1644,16 @@ export function createRunExecutor(deps: ExecutorDeps) {
           await checkpointAndRecordComputerWorkspace(deps, storedComputer, computer, context);
           terminalCheckpointComplete = true;
 
-          const text = redactSecrets(assembled || "done.", runSecrets);
+          let text = redactSecrets(assembled || "done.", runSecrets);
+          if (run.trigger === "routine" && !isSilentRoutineOutput(text)) {
+            const parts = extractRoutineParts(task.prompt);
+            if (parts.length >= 2) {
+              const open = identifyOpenRoutineParts(parts, text);
+              if (open.length > 0) {
+                text += `\n\n${buildRoutineChecklistNudgeFr(open)}`;
+              }
+            }
+          }
           if (containsSecret(text, runSecrets)) {
             throw new Error("refusing to persist a secret in the thread");
           }
@@ -2166,6 +2184,11 @@ export function runIdentityInstruction(
             instructions,
           ].join("\n");
     if (trigger === "routine") {
+      const parts = extractRoutineParts(instructions || "");
+      if (parts.length >= 2) {
+        const partsSummary = parts.map((p, i) => `Étape ${i + 1} : ${p}`).join("\n");
+        return `${base}\n\n${SILENT_ROUTINE_DIRECTIVE_FR}\n\nCHECKLIST MULTI-ÉTAPES OBLIGATOIRE : Cette routine comporte ${parts.length} étapes obligatoires :\n${partsSummary}\nTu dois obligatoirement statuer sur chacune d'entre elles dans ta réponse finale avec la mention explicite « Fait », « Bloqué » (avec le motif) ou « Ignoré » (avec justification).`;
+      }
       return `${base}\n\n${SILENT_ROUTINE_DIRECTIVE_FR}`;
     }
     return base;

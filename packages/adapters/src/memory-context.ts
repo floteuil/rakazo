@@ -2,6 +2,7 @@ import type { AdapterContext, MemorySnapshot, MemoryStore } from "@rakazo/adapte
 import {
   type MemoryBudgetProfile,
   enforceMemoryBudget,
+  maskSensitiveData,
   resolveMemoryBudget,
 } from "@rakazo/contracts";
 
@@ -60,7 +61,7 @@ export async function loadAgentMemoryContext(
     if (document.path.includes("archive")) continue;
 
     const enforcement = enforceMemoryBudget(document.content, profile.id);
-    const contentToUse = enforcement.activeContent;
+    const contentToUse = maskSensitiveData(enforcement.activeContent);
 
     const heading = `${sections.length === 0 ? "" : "\n\n"}## ${document.scope}: ${document.path} (revision ${document.revision})\n`;
     const headingBytes = byteLength(heading);
