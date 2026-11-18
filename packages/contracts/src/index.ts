@@ -1,11 +1,13 @@
 export * from "./approval-outcomes.js";
 export * from "./attachments.js";
+export * from "./denial-breaker.js";
 export * from "./desktop.js";
 export * from "./domain.js";
 export * from "./events.js";
 export * from "./history-sanitize.js";
 export * from "./ids.js";
 export * from "./mcp-catalog.js";
+export * from "./memory-asymmetry.js";
 export * from "./memory-budget.js";
 export * from "./prompt-compiler.js";
 export * from "./routine-checklist.js";
@@ -18,4 +20,5 @@ export * from "./skill-parser.js";
 export * from "./sovereign-agent-blueprints.js";
 export * from "./sovereign-skills-catalog.js";
 export * from "./standing-rules.js";
+export * from "./tool-repair.js";
 

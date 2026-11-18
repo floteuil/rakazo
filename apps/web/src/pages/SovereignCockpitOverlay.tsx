@@ -85,6 +85,27 @@ const ANTI_RUNAWAY_LAYERS = [
     description:
       "Exécution serveur autonome à l'heure de Paris et distinction stricte AGIR SEUL vs METTRE EN ATTENTE.",
   },
+  {
+    id: "layer-8",
+    title: "Auto-Réparation Tool-Calling & Rebalancing",
+    badge: "Levenshtein 0.70 • JSON Balance",
+    description:
+      "Répare automatiquement les déformations de noms d'outils, strip les résidus XML et rééquilibre les accolades/crochets coupés.",
+  },
+  {
+    id: "layer-9",
+    title: "Coupe-Circuit Refus Consécutifs (Denial Breaker)",
+    badge: "Max 3 refus",
+    description:
+      "Disjoncteur automatique coupant immédiatement tout tour après 3 refus consécutifs de sécurité pour empêcher les boucles d'insistance LLM.",
+  },
+  {
+    id: "layer-10",
+    title: "Préservation Asymétrique Consignes Utilisateur",
+    badge: "100% User Verbatim",
+    description:
+      "Les prompts et contraintes de l'utilisateur sont sanctuarisés à 100% sans jamais être tronqués, évitant l'oubli des consignes dans le temps.",
+  },
 ] as const;
 
 export function SovereignCockpitOverlay({

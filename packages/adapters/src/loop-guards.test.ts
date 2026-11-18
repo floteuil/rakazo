@@ -456,5 +456,24 @@ describe("E2E AI Guardrails Suite: Circuit Breaker, Redundant Calls & Error Sani
       expect(sanitized).toContain("postgres://admin:[redacted]@10.0.0.5:5432/rakazo");
       expect(sanitized).toContain("cf_token_[redacted]");
     });
+
+    it("4.4 Scenario 4: Consecutive-denial breaker trips after 3 consecutive security refusals", async () => {
+      const { createToolCallTracker, recordToolSecurityDenial } = await import("./loop-guards.js");
+      const tracker = createToolCallTracker();
+      const session = "session_consecutive_denial";
+
+      const r1 = recordToolSecurityDenial(tracker, session, "Action sudo non autorisée");
+      expect(r1.tripped).toBe(false);
+      expect(r1.terminate).toBe(false);
+
+      const r2 = recordToolSecurityDenial(tracker, session, "Écriture dans /etc refusée");
+      expect(r2.tripped).toBe(false);
+      expect(r2.terminate).toBe(false);
+
+      const r3 = recordToolSecurityDenial(tracker, session, "Tentative répétée bloquée");
+      expect(r3.tripped).toBe(true);
+      expect(r3.terminate).toBe(true);
+      expect(r3.reason).toContain("Coupe-circuit de sécurité activé");
+    });
   });
 });

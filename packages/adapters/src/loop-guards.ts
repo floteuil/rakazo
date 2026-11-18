@@ -1,3 +1,9 @@
+import {
+  ConsecutiveDenialCircuitBreaker,
+  defaultDenialBreaker,
+  CONSECUTIVE_DENIAL_THRESHOLD,
+} from "@rakazo/contracts";
+
 export const MAX_TOOL_ITERATIONS_PER_TURN = 25;
 export const MAX_CONSECUTIVE_REDUNDANT_CALLS = 3;
 
@@ -5,13 +11,17 @@ export interface ToolCallTracker {
   stepCount: number;
   lastCallSignature: string | null;
   consecutiveSameCallCount: number;
+  denialBreaker: ConsecutiveDenialCircuitBreaker;
 }
 
-export function createToolCallTracker(): ToolCallTracker {
+export function createToolCallTracker(
+  breaker: ConsecutiveDenialCircuitBreaker = new ConsecutiveDenialCircuitBreaker(CONSECUTIVE_DENIAL_THRESHOLD),
+): ToolCallTracker {
   return {
     stepCount: 0,
     lastCallSignature: null,
     consecutiveSameCallCount: 0,
+    denialBreaker: breaker,
   };
 }
 
@@ -79,3 +89,28 @@ export function evaluateToolCallGuard(
 
   return { allow: true };
 }
+
+/**
+ * Enregistre un refus de sécurité ou une interdiction d'exécution d'outil
+ * et vérifie si le coupe-circuit de refus consécutifs a disjoncté.
+ */
+export function recordToolSecurityDenial(
+  tracker: ToolCallTracker,
+  sessionKey: string,
+  reason: string,
+): { tripped: boolean; reason: string; terminate: boolean } {
+  const verdict = tracker.denialBreaker.recordDenial(sessionKey, reason);
+  if (verdict.tripped) {
+    return {
+      tripped: true,
+      reason: verdict.addendum ?? reason,
+      terminate: true,
+    };
+  }
+  return {
+    tripped: false,
+    reason,
+    terminate: false,
+  };
+}
+

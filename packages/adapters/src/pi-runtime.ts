@@ -22,6 +22,7 @@ import type {
 import {
   createToolCallTracker,
   evaluateToolCallGuard,
+  recordToolSecurityDenial,
   type ToolCallTracker,
 } from "./loop-guards.js";
 import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
@@ -35,7 +36,14 @@ import {
   SUBAGENT_TOKEN_BUDGET_CEILING,
 } from "./subagent-inheritance.js";
 import { compactToolResult } from "./tool-compacting.js";
-import { sanitizeSeededHistory } from "@rakazo/contracts";
+import {
+  sanitizeSeededHistory,
+  closeInterruptedToolSequence,
+  asymmetricCompactHistory,
+  repairToolCallName,
+  repairToolCallArguments,
+  partitionMixedBatch,
+} from "@rakazo/contracts";
 
 const running = new Map<string, AbortController>();
 const catalogModels = builtinModels();
@@ -179,10 +187,15 @@ export class CanonicalAgentRuntime implements AgentRuntime {
           });
 
           const sanitizedMessages = sanitizeSeededHistory(messages);
+          const effectiveMessages = asymmetricCompactHistory(sanitizedMessages, {
+            maxMessages: 50,
+            protectTailCount: 10,
+          }).compactedMessages;
+
           for await (const chunk of transport.stream({
             model: request.model.id,
             provider: request.model.provider,
-            messages: sanitizedMessages,
+            messages: effectiveMessages,
             tools: toolDefs,
             signal,
             sessionId: sessionKey,
@@ -232,9 +245,48 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             return;
           }
 
-          const validToolCalls = pendingToolCalls.filter((tc) => Boolean(tc && tc.name));
+          const availableToolNames = Array.from(toolByName.keys());
+          const validToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
+          const invalidToolCalls: Array<{ id: string; name: string; errorReason: string }> = [];
 
-          if (validToolCalls.length === 0) {
+          for (const rawCall of pendingToolCalls) {
+            if (!rawCall || !rawCall.name) continue;
+            const repairResult = availableToolNames.length > 0
+              ? repairToolCallName(rawCall.name, availableToolNames)
+              : { name: rawCall.name, repaired: false, original: rawCall.name };
+
+            const resolvedName = repairResult.name;
+            const isExecutable = Boolean(
+              request.executeTool ||
+              toolByName.has(resolvedName) ||
+              resolvedName === "request_takeover" ||
+              resolvedName === "run_subagent",
+            );
+
+            if (isExecutable) {
+              validToolCalls.push({
+                ...rawCall,
+                name: resolvedName,
+              });
+            } else {
+              invalidToolCalls.push({
+                id: rawCall.id,
+                name: rawCall.name,
+                errorReason: `Outil inconnu '${rawCall.name}'. Veuillez utiliser un outil déclaré dans le catalogue souverain.`,
+              });
+            }
+          }
+
+          const allEmittedCalls = [
+            ...validToolCalls,
+            ...invalidToolCalls.map((inv) => ({
+              id: inv.id,
+              name: inv.name,
+              arguments: "{}",
+            })),
+          ];
+
+          if (allEmittedCalls.length === 0) {
             if (!streamed) {
               const fallback = "I finished the work.";
               queue.push({ type: "text", text: fallback });
@@ -247,7 +299,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
           messages.push({
             role: "assistant",
             content: turnStreamed || null,
-            tool_calls: validToolCalls.map((tc) => ({
+            tool_calls: allEmittedCalls.map((tc) => ({
               id: tc.id,
               type: "function",
               function: {
@@ -266,17 +318,34 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             return;
           }
 
+          // Traitement immédiat des erreurs pour les outils non reconnus (survie de lot mixte)
+          for (const inv of invalidToolCalls) {
+            messages.push({
+              role: "tool",
+              tool_call_id: inv.id,
+              name: inv.name,
+              content: inv.errorReason,
+            });
+          }
+
           for (const tc of validToolCalls) {
             if (signal.aborted) {
               queue.push({ type: "done", text: "stopped" });
               return;
             }
 
-            let parsedArgs: Record<string, unknown> = {};
-            try {
-              parsedArgs = JSON.parse(tc.arguments || "{}");
-            } catch {
-              parsedArgs = {};
+            const argRepair = repairToolCallArguments(tc.arguments || "{}", tc.name);
+            const parsedArgs = argRepair.parsed;
+
+            if (argRepair.isTruncated) {
+              const truncReason = `Sécurité : Appel d'outil '${tc.name}' tronqué en cours de transmission. Exécution annulée pour prévenir des effets de bord.`;
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: truncReason,
+              });
+              continue;
             }
 
             const originalTool = toolByName.get(tc.name);
@@ -284,19 +353,23 @@ export class CanonicalAgentRuntime implements AgentRuntime {
 
             const guard = evaluateToolCallGuard(host.tracker, toolName, parsedArgs);
             if (!guard.allow) {
+              const denial = recordToolSecurityDenial(host.tracker, sessionKey, guard.reason);
               messages.push({
                 role: "tool",
                 tool_call_id: tc.id,
                 name: tc.name,
-                content: guard.reason,
+                content: denial.reason,
               });
-              if (guard.terminate) {
-                queue.push({ type: "text", text: guard.reason });
-                queue.push({ type: "done", text: guard.reason });
+              if (guard.terminate || denial.terminate) {
+                queue.push({ type: "text", text: denial.reason });
+                queue.push({ type: "done", text: denial.reason });
                 return;
               }
               continue;
             }
+
+            // Exécution autorisée : réinitialise le compteur de refus consécutifs
+            host.tracker.denialBreaker.recordApproval(sessionKey);
 
             queue.push({
               type: "tool",
