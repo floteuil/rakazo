@@ -1,22 +1,22 @@
 # OmniRoute Coolify Deployment & Production Runbook
 
 > **Authoritative Technical Runbook and Deployment Reference**  
-> **Target**: Coolify PaaS Application 21 (`qmusbfbjcz0ohip348rv8fgc`) on VPS `62.164.214.145`  
+> **Target**: Coolify PaaS Application 21 (`qmusbfbjcz0ohip348rv8fgc`) on VPS `<YOUR_SERVER_IP>`  
 > **Service**: Sovereign OmniRoute Free Intelligence Gateway & Reverse Proxy  
-> **Public Domain**: `https://omniroute.workspacegroupefloteuil.eu`  
+> **Public Domain**: `https://omniroute.example.com`  
 > **Internal Port**: `20128` | **Docker Network**: `coolify` | **Volume**: `qmusbfbjcz0ohip348rv8fgc_data:/app/data`  
 
 ---
 
 ## 1. Overview & Architecture
 
-OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolify PaaS (Ubuntu 22.04 LTS VPS `62.164.214.145`, Traefik v3.6 reverse proxy with automated Let's Encrypt TLS).
+OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolify PaaS (Ubuntu 22.04 LTS VPS `<YOUR_SERVER_IP>`, Traefik v3.6 reverse proxy with automated Let's Encrypt TLS).
 
 ### Key Architectural Characteristics
 - **Multi-Stage Container Build**: Dockerfile target `runner-base` from `floteuil/OmniRoute` pinned to commit `38e2616464fac4681c1f7a4e05dc9974e99e1dde` (`release/v3.8.51`).
 - **Unprivileged Runtime**: Runs as non-root user `node` (UID `1000`, GID `1000`).
 - **Internal Service Port**: Port `20128` (serves both management Web UI and `/v1/*` proxy routes via internal Next.js rewrites).
-- **Public Domain**: `https://omniroute.workspacegroupefloteuil.eu` routed via Traefik v3 with Let's Encrypt HTTP-01 automated certificates.
+- **Public Domain**: `https://omniroute.example.com` routed via Traefik v3 with Let's Encrypt HTTP-01 automated certificates.
 - **Persistent Volume**: Named Docker volume `qmusbfbjcz0ohip348rv8fgc_data` mounted to `/app/data` (persists `storage.sqlite` and `server.env`).
 - **3-Tier Decoupling & Dynamic Routing**: Receives capability contract routes (`combo/rakazo-coding`, `combo/rakazo-reasoning`, `combo/rakazo-fast`, `combo/rakazo-writing`, `combo/rakazo-analysis`) and resolves them dynamically per turn to live healthy upstream models (Mistral, DeepSeek, Groq, Qwen).
 - **Header Propagation Contract**: Returns real execution headers (`x-omniroute-provider`, `x-omniroute-model`, `x-omniroute-latency-ms`, `x-omniroute-session-id`, `x-omniroute-version`, and canonical `x-omniroute-response-cost: 0.000000`).
@@ -29,7 +29,7 @@ OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolif
 
 | Parameter | Specification | Purpose |
 |---|---|---|
-| **Coolify Host** | VPS `62.164.214.145` | Contabo VPS running Coolify v4.1+ |
+| **Coolify Host** | VPS `<YOUR_SERVER_IP>` | Contabo VPS running Coolify v4.1+ |
 | **Coolify Project / Environment** | `rakazo` (ID: 54) / `production` | Production environment namespace |
 | **Coolify App ID / UUID** | App ID `21` / `qmusbfbjcz0ohip348rv8fgc` | Dedicated Coolify resource |
 | **Git Repository** | `https://github.com/floteuil/OmniRoute` | Fork tracking stable release |
@@ -38,7 +38,7 @@ OmniRoute is deployed as an isolated, containerized sovereign AI proxy on Coolif
 | **Build Target** | `runner-base` | Minimal production image (~500MB, no heavy browser sidecars) |
 | **Internal Port** | `20128` | Standard OmniRoute listening port |
 | **Docker Network** | `coolify` | Internal Coolify Docker bridge network |
-| **Public FQDN** | `https://omniroute.workspacegroupefloteuil.eu` | Public HTTPS domain routed via Traefik |
+| **Public FQDN** | `https://omniroute.example.com` | Public HTTPS domain routed via Traefik |
 | **Persistent Volume** | `/app/data` (`qmusbfbjcz0ohip348rv8fgc_data:/app/data`) | SQLite database (`storage.sqlite`) and encryption keys |
 
 ---
@@ -78,7 +78,7 @@ Ensure Application 21 settings are applied in Coolify:
 - `dockerfile_target = 'runner-base'`
 - `git_commit_sha = '38e2616464fac4681c1f7a4e05dc9974e99e1dde'`
 - `ports_exposes = '20128'`
-- `fqdn = 'https://omniroute.workspacegroupefloteuil.eu'`
+- `fqdn = 'https://omniroute.example.com'`
 - Persistent volume mount: `/app/data` (`qmusbfbjcz0ohip348rv8fgc_data`)
 
 ### Step 3: Trigger Deployment
@@ -106,7 +106,7 @@ docker inspect --format '{{.State.Status}} (healthy: {{.State.Health.Status}})' 
 curl -f http://localhost:20128/health
 
 # Public HTTPS domain check
-curl -f https://omniroute.workspacegroupefloteuil.eu/health
+curl -f https://omniroute.example.com/health
 ```
 Expected response:
 ```json
@@ -120,19 +120,19 @@ Expected response:
 
 ### 2. TLS Certificate Status
 ```bash
-curl -Iv https://omniroute.workspacegroupefloteuil.eu 2>&1 | grep -E "SSL certificate|HTTP/"
+curl -Iv https://omniroute.example.com 2>&1 | grep -E "SSL certificate|HTTP/"
 ```
 Expected: `SSL certificate verify ok`, HTTP `200 OK` or `307 Temporary Redirect` to `/login`.
 
 ### 3. Models Catalog Endpoint (`GET /v1/models`)
 ```bash
 curl -s -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
-  https://omniroute.workspacegroupefloteuil.eu/v1/models
+  https://omniroute.example.com/v1/models
 ```
 
 ### 4. Zero-Provider Fail-Closed Invariant
 ```bash
-curl -s -X POST https://omniroute.workspacegroupefloteuil.eu/v1/chat/completions \
+curl -s -X POST https://omniroute.example.com/v1/chat/completions \
   -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"model":"combo/rakazo-coding","messages":[{"role":"user","content":"Ping"}]}'
@@ -223,7 +223,7 @@ docker exec qmusbfbjcz0ohip348rv8fgc-0 sqlite3 /app/data/storage.sqlite "PRAGMA 
 # Expected output: ok
 
 # 4. Verify API key authentication remains active
-curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer <OMNIROUTE_API_KEY>" https://omniroute.workspacegroupefloteuil.eu/v1/models
+curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer <OMNIROUTE_API_KEY>" https://omniroute.example.com/v1/models
 # Expected output: 200
 ```
 
@@ -236,7 +236,7 @@ curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer <OMNIROUTE_API_
 | **HTTP 502 / Bad Gateway on domain** | Traefik cannot reach port 20128 | Check container status (`docker ps`), verify `PORT=20128` and `HOSTNAME=0.0.0.0` in environment. |
 | **HTTP 401 on `/v1/chat/completions`** | Expected when zero providers configured (`PENDING PROVIDER CREDENTIALS`) or token mismatch | For normal operation without providers, this is the expected fail-closed state. For auth errors, verify `OMNIROUTE_API_KEY`. |
 | **Database Disk I/O Error** | Corrupted permissions on `/app/data` volume | Run `chown -R 1000:1000 /app/data` inside container or via volume utility container. |
-| **SSL Certificate Error / Expired** | Traefik Let's Encrypt HTTP-01 challenge failure | Verify DNS `omniroute.workspacegroupefloteuil.eu` resolves to `62.164.214.145` and ports 80/443 are open. |
+| **SSL Certificate Error / Expired** | Traefik Let's Encrypt HTTP-01 challenge failure | Verify DNS `omniroute.example.com` resolves to `<YOUR_SERVER_IP>` and ports 80/443 are open. |
 
 ---
 

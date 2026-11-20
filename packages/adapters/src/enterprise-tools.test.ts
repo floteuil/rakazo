@@ -952,7 +952,7 @@ describe("Enterprise MCP Connectors", () => {
             result: [
               {
                 id: "zone-123",
-                name: "workspacegroupefloteuil.eu",
+                name: "example.com",
                 status: "active",
                 paused: false,
                 type: "full",
@@ -963,12 +963,12 @@ describe("Enterprise MCP Connectors", () => {
           }),
       });
 
-      const res = await executeCloudflareListZones({ name: "workspacegroupefloteuil.eu" });
+      const res = await executeCloudflareListZones({ name: "example.com" });
       expect(res).toEqual({
         zones: [
           {
             id: "zone-123",
-            name: "workspacegroupefloteuil.eu",
+            name: "example.com",
             status: "active",
             paused: false,
             name_servers: ["ns1.cloudflare.com", "ns2.cloudflare.com"],
@@ -988,7 +988,7 @@ describe("Enterprise MCP Connectors", () => {
               {
                 id: "rec-1",
                 zone_id: "zone-123",
-                name: "api.workspacegroupefloteuil.eu",
+                name: "api.example.com",
                 type: "A",
                 content: "192.0.2.1",
                 proxiable: true,
@@ -1006,7 +1006,7 @@ describe("Enterprise MCP Connectors", () => {
         records: [
           {
             id: "rec-1",
-            name: "api.workspacegroupefloteuil.eu",
+            name: "api.example.com",
             type: "A",
             content: "192.0.2.1",
             proxied: true,
@@ -1025,7 +1025,7 @@ describe("Enterprise MCP Connectors", () => {
             success: true,
             result: {
               id: "rec-new-1",
-              name: "sub.workspacegroupefloteuil.eu",
+              name: "sub.example.com",
               type: "CNAME",
               content: "target.coolify.internal",
               proxied: true,
@@ -1045,7 +1045,7 @@ describe("Enterprise MCP Connectors", () => {
       expect(res).toEqual({
         ok: true,
         id: "rec-new-1",
-        name: "sub.workspacegroupefloteuil.eu",
+        name: "sub.example.com",
         type: "CNAME",
         content: "target.coolify.internal",
         proxied: true,
@@ -1246,7 +1246,7 @@ describe("Enterprise MCP Connectors", () => {
       expect(kwRes.quotaPreserved).toBe(true);
 
       const domRes = (await executeEnterpriseTool("ubersuggest_domain_overview", {
-        domain: "groupefloteuil.fr",
+        domain: "example.com",
       })) as { ok: boolean; quotaPreserved: boolean };
       expect(domRes.ok).toBe(true);
       expect(domRes.quotaPreserved).toBe(true);

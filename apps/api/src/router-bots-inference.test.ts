@@ -8,7 +8,7 @@ describe("API Router — Bot Procedures & Inference Persistence Integration", ()
   const actor1: Actor = {
     userId: "user-paris-1",
     workspaceId: "ws-paris-org",
-    email: "dev@workspacegroupefloteuil.eu",
+    email: "dev@example.com",
     isDeploymentOwner: true,
   };
 
@@ -450,7 +450,7 @@ describe("API Router — Bot Procedures & Inference Persistence Integration", ()
         user: {
           findUniqueOrThrow: vi.fn().mockResolvedValue({
             id: "user-paris-1",
-            email: "dev@workspacegroupefloteuil.eu",
+            email: "dev@example.com",
             name: "Dev",
           }),
         },

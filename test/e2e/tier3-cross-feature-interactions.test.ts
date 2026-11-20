@@ -251,7 +251,7 @@ describe("Tier 3: Cross-Feature Interactions & Combinations (11 Interaction Suit
       VPS: Ubuntu 22.04 LTS
       Co-located services: 15 services isolated via Docker bridges
       Port mapping: OmniRoute 20128 -> Traefik 443
-      Base URL: https://omniroute.workspacegroupefloteuil.eu/v1
+      Base URL: https://omniroute.example.com/v1
       Endpoint Key: <OMNIROUTE_API_KEY>
       Storage Volume: /app/data
     `;

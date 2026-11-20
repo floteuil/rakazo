@@ -97,7 +97,7 @@ Integrity mode: development
 ### R5. Cohérence WebUI, Sécurité & Non-Ingérence VPS
 - WebUI : Afficher l'intention stable dans les paramètres du bot (*« Gratuit via OmniRoute · Profil : Coding »*) et le modèle réel résolu par tour dans le transcript du chat (*« Codestral · Mistral AI »*), avec transition fluide lors des basculements de secours (*fallback*).
 - Sécurité : Scan GitLeaks (0 secret dans Git/frontend/logs), sanitisation stricte des en-têtes externes (anti-XSS / anti-log-injection), et double barrière zéro-coût ($0.00 max avec *fail-closed* immédiat sans jamais basculer sur OpenRouter Premium).
-- VPS Coolify : Zéro ingérence et sanctuarisation intégrale des 15 autres applications hébergées sur le serveur `62.164.214.145`.
+- VPS Coolify : Zéro ingérence et sanctuarisation intégrale des applications hébergées sur le serveur VPS.
 
 ### R6. Documentation d'Autorité Fondée sur les Preuves & Passation Finale
 - Valider la Triple Cohérence : $\text{En-têtes OmniRoute} \equiv \text{PromptExecutionLog (DB)} \equiv \text{Affichage WebUI}$.
@@ -158,7 +158,7 @@ Integrity mode: development
 
 ### R5. Batterie de Tests, Non-Ingérence VPS & Documentation GitHub
 - Exécuter la suite complète de tests sans régression : maintenir 0 erreur TypeScript sur les 19 packages (`turbo check --force`) et 100 % de succès sur les suites unitaires, d'intégration et E2E (`vitest`).
-- Garantir la non-ingérence totale sur les 15 autres applications hébergées sur le serveur Coolify (`62.164.214.145`).
+- Garantir la non-ingérence totale sur les applications hébergées sur le serveur Coolify.
 - Mettre à jour la documentation du dépôt GitHub : `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`, `AGENTS.md`, `docs/ENVIRONMENT_SETUP.md`, `docs/OMNIROUTE_DEPLOYMENT.md`, et publier le rapport d'intégration `RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`.
 
 ## Acceptance Criteria

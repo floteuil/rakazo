@@ -235,7 +235,7 @@ Multi-tag resolution selects the tag with the highest weight (`resolveDeterminis
                                                    │
                          ┌─────────────────────────┴─────────────────────────┐
                          │                                                   │
-                         ▼ (agents.workspacegroupefloteuil.eu)               ▼ (omniroute.workspacegroupefloteuil.eu)
+                         ▼ (agents.example.com)               ▼ (omniroute.example.com)
           ┌──────────────────────────────┐                    ┌──────────────────────────────┐
           │ Coolify App 20: Rakazo Stack │                    │ Coolify App 21: OmniRoute    │
           ├──────────────────────────────┤                    ├──────────────────────────────┤

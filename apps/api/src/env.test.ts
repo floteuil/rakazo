@@ -134,7 +134,7 @@ describe("loadEnv", () => {
 
   it("defaults OmniRoute base URL and optional API key", () => {
     const env = loadEnv(base);
-    expect(env.omnirouteBaseUrl).toBe("https://omniroute.workspacegroupefloteuil.eu/v1");
+    expect(env.omnirouteBaseUrl).toBe("http://localhost:8080/v1");
     expect(env.omnirouteApiKey).toBeUndefined();
   });
 
@@ -154,7 +154,7 @@ describe("loadEnv", () => {
       OMNIROUTE_BASE_URL: "   ",
       OMNIROUTE_API_KEY: "   ",
     });
-    expect(env.omnirouteBaseUrl).toBe("https://omniroute.workspacegroupefloteuil.eu/v1");
+    expect(env.omnirouteBaseUrl).toBe("http://localhost:8080/v1");
     expect(env.omnirouteApiKey).toBeUndefined();
   });
 });

@@ -255,7 +255,7 @@ Le sous-système `packages/adapters/src/subagent-inheritance.ts` applique des ve
   - *Barrière 2 (Transport HTTP)* : `OmniRouteInferenceTransport` analyse `x-omniroute-cost` et le flux SSE pricing ; si le coût $> 0.000001$, l'exécution s'interrompt immédiatement avec le message *« Capacité gratuite temporairement indisponible »*.
 
 ### 5.3 Isolation VPS Coolify & Non-Ingérence Multi-Tenants
-- **Environnement de Déploiement** : VPS Ubuntu 22.04 LTS (`62.164.214.145`) sous Coolify PaaS.
+- **Environnement de Déploiement** : VPS Ubuntu 22.04 LTS (`<SERVER_IP>`) sous Coolify PaaS.
 - **Sanctuarisation des 15 Applications Co-hébergées** :
   - Rakazo (App 20 / UUID `s1253nc0yc4uu89lp6692r1s`) et OmniRoute (App 21 / UUID `qmusbfbjcz0ohip348rv8fgc`) disposent de réseaux Docker dédiés et de volumes persistants isolés (`qmusbfbjcz0ohip348rv8fgc_data`).
   - Limites de ressources strictes configurées dans `docker-compose.yaml` (`postgres: 256MB`, `api: 384MB`, `worker: 384MB`, `web: 192MB`), évitant tout épuisement de mémoire (OOM) sur les applications voisines (HubtoWrite, Veinart, Open-Design, Postiz, DocuSeal, n8n, Flowise, Odoo, SearXNG, Minio, Beszel, Scraperr).

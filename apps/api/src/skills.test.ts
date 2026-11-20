@@ -488,7 +488,7 @@ describe("Skills API Endpoints & Multi-Tenancy (4-Tier Suite)", () => {
   const actor1: Actor = {
     userId: "user-1",
     workspaceId: "ws-paris",
-    email: "dev@workspacegroupefloteuil.eu",
+    email: "dev@example.com",
     isDeploymentOwner: true,
   };
 

@@ -58,8 +58,8 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_API_URL: ${GITHUB_API_URL:-}
       NOTION_API_KEY: ${NOTION_API_KEY:-}
-      POSTIZ_API_KEY: ${POSTIZ_API_KEY:-a75560509d2c60f2baee7fac6e4e639a5574163ceb1f2d8c0c50e143480e1006}
-      POSTIZ_API_URL: ${POSTIZ_API_URL:-https://postiz.workspacegroupefloteuil.eu}
+      POSTIZ_API_KEY: ${POSTIZ_API_KEY:-}
+      POSTIZ_API_URL: ${POSTIZ_API_URL:-https://api.postiz.com}
       WORDPRESS_URL: ${WORDPRESS_URL:-}
       WORDPRESS_USERNAME: ${WORDPRESS_USERNAME:-}
       WORDPRESS_APP_PASSWORD: ${WORDPRESS_APP_PASSWORD:-}
@@ -75,7 +75,7 @@ services:
       DAYTONA_TARGET: ${DAYTONA_TARGET:-}
       BOX_API_KEY: ${BOX_API_KEY:-}
       BOX_API_URL: ${BOX_API_URL:-}
-      OMNIROUTE_BASE_URL: ${OMNIROUTE_BASE_URL:-https://omniroute.workspacegroupefloteuil.eu/v1}
+      OMNIROUTE_BASE_URL: ${OMNIROUTE_BASE_URL:-http://localhost:8080/v1}
       OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-}
       TWENTY_API_URL: ${TWENTY_API_URL:-}
       TWENTY_API_KEY: ${TWENTY_API_KEY:-}
@@ -142,8 +142,8 @@ services:
       GITHUB_TOKEN: ${GITHUB_TOKEN:-}
       GITHUB_API_URL: ${GITHUB_API_URL:-}
       NOTION_API_KEY: ${NOTION_API_KEY:-}
-      POSTIZ_API_KEY: ${POSTIZ_API_KEY:-a75560509d2c60f2baee7fac6e4e639a5574163ceb1f2d8c0c50e143480e1006}
-      POSTIZ_API_URL: ${POSTIZ_API_URL:-https://postiz.workspacegroupefloteuil.eu}
+      POSTIZ_API_KEY: ${POSTIZ_API_KEY:-}
+      POSTIZ_API_URL: ${POSTIZ_API_URL:-https://api.postiz.com}
       WORDPRESS_URL: ${WORDPRESS_URL:-}
       WORDPRESS_USERNAME: ${WORDPRESS_USERNAME:-}
       WORDPRESS_APP_PASSWORD: ${WORDPRESS_APP_PASSWORD:-}
@@ -159,7 +159,7 @@ services:
       DAYTONA_TARGET: ${DAYTONA_TARGET:-}
       BOX_API_KEY: ${BOX_API_KEY:-}
       BOX_API_URL: ${BOX_API_URL:-}
-      OMNIROUTE_BASE_URL: ${OMNIROUTE_BASE_URL:-https://omniroute.workspacegroupefloteuil.eu/v1}
+      OMNIROUTE_BASE_URL: ${OMNIROUTE_BASE_URL:-http://localhost:8080/v1}
       OMNIROUTE_API_KEY: ${OMNIROUTE_API_KEY:-}
       TWENTY_API_URL: ${TWENTY_API_URL:-}
       TWENTY_API_KEY: ${TWENTY_API_KEY:-}
@@ -203,7 +203,7 @@ services:
       NODE_ENV: production
       NODE_OPTIONS: "--max-old-space-size=128"
       API_PROXY_TARGET: http://api:3100
-      RAKAZO_HOST: ${RAKAZO_HOST:-agents.workspacegroupefloteuil.eu}
+      RAKAZO_HOST: ${RAKAZO_HOST:-localhost}
       BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
     expose:
       - "5173"
@@ -227,11 +227,11 @@ services:
       - "traefik.http.middlewares.rakazo-ratelimit.ratelimit.burst=50"
       - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.entryPoints=http"
       - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.middlewares=redirect-to-https"
-      - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`agents.workspacegroupefloteuil.eu`) && PathPrefix(`/`)"
+      - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`${SERVICE_FQDN_WEB:-localhost}`) && PathPrefix(`/`)"
       - "traefik.http.routers.http-0-s1253nc0yc4uu89lp6692r1s-web.service=s1253nc0yc4uu89lp6692r1s-web"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.entryPoints=https"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.middlewares=gzip,rakazo-sec-headers,rakazo-ratelimit"
-      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`agents.workspacegroupefloteuil.eu`) && PathPrefix(`/`)"
+      - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.rule=Host(`${SERVICE_FQDN_WEB:-localhost}`) && PathPrefix(`/`)"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.service=s1253nc0yc4uu89lp6692r1s-web"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.tls.certresolver=letsencrypt"
       - "traefik.http.routers.https-0-s1253nc0yc4uu89lp6692r1s-web.tls=true"

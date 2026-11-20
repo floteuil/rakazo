@@ -743,7 +743,7 @@ function getPostizConfig() {
   const apiKey = process.env.POSTIZ_API_KEY?.trim();
   const rawUrl = process.env.POSTIZ_API_URL?.trim();
   const apiUrl = (
-    rawUrl && rawUrl.length > 0 ? rawUrl : "https://postiz.workspacegroupefloteuil.eu"
+    rawUrl && rawUrl.length > 0 ? rawUrl : "https://api.postiz.com"
   ).replace(/\/+$/, "");
 
   return { apiKey, apiUrl };
@@ -2364,7 +2364,7 @@ const baseEnterpriseAgentTools: ConnectorTool[] = [
       properties: {
         name: {
           type: "string",
-          description: "Domain name filter (e.g. 'workspacegroupefloteuil.eu').",
+          description: "Domain name filter (e.g. 'example.com').",
         },
         status: {
           type: "string",

@@ -674,7 +674,7 @@ export class MockVpsAuditInspector {
       return {
         appId: "qmusbfbjcz0ohip348rv8fgc",
         name: "OmniRoute AI Gateway",
-        fqdn: "https://omniroute.workspacegroupefloteuil.eu",
+        fqdn: "https://omniroute.example.com",
         internalPort: 20128,
         volumeMount: "/app/data",
         status: "ready",

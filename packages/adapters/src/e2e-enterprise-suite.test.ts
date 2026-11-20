@@ -1358,7 +1358,7 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
       it("1.9.1 cloudflare_list_zones retrieves managed DNS zones", async () => {
         const payload = {
           success: true,
-          result: [{ id: "zone-123", name: "workspacegroupefloteuil.eu" }],
+          result: [{ id: "zone-123", name: "example.com" }],
         };
         vi.stubGlobal(
           "fetch",
@@ -1370,7 +1370,7 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
         );
 
         const res = await executeCloudflareTool("cloudflare_list_zones", {});
-        expect(res.result[0].name).toBe("workspacegroupefloteuil.eu");
+        expect(res.result[0].name).toBe("example.com");
       });
 
       it("1.9.2 cloudflare_list_dns_records returns DNS records for zone", async () => {
@@ -1445,11 +1445,11 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
 
         const res = await executeCloudflareTool("cloudflare_purge_cache", {
           zone_id: "zone-123",
-          files: ["https://workspacegroupefloteuil.eu/styles.css"],
+          files: ["https://example.com/styles.css"],
         });
         expect(res.success).toBe(true);
         expect(JSON.parse(fetchMock.mock.calls[0]![1].body).files).toContain(
-          "https://workspacegroupefloteuil.eu/styles.css",
+          "https://example.com/styles.css",
         );
       });
     });
@@ -1511,10 +1511,10 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
       });
 
       it("1.11.4 verifies Coolify target domain configuration", () => {
-        const coolifyDomain = "https://agents.workspacegroupefloteuil.eu";
+        const coolifyDomain = "https://agents.example.com";
         const url = new URL(coolifyDomain);
         expect(url.protocol).toBe("https:");
-        expect(url.hostname).toBe("agents.workspacegroupefloteuil.eu");
+        expect(url.hostname).toBe("agents.example.com");
       });
 
       it("1.11.5 verifies standard internal container endpoint resolution", () => {
@@ -2163,7 +2163,7 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
       });
 
       it("2.11.5 verifies Traefik SSL and Let's Encrypt endpoint format", () => {
-        const prodEndpoint = new URL("https://agents.workspacegroupefloteuil.eu/api/health");
+        const prodEndpoint = new URL("https://agents.example.com/api/health");
         expect(prodEndpoint.protocol).toBe("https:");
         expect(prodEndpoint.port).toBe("");
       });
@@ -2458,11 +2458,11 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
     it("3.10 Cloudflare DNS Record Creation -> Web Search Validation", async () => {
       const cfPayload = {
         success: true,
-        result: { id: "dns-new", name: "app.workspacegroupefloteuil.eu", content: "1.2.3.4" },
+        result: { id: "dns-new", name: "app.example.com", content: "1.2.3.4" },
       };
       const searchPayload = {
         results: [
-          { title: "Rakazo App", url: "https://app.workspacegroupefloteuil.eu", content: "Online" },
+          { title: "Rakazo App", url: "https://app.example.com", content: "Online" },
         ],
       };
 
@@ -2479,12 +2479,12 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
       const dns = await executeCloudflareTool("cloudflare_create_dns_record", {
         zone_id: "zone-1",
         type: "A",
-        name: "app.workspacegroupefloteuil.eu",
+        name: "app.example.com",
         content: "1.2.3.4",
       });
-      expect(dns.result.name).toBe("app.workspacegroupefloteuil.eu");
+      expect(dns.result.name).toBe("app.example.com");
 
-      const search = await executeWebSearch({ query: "site:app.workspacegroupefloteuil.eu" });
+      const search = await executeWebSearch({ query: "site:app.example.com" });
       expect(search.results[0]?.title).toBe("Rakazo App");
     });
 
@@ -2808,7 +2808,7 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
         id: 120,
         title: { raw: "Rakazo 2.0 Enterprise Release" },
         slug: "rakazo-2-0-enterprise-release",
-        link: "https://workspacegroupefloteuil.eu/blog/rakazo-2-0",
+        link: "https://example.com/blog/rakazo-2-0",
       };
       const postizCreated = {
         id: "post-campaign-120",
@@ -2849,7 +2849,7 @@ describe("Rakazo Enterprise MCP & Web Tools E2E Test Suite", () => {
       // 3. Purge Cloudflare Edge Cache for immediate global CDN freshness
       const purge = await executeCloudflareTool("cloudflare_purge_cache", {
         zone_id: "zone-floteuil",
-        files: [blogPost.link, "https://workspacegroupefloteuil.eu/blog"],
+        files: [blogPost.link, "https://example.com/blog"],
       });
       expect(purge.success).toBe(true);
     });

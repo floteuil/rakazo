@@ -247,7 +247,7 @@ describe("Master Sovereign Sanctuary, Anti-Runaway & v0.8.0+ Certification Suite
     });
 
     it("routes Postiz tools through native JSON-RPC 2.0 MCP (/api/mcp/:apiKey) and public v1 API", async () => {
-      vi.stubEnv("POSTIZ_API_URL", "https://postiz.workspacegroupefloteuil.eu");
+      vi.stubEnv("POSTIZ_API_URL", "https://postiz.example.com");
       vi.stubEnv("POSTIZ_API_KEY", "test-postiz-mcp-key");
 
       const fetchSpy = vi.spyOn(globalThis, "fetch").mockImplementation(async (input) => {
@@ -262,7 +262,7 @@ describe("Master Sovereign Sanctuary, Anti-Runaway & v0.8.0+ Certification Suite
                   output: [
                     {
                       id: "ch-1",
-                      name: "Groupe Floteuil",
+                      name: "Enterprise Workspace",
                       identifier: "linkedin",
                       platform: "linkedin",
                     },
@@ -284,9 +284,9 @@ describe("Master Sovereign Sanctuary, Anti-Runaway & v0.8.0+ Certification Suite
       };
       expect(Array.isArray(res.integrations)).toBe(true);
       expect(res.integrations).toHaveLength(1);
-      expect(res.integrations?.[0]?.name).toBe("Groupe Floteuil");
+      expect(res.integrations?.[0]?.name).toBe("Enterprise Workspace");
       expect(fetchSpy).toHaveBeenCalledWith(
-        "https://postiz.workspacegroupefloteuil.eu/api/mcp/test-postiz-mcp-key",
+        "https://postiz.example.com/api/mcp/test-postiz-mcp-key",
         expect.objectContaining({ method: "POST" }),
       );
       fetchSpy.mockRestore();

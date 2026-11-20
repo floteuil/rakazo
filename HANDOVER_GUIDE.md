@@ -2,7 +2,7 @@
 > **Document de référence pour le nouveau canal Antigravity dédié à Rakazo (Groupe Floteuil)**  
 > **Date de référence :** Août 2026  
 > **Statut :** Production Opérationnelle • Sécurisée • Souveraine • Multi-Agents  
-> **URL de production :** [https://agents.workspacegroupefloteuil.eu](https://agents.workspacegroupefloteuil.eu)
+> **URL de production :** [https://agents.example.com](https://agents.example.com)
 
 ---
 
@@ -34,19 +34,19 @@
 ## 2. TOPOLOGIE INFRASTRUCTURE & ENVIRONNEMENT COOLIFY (VPS)
 
 ### 2.1 Caractéristiques du Serveur VPS
-- **IP Publique :** `62.164.214.145`
+- **IP Publique :** `<VPS_IP_OR_HOSTNAME>`
 - **Utilisateur SSH :** `root`
 - **Reverse Proxy :** Traefik v3.6 (`coolify-proxy`) gérant le routage, les certificats SSL Let's Encrypt automatiques, le middleware HSTS et la compression gzip/brotli.
 
 ### 2.2 Application Rakazo sous Coolify
-- **UUID de la ressource Coolify :** `s1253nc0yc4uu89lp6692r1s`
-- **Domaine public FQDN :** `https://agents.workspacegroupefloteuil.eu`
-- **Réseau Docker interne :** `s1253nc0yc4uu89lp6692r1s`
+- **UUID de la ressource Coolify :** `<COOLIFY_APP_UUID>`
+- **Domaine public FQDN :** `https://agents.example.com`
+- **Réseau Docker interne :** `<COOLIFY_APP_UUID>`
 - **Architecture Conteneurisée (4 conteneurs) :**
-  1. `web-s1253nc0yc4uu89lp6692r1s` : Frontend React + Vite (port interne 5173 / servi via proxy).
-  2. `api-s1253nc0yc4uu89lp6692r1s` : Backend API Fastify / oRPC (port interne 3100).
-  3. `worker-s1253nc0yc4uu89lp6692r1s` : Moteur de jobs d'exécution d'agents asynchrones (Graphile Worker).
-  4. `postgres-s1253nc0yc4uu89lp6692r1s` : Base de données relationnelle PostgreSQL 16 (port 5432 interne).
+  1. `web-<COOLIFY_APP_UUID>` : Frontend React + Vite (port interne 5173 / servi via proxy).
+  2. `api-<COOLIFY_APP_UUID>` : Backend API Fastify / oRPC (port interne 3100).
+  3. `worker-<COOLIFY_APP_UUID>` : Moteur de jobs d'exécution d'agents asynchrones (Graphile Worker).
+  4. `postgres-<COOLIFY_APP_UUID>` : Base de données relationnelle PostgreSQL 16 (port 5432 interne).
 
 ### 2.3 Services Partagés Connectés sur le Même VPS
 - **SearXNG (Moteur de recherche web privé) :**
@@ -58,9 +58,9 @@
   - Réseau : `j4o4o4wc4wskog8g0scwkwsg`.
   - Accessible en interne via : `http://scraperr_api-j4o4o4wc4wskog8g0scwkwsg:8000`.
 - **Postiz (Planification Réseaux Sociaux & LinkedIn) :**
-  - URL : `https://postiz.workspacegroupefloteuil.eu`.
+  - URL : `https://postiz.example.com`.
 - **n8n (Workflows & Automatisations) :**
-  - URL : `https://autogfn8n.fr`.
+  - URL : `https://n8n.example.com`.
 
 ---
 
@@ -71,15 +71,15 @@
 
 | Service / Clé | Variable Coolify / Référence | Rôle & Permissions |
 | :--- | :--- | :--- |
-| **Compte Administrateur Rakazo** | `floteuiloff@gmail.com` / `autonomietravaildigital` | Compte propriétaire de l'espace de travail. |
+| **Compte Administrateur Rakazo** | `<admin-email>` / `<admin-password>` | Compte propriétaire de l'espace de travail. |
 | **Coolify API Token** | Variable `COOLIFY_API_TOKEN` | Déclenchement des builds et gestion des variables. |
 | **OpenRouter API Key** | Variable `OPENROUTER_API_KEY` | Fournisseur LLM principal (`openai/gpt-oss-120b`). |
 | **GitHub Access Token** | Variable `GITHUB_TOKEN` | Gestion des dépôts, code, issues et PRs. |
 | **Notion Integration Token** | Variable `NOTION_API_KEY` | Lecture et écriture des bases et pages Notion. |
-| **WordPress / Novamira** | Variables `WORDPRESS_USERNAME` / `WORDPRESS_APP_PASSWORD` | Gestion de contenu WordPress (`adns.groupefloteuil.fr`). |
+| **WordPress / Novamira** | Variables `WORDPRESS_USERNAME` / `WORDPRESS_APP_PASSWORD` | Gestion de contenu WordPress (`wordpress.example.com`). |
 | **Cloudflare Account / Token** | Variables `CLOUDFLARE_ACCOUNT_ID` / `CLOUDFLARE_API_TOKEN` | Gestion DNS, purge de cache et stockage R2. |
-| **Postiz URL** | Variable `POSTIZ_API_URL` (`https://postiz.workspacegroupefloteuil.eu`) | Connecteur social media. |
-| **n8n Webhook / API URL** | Variable `N8N_API_URL` (`https://autogfn8n.fr`) | Déclenchement de flux n8n. |
+| **Postiz URL** | Variable `POSTIZ_API_URL` (`https://postiz.example.com`) | Connecteur social media. |
+| **n8n Webhook / API URL** | Variable `N8N_API_URL` (`https://n8n.example.com`) | Déclenchement de flux n8n. |
 
 ---
 
@@ -237,13 +237,13 @@ Le nouveau canal Antigravity dispose de bases ultra-solides pour faire évoluer 
 
 ### 9.1 Déclencher un Redéploiement Coolify via API
 ```bash
-curl -s -X POST -H "Authorization: Bearer 2|zi4OlniDWiPrZbZzqEb3UjOYjCMwUvcDoFm4mkBte89800f2" \
-  "https://coolify.workspacegroupefloteuil.eu/api/v1/deploy?uuid=s1253nc0yc4uu89lp6692r1s&force=true"
+curl -s -X POST -H "Authorization: Bearer <COOLIFY_API_TOKEN>" \
+  "https://coolify.example.com/api/v1/deploy?uuid=<APP_UUID>&force=true"
 ```
 
 ### 9.2 Tester la Santé du Backend en Ligne
 ```bash
-curl -s -X POST https://agents.workspacegroupefloteuil.eu/rpc/health \
+curl -s -X POST https://agents.example.com/rpc/health \
   -H "Content-Type: application/json" \
   -H "Origin: rakazo://" \
   -d '{"json":{}}'
@@ -252,7 +252,7 @@ curl -s -X POST https://agents.workspacegroupefloteuil.eu/rpc/health \
 
 ### 9.3 Valider la Suite de Tests en Local
 ```bash
-cd /Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app
+cd /path/to/rakazo_app
 pnpm check # Vérification des types TypeScript
 pnpm test  # 845+ tests unitaires et d'intégration
 pnpm build # Compilation de production des 4 packages
@@ -261,4 +261,4 @@ pnpm build # Compilation de production des 4 packages
 ---
 
 > **Message de passation pour le prochain agent Antigravity :**  
-> *"L'application Rakazo est saine, stable, intégralement en français et dotée de plus de 30 outils de haut niveau. Travaille en toute confiance sur `floteuil/rakazo` (branche `main`), respecte l'isolation des conteneurs Coolify et continue de faire grandir l'écosystème IA du Groupe Floteuil !"*
+> *"L'application Rakazo est saine, stable, intégralement en français et dotée de plus de 30 outils de haut niveau. Travaille en toute confiance sur `floteuil/rakazo` (branche `main`), respecte l'isolation des conteneurs Coolify et continue de faire grandir l'écosystème IA de votre organisation !"*

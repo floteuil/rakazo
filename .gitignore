@@ -9,8 +9,12 @@ test-results
 playwright-report
 *.tsbuildinfo
 .env
-.env.local
-.env.*.local
+.env.*
+!.env.example
+*.pem
+*.key
+*.keystore
+id_rsa*
 data
 apps/**/data
 .tmp

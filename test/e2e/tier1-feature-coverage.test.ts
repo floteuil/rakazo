@@ -141,11 +141,11 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-11 per TEST_INFRA.md)",
       expect(Array.isArray(body.data)).toBe(true);
     });
 
-    it("F3-3: Exposed public domain https://omniroute.workspacegroupefloteuil.eu is well-formed", () => {
-      const domain = "https://omniroute.workspacegroupefloteuil.eu";
+    it("F3-3: Exposed public domain https://omniroute.example.com is well-formed", () => {
+      const domain = "https://omniroute.example.com";
       const url = new URL(domain);
       expect(url.protocol).toBe("https:");
-      expect(url.hostname).toBe("omniroute.workspacegroupefloteuil.eu");
+      expect(url.hostname).toBe("omniroute.example.com");
     });
 
     it("F3-4: Container binds to internal port without exposing raw daemon socket", () => {
@@ -261,10 +261,10 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-11 per TEST_INFRA.md)",
   describe("Feature 6: Rakazo Environment Integration", () => {
     it("F6-1: Adapter sanitizes trailing slashes in OMNIROUTE_BASE_URL", () => {
       const adapter = new ReferenceFreeOmniRouteAdapter({
-        baseUrl: "https://omniroute.workspacegroupefloteuil.eu/v1////",
+        baseUrl: "https://omniroute.example.com/v1////",
         apiKey,
       });
-      expect(adapter.getBaseUrl()).toBe("https://omniroute.workspacegroupefloteuil.eu/v1");
+      expect(adapter.getBaseUrl()).toBe("https://omniroute.example.com/v1");
     });
 
     it("F6-2: Adapter sets default fallback model to meta-llama/llama-3.3-70b-instruct:free", () => {
@@ -502,7 +502,7 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-11 per TEST_INFRA.md)",
     it("F11-1: Deployment runbook documentation contains zero leaked raw secrets", () => {
       const sampleRunbook = `
         # Runbook
-        OMNIROUTE_BASE_URL=https://omniroute.workspacegroupefloteuil.eu/v1
+        OMNIROUTE_BASE_URL=https://omniroute.example.com/v1
         OMNIROUTE_API_KEY=<OMNIROUTE_API_KEY>
       `;
       const result = auditor.auditFileContent(sampleRunbook, "docs/OMNIROUTE_DEPLOYMENT.md");

@@ -4,7 +4,7 @@
 **Author**: Rakazo Principal Systems Architect & SRE Lead  
 **Repository**: `github.com/floteuil/rakazo` (Turborepo 2 + pnpm Monorepo, 19 packages)  
 **Branch**: `main`  
-**Target Environment**: Coolify PaaS (Application 21: `qmusbfbjcz0ohip348rv8fgc` on Production VPS `62.164.214.145`)  
+**Target Environment**: Coolify PaaS (Application 21: `qmusbfbjcz0ohip348rv8fgc` on Production VPS `<SERVER_IP>`)  
 **Certification Date**: 2026-08-31  
 **Quality Status**: 100% PRODUCTION READY (0 TypeScript errors across 19 packages, 2,658/2,658 tests passing across 186 test files, 0 Plaintext Secrets)
 
@@ -85,7 +85,7 @@ The engineering objective was to provide autonomous AI agents with sovereign, ze
 | **R4** | **Canonical Shared MCP Agentic Runtime** | Pluggable `InferenceTransport`, identical MCP tool loop for Free and Premium, 25-step circuit breaker, 3-call redundancy guard, semantic result compaction (`compactToolResult`). | `packages/adapters/src/pi-runtime.ts`<br>`packages/adapters/src/omniroute-transport.ts`<br>`packages/adapters/src/pi-ai-transport.ts`<br>`packages/adapters/src/loop-guards.ts`<br>`packages/adapters/src/__tests__/tool-compacting.test.ts` | 🟢 PASS |
 | **R5** | **Subagent Confinement & Zero-Cost Double Barrier** | Strict Free mode inheritance, depth 1 limit (`SUBAGENT_MAX_DEPTH = 1`), 8,192 token ceiling, delegation tools stripping, pre/post zero-cost validation ($0.000000), *fail-closed* response. | `packages/adapters/src/subagent-inheritance.test.ts`<br>`packages/testkit/src/tests/tier1-features-r1-r6.e2e.test.ts`<br>`test/e2e/omniroute-adversarial.test.ts`<br>`packages/adapters/src/tier5-challenger-audit.test.ts` | 🟢 PASS |
 | **R6** | **2-Level Caching & Non-Blocking SQL Telemetry** | 4-block deterministic prompt assembly, 32-bit FNV-1a session hash (`x-session-id`), OmniRoute headers ingestion into `PromptExecutionLog` in `@rakazo/db`, non-blocking async execution. | `packages/adapters/src/prefix-caching.ts`<br>`packages/db/src/telemetry.ts`<br>`packages/db/src/m1-db-telemetry.empirical-challenge.test.ts`<br>`packages/adapters/src/challenger-m3-caching-telemetry-empirical.test.ts` | 🟢 PASS |
-| **R7** | **Multi-Screen WebUI & VPS Non-Interference** | Mobile/tablet/desktop ergonomics (320px to 1440px+, 44px touch targets), Traefik v3.6 reverse proxy on port 20128, isolation of 15 tenant applications on VPS `62.164.214.145`. | `apps/web/src/pages/e2e-omniroute-ui.test.tsx`<br>`apps/web/src/pages/adversarial-ui-challenger.test.tsx`<br>`docs/OMNIROUTE_DEPLOYMENT.md` | 🟢 PASS |
+| **R7** | **Multi-Screen WebUI & VPS Non-Interference** | Mobile/tablet/desktop ergonomics (320px to 1440px+, 44px touch targets), Traefik v3.6 reverse proxy on port 20128, isolation of 15 tenant applications on VPS `<SERVER_IP>`. | `apps/web/src/pages/e2e-omniroute-ui.test.tsx`<br>`apps/web/src/pages/adversarial-ui-challenger.test.tsx`<br>`docs/OMNIROUTE_DEPLOYMENT.md` | 🟢 PASS |
 
 ---
 
@@ -213,7 +213,7 @@ Response telemetry is recorded asynchronously in PostgreSQL via `@rakazo/db`:
 ## 9. Coolify VPS Production Certification (App 21, Port 20128)
 
 ### 9.1 Host Environment & Sanctuarized Applications
-- **Production Host**: VPS `62.164.214.145` (Contabo, Ubuntu 22.04 LTS, Coolify PaaS v4.1+)
+- **Production Host**: VPS `<SERVER_IP>` (Contabo, Ubuntu 22.04 LTS, Coolify PaaS v4.1+)
 - **OmniRoute App ID**: Application `21` (UUID: `qmusbfbjcz0ohip348rv8fgc`)
 - **Rakazo App ID**: Application `20` (UUID: `s1253nc0yc4uu89lp6692r1s`)
 - **Sanctuarized Co-Located Applications (15 Apps Confirmed)**:
@@ -236,7 +236,7 @@ Response telemetry is recorded asynchronously in PostgreSQL via `@rakazo/db`:
 ### 9.2 Container Isolation & Security Profile
 - **Non-Root Execution**: Unprivileged `node` user (UID `1000`, GID `1000`).
 - **Internal Port Binding**: Port `20128` bound to internal container network.
-- **Traefik Reverse Proxy**: Public routing via `https://omniroute.workspacegroupefloteuil.eu` with automated Let's Encrypt TLS certificates.
+- **Traefik Reverse Proxy**: Public routing via `https://omniroute.example.com` with automated Let's Encrypt TLS certificates.
 - **Volume Isolation**: Named Docker volume `qmusbfbjcz0ohip348rv8fgc_data` mounted to `/app/data` (persisting SQLite database `storage.sqlite` and environment keys).
 - **Docker Daemon Shielding**: Zero access to `/var/run/docker.sock`.
 - **Zero Host Resource Collisions**: No port publishing on `0.0.0.0`, no host directory mounts.
@@ -250,7 +250,7 @@ In Coolify Application 20 (Rakazo) and Application 21 (OmniRoute):
 
 ```bash
 # Rakazo API / Worker Environment
-OMNIROUTE_BASE_URL=https://omniroute.workspacegroupefloteuil.eu/v1
+OMNIROUTE_BASE_URL=https://omniroute.example.com/v1
 OMNIROUTE_API_KEY=SET_IN_COOLIFY_ENV # Bearer token matching OmniRoute endpoint key
 
 # OmniRoute Container Environment (App 21)
@@ -267,15 +267,15 @@ INITIAL_PASSWORD=SET_IN_COOLIFY_ENV       # Admin password (hashed on boot)
 
 ```bash
 # 1. Verify OmniRoute Health via Traefik Ingress
-curl -f https://omniroute.workspacegroupefloteuil.eu/health
+curl -f https://omniroute.example.com/health
 # Expected: {"status":"healthy","service":"omniroute","version":"3.8.51"}
 
 # 2. Verify Models Catalog with Authorization Header
 curl -s -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
-  https://omniroute.workspacegroupefloteuil.eu/v1/models
+  https://omniroute.example.com/v1/models
 
 # 3. Verify Zero-Provider Fail-Closed Invariant
-curl -s -X POST https://omniroute.workspacegroupefloteuil.eu/v1/chat/completions \
+curl -s -X POST https://omniroute.example.com/v1/chat/completions \
   -H "Authorization: Bearer <OMNIROUTE_API_KEY>" \
   -H "Content-Type: application/json" \
   -d '{"model":"combo/rakazo-fast","messages":[{"role":"user","content":"Ping"}]}'

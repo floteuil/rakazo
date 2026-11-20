@@ -7,11 +7,9 @@ import { safeFetchJson, sanitizeToolError } from "./enterprise-tools.js";
 
 export function getTwentyConfig() {
   const apiUrl = (
-    process.env.TWENTY_API_URL?.trim() || "https://crm.workspacegroupefloteuil.eu"
+    process.env.TWENTY_API_URL?.trim() || ""
   ).replace(/\/+$/, "");
-  const apiKey =
-    process.env.TWENTY_API_KEY?.trim() ||
-    "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiI1NTY2OGM1OC01MTZmLTQ5ZmItYWIyNi04NDkzMWU3YjY3YmYiLCJ0eXBlIjoiQVBJX0tFWSIsIndvcmtzcGFjZUlkIjoiNTU2NjhjNTgtNTE2Zi00OWZiLWFiMjYtODQ5MzFlN2I2N2JmIiwiaWF0IjoxNzkyMjYyNTU2LCJleHAiOjQ5NDU4NjI1NTUsImp0aSI6ImQ0MzA5M2RlLTg2NGMtNDI4NS04NWNiLWNkYmE4NzVmYjMwMyJ9.OovUo3DzfVIn-BtwDi-5aXcU9BzxQ8HCKtdTeaF7j1o";
+  const apiKey = process.env.TWENTY_API_KEY?.trim() || "";
   return { apiUrl, apiKey };
 }
 
@@ -422,11 +420,10 @@ export async function executeTwentyGraphqlQuery(
 
 export function getAffineConfig() {
   const baseUrl = (
-    process.env.AFFINE_BASE_URL?.trim() || "https://affine.workspacegroupefloteuil.eu"
+    process.env.AFFINE_BASE_URL?.trim() || ""
   ).replace(/\/+$/, "");
-  const workspaceId =
-    process.env.AFFINE_WORKSPACE_ID?.trim() || "88214aa2-839b-43dd-8be5-11bdb6c10551";
-  const email = process.env.AFFINE_EMAIL?.trim() || "floteuiloff@gmail.com";
+  const workspaceId = process.env.AFFINE_WORKSPACE_ID?.trim() || "";
+  const email = process.env.AFFINE_EMAIL?.trim() || "";
   return { baseUrl, workspaceId, email };
 }
 
@@ -566,8 +563,7 @@ export async function executeAffineSearchDocs(
 /* ========================================================================== */
 
 export function getContext7Config() {
-  const apiKey =
-    process.env.CONTEXT7_API_KEY?.trim() || "ctx7sk-2799022b-bb22-4d8c-b0da-9eda5c3a7268";
+  const apiKey = process.env.CONTEXT7_API_KEY?.trim() || "";
   const apiUrl = (process.env.CONTEXT7_API_URL?.trim() || "https://context7.com/api").replace(
     /\/+$/,
     "",
@@ -838,9 +834,9 @@ export async function executeImageOptimizeCompress(
 
 export function getQdrantConfig() {
   const url = (
-    process.env.QDRANT_URL?.trim() || "https://qdrant.workspacegroupefloteuil.eu"
+    process.env.QDRANT_URL?.trim() || ""
   ).replace(/\/+$/, "");
-  const apiKey = process.env.QDRANT_API_KEY?.trim() || "qnijqdrFLZq0h4r0X0RydWZlFJBwL9zJ";
+  const apiKey = process.env.QDRANT_API_KEY?.trim() || "";
   return { url, apiKey };
 }
 
@@ -924,10 +920,9 @@ export async function executeQdrantUpsertPoints(
 
 export function getCoolifyConfig() {
   const apiUrl = (
-    process.env.COOLIFY_API_URL?.trim() || "https://coolify.workspacegroupefloteuil.eu/api/v1"
+    process.env.COOLIFY_API_URL?.trim() || ""
   ).replace(/\/+$/, "");
-  const apiToken =
-    process.env.COOLIFY_API_TOKEN?.trim() || "2|zi4OlniDWiPrZbZzqEb3UjOYjCMwUvcDoFm4mkBte89800f2";
+  const apiToken = process.env.COOLIFY_API_TOKEN?.trim() || "";
   return { apiUrl, apiToken };
 }
 
@@ -1028,10 +1023,9 @@ export async function executeCoolifyGetApplicationLogs(
 
 export function getFlowiseConfig() {
   const endpoint = (
-    process.env.FLOWISE_API_ENDPOINT?.trim() || "https://flowise.workspacegroupefloteuil.eu"
+    process.env.FLOWISE_API_ENDPOINT?.trim() || ""
   ).replace(/\/+$/, "");
-  const apiKey =
-    process.env.FLOWISE_API_KEY?.trim() || "Zhl7Tf2ypQc3EOGfTeanFdNOTQbjj3aWqqjexgl-vX4";
+  const apiKey = process.env.FLOWISE_API_KEY?.trim() || "";
   return { endpoint, apiKey };
 }
 
@@ -1100,7 +1094,7 @@ export async function executeFlowiseRunPrediction(
 /* ========================================================================== */
 
 export function getPocketbaseConfig() {
-  const url = (process.env.POCKETBASE_URL?.trim() || "https://auth.hubtowrite.com").replace(
+  const url = (process.env.POCKETBASE_URL?.trim() || "").replace(
     /\/+$/,
     "",
   );

@@ -108,7 +108,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     protocol: "HTTP REST / Scraperr Private Engine",
     status: "operational",
     statusText: "Connecté & Opérationnel",
-    badgeText: "Floteuil Enterprise · Souverain",
+    badgeText: "Enterprise · Souverain",
     securityLevel: "Zero-Tracking · No Logs · No Third-Party Telemetry",
     secretEnvVar: "SEARXNG_URL / SCRAPERR_URL",
     isBuiltin: true,
@@ -686,7 +686,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     description:
       "Gestionnaire de publication et planification multi-canaux (LinkedIn, X/Twitter, Threads, Bluesky, Facebook) via le protocole natif Postiz MCP.",
     icon: "Share2",
-    endpoint: "https://postiz.workspacegroupefloteuil.eu/api/mcp",
+    endpoint: "https://api.postiz.com/api/mcp",
     protocol: "HTTPS / Postiz MCP JSON-RPC 2.0 & Public API",
     status: "connected",
     statusText: "Connecté",
@@ -1195,7 +1195,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
           {
             name: "name",
             type: "string",
-            description: "Filtre par nom de domaine (ex: 'workspacegroupefloteuil.eu').",
+            description: "Filtre par nom de domaine (ex: 'example.com').",
             required: false,
           },
           {
@@ -1394,7 +1394,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     description:
       "Plateforme CRM open source souveraine pour la gestion complète des contacts, entreprises, opportunités d'affaires, tâches et notes.",
     icon: "Users",
-    endpoint: "https://crm.workspacegroupefloteuil.eu",
+    endpoint: "http://localhost:3000",
     protocol: "REST & GraphQL API",
     status: "connected",
     statusText: "Connecté & Opérationnel",
@@ -1821,7 +1821,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     description:
       "Espace documentaire unifié AFFiNE pour la gestion de notes, pages wiki, tableaux blancs et blocs de contenu multimédia.",
     icon: "BookOpen",
-    endpoint: "https://affine.workspacegroupefloteuil.eu",
+    endpoint: "http://localhost:3010",
     protocol: "REST / GraphQL Engine",
     status: "connected",
     statusText: "Connecté & Opérationnel",
@@ -2215,7 +2215,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     description:
       "Base de données vectorielle souveraine Qdrant pour la recherche de similarité, l'indexation de chunks et le RAG multimodal.",
     icon: "Database",
-    endpoint: "https://qdrant.workspacegroupefloteuil.eu",
+    endpoint: "http://localhost:6333",
     protocol: "Qdrant REST API v1",
     status: "connected",
     statusText: "Connecté & Opérationnel",
@@ -2316,11 +2316,11 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     description:
       "Contrôle opérationnel des déploiements conteneurisés Coolify, gestion des microservices, redémarrage et consultation des logs.",
     icon: "Server",
-    endpoint: "https://coolify.workspacegroupefloteuil.eu/api/v1",
+    endpoint: "http://localhost:8000/api/v1",
     protocol: "Coolify API v1",
     status: "connected",
     statusText: "Connecté & Opérationnel",
-    badgeText: "Coolify PaaS · Floteuil Cloud",
+    badgeText: "Coolify PaaS · Cloud Host",
     securityLevel: "Bearer Token · Admin Scoped",
     secretEnvVar: "COOLIFY_API_TOKEN",
     isBuiltin: false,
@@ -2353,7 +2353,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
             required: true,
           },
         ],
-        exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s" },
+        exampleInvocation: { uuid: "app_uuid_example_123" },
       },
       {
         name: "coolify_deploy_application",
@@ -2368,7 +2368,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
           {
             name: "uuid",
             type: "string",
-            description: "UUID de la ressource applicative.",
+            description: "UUID de l'application.",
             required: true,
           },
           {
@@ -2378,7 +2378,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
             required: false,
           },
         ],
-        exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s", force_rebuild: false },
+        exampleInvocation: { uuid: "app_uuid_example_123", force_rebuild: false },
       },
       {
         name: "coolify_restart_application",
@@ -2396,7 +2396,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
             required: true,
           },
         ],
-        exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s" },
+        exampleInvocation: { uuid: "app_uuid_example_123" },
       },
       {
         name: "coolify_get_application_logs",
@@ -2415,7 +2415,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
             required: false,
           },
         ],
-        exampleInvocation: { uuid: "s1253nc0yc4uu89lp6692r1s", lines: 50 },
+        exampleInvocation: { uuid: "app_uuid_example_123", lines: 50 },
       },
     ],
   },
@@ -2428,7 +2428,7 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     description:
       "Moteur d'exécution de graphes et pipelines IA Flowise, agents LangChain et prédictions conversationnelles.",
     icon: "GitBranch",
-    endpoint: "https://flowise.workspacegroupefloteuil.eu",
+    endpoint: "http://localhost:3001",
     protocol: "Flowise Engine API v1",
     status: "connected",
     statusText: "Connecté & Opérationnel",
@@ -2660,11 +2660,11 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
           {
             name: "domain",
             type: "string",
-            description: "Nom de domaine web à auditer (ex: groupefloteuil.fr).",
+            description: "Nom de domaine web à auditer (ex: example.com).",
             required: true,
           },
         ],
-        exampleInvocation: { domain: "groupefloteuil.fr" },
+        exampleInvocation: { domain: "example.com" },
       },
     ],
   },

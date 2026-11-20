@@ -10,7 +10,7 @@
 - **TypeScript Typecheck**: **0 Errors** across all 19 packages (`pnpm check`)
 - **Automated Test Suites**: **2,768 passed tests** across **192 test files** with 100% success rate (`pnpm test`)
 - **Security Audit**: **0 Plaintext Secrets**, 0 Tracked Credentials, 100% Regex Token Masking
-- **VPS Coolify Deployment**: **100% Tenant Isolation** across all 15 co-located applications on `62.164.214.145`
+- **VPS Coolify Deployment**: **100% Tenant Isolation** across all 15 co-located applications on `<SERVER_IP>`
 
 ---
 
@@ -483,9 +483,9 @@ Free mode enforces a double-barrier zero-cost guarantee:
    - Checks SSE payload `pricing` fields (`prompt > 0 || completion > 0 || total_cost > 0`).
    - **Never Falls Back to Paid OpenRouter**: On any upstream failure, timeout, or non-zero cost, the request fails closed immediately.
 
-### 5.4 VPS Coolify Isolation & Non-Interference (62.164.214.145)
+### 5.4 VPS Coolify Isolation & Non-Interference (<SERVER_IP>)
 
-The production deployment on VPS `62.164.214.145` guarantees 100% tenant isolation across all 15 co-located applications:
+The production deployment on VPS `<SERVER_IP>` guarantees 100% tenant isolation across all 15 co-located applications:
 
 ```text
                                   ┌───────────────────────────────┐
@@ -498,7 +498,7 @@ The production deployment on VPS `62.164.214.145` guarantees 100% tenant isolati
                                                    │
                          ┌─────────────────────────┴─────────────────────────┐
                          │                                                   │
-                         ▼ (agents.workspacegroupefloteuil.eu)               ▼ (omniroute.workspacegroupefloteuil.eu)
+                         ▼ (agents.example.com)               ▼ (omniroute.example.com)
           ┌──────────────────────────────┐                    ┌──────────────────────────────┐
           │ Coolify App 20: Rakazo Stack │                    │ Coolify App 21: OmniRoute    │
           ├──────────────────────────────┤                    ├──────────────────────────────┤
@@ -510,7 +510,7 @@ The production deployment on VPS `62.164.214.145` guarantees 100% tenant isolati
                                                               └──────────────────────────────┘
 ```
 
-#### Isolation Invariants on VPS 62.164.214.145
+#### Isolation Invariants on VPS <SERVER_IP>
 
 | Invariant | Specification | Protection Mechanism |
 |---|---|---|

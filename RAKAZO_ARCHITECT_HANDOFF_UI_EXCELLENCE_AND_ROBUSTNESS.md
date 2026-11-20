@@ -309,10 +309,10 @@ pnpm format
 
 ### 5.2 Production Deployment Parameters (Coolify PaaS)
 
-- **Application**: Coolify App 21 (`qmusbfbjcz0ohip348rv8fgc`) on VPS `62.164.214.145`.
+- **Application**: Coolify App 21 (`qmusbfbjcz0ohip348rv8fgc`) on VPS `<SERVER_IP>`.
 - **Target**: `runner-base` Dockerfile build from `floteuil/OmniRoute` (`release/v3.8.51`, commit `38e2616464fac4681c1f7a4e05dc9974e99e1dde`).
 - **Internal Port**: `20128` | **Network**: `coolify` | **Volume**: `qmusbfbjcz0ohip348rv8fgc_data:/app/data`.
-- **Public FQDN**: `https://omniroute.workspacegroupefloteuil.eu` (Traefik v3.6 reverse proxy with Let's Encrypt TLS).
+- **Public FQDN**: `https://omniroute.example.com` (Traefik v3.6 reverse proxy with Let's Encrypt TLS).
 - **Zero-Interference Guarantee**: Strict isolation from all 15 co-located applications on the VPS.
 
 ---

@@ -109,7 +109,7 @@ The **RAKAZO Final OmniRoute Integration** establishes a unified, sovereign, ent
   - Safe-area insets handled on composers and overlays via `pb-[max(0.75rem,env(safe-area-inset-bottom))]`.
   - Composer inputs enforce `text-[16px]` on mobile breakpoints to prevent iOS automatic zoom.
 - **VPS Tenant Isolation & Non-Interference**:
-  - Coolify PaaS Application 21 (`qmusbfbjcz0ohip348rv8fgc`) on VPS `62.164.214.145` runs on dedicated port `20128`, dedicated volume `qmusbfbjcz0ohip348rv8fgc_data`, unprivileged user `node` (UID/GID 1000).
+  - Coolify PaaS Application 21 (`qmusbfbjcz0ohip348rv8fgc`) on VPS `<SERVER_IP>` runs on dedicated port `20128`, dedicated volume `qmusbfbjcz0ohip348rv8fgc_data`, unprivileged user `node` (UID/GID 1000).
   - Absolute zero interference with the 15 other applications on the server (HubtoWrite, Veinart, Open-Design, Postiz, DocuSeal, n8n, Flowise, Odoo, SearXNG, Minio, Beszel, Scraperr).
 - **Master Documentation Consolidated**:
   - `RAKAZO_MASTER_BLUEPRINT_CURRENT.md`
@@ -175,13 +175,13 @@ pnpm vitest run \
 
 ### 4.2 Production Deployment Parameters (Coolify PaaS App 21)
 
-- **Endpoint**: `https://omniroute.workspacegroupefloteuil.eu`
+- **Endpoint**: `https://omniroute.example.com`
 - **Internal Port**: `20128`
 - **Storage Volume**: `qmusbfbjcz0ohip348rv8fgc_data:/app/data`
 - **Unprivileged Runtime**: User `node` (UID 1000, GID 1000)
 - **Rakazo Backend Configuration**:
   ```env
-  OMNIROUTE_BASE_URL=https://omniroute.workspacegroupefloteuil.eu/v1
+  OMNIROUTE_BASE_URL=https://omniroute.example.com/v1
   OMNIROUTE_API_KEY=sk-omniroute-endpoint-key-rakazo
   ```
 

@@ -187,7 +187,7 @@ These variables configure isolated execution environments where agent code, shel
 | `PI_DEFAULT_PROVIDER` | Provider identifier | `openrouter` | Optional | Default model provider for bot execution (`openrouter`, `openai`, `anthropic`, `local`). |
 | `PI_DEFAULT_MODEL` | Model identifier string | `openai/gpt-oss-120b` | Optional | Default foundation model ID assigned to newly created bots. |
 | `PI_MODEL_API_KEY` | API Key string | `""` | Optional | Direct API key override for runtime execution when bypassing OpenRouter. |
-| `OMNIROUTE_BASE_URL` | Valid HTTP/S URL | `https://omniroute.workspacegroupefloteuil.eu/v1` (Coolify Prod) / `http://127.0.0.1:8080/v1` (Local) | Optional | Base URL for sovereign OmniRoute free intelligence gateway. Accessible exclusively on internal networks or authenticated HTTPS endpoints by API and Worker. |
+| `OMNIROUTE_BASE_URL` | Valid HTTP/S URL | `https://omniroute.example.com/v1` (Coolify Prod) / `http://127.0.0.1:8080/v1` (Local) | Optional | Base URL for sovereign OmniRoute free intelligence gateway. Accessible exclusively on internal networks or authenticated HTTPS endpoints by API and Worker. |
 | `OMNIROUTE_API_KEY` | Secret Token String | `""` (dev default: `sk-omniroute-local-key`) | **Required in Prod** | Shared bearer secret (`Authorization: Bearer <token>`) for authenticating API and Worker requests to the OmniRoute gateway container. |
 | `COMPOSIO_API_KEY` | Composio API Key | `""` | Optional | API key for Composio enterprise tooling and external OAuth action triggers. |
 
@@ -315,19 +315,19 @@ pnpm --filter @rakazo/db exec prisma migrate dev --name <migration_name>
 
 Rakazo integrates **OmniRoute** as a sovereign, self-hosted, unprivileged free inference gateway microservice running alongside `@rakazo/api` and `@rakazo/worker`. This provides users with the option to deploy 100% free autonomous agents powered by live high-availability combo routes (`combo/rakazo-coding`, `combo/rakazo-reasoning`, `combo/rakazo-fast`, `combo/rakazo-writing`, `combo/rakazo-analysis`) without incurring API token costs.
 
-> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21: `qmusbfbjcz0ohip348rv8fgc` on VPS `62.164.214.145`), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md), [`RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`](../RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md), and [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md).
+> **Production Deployment Reference**: For the complete Coolify PaaS production runbook (Application 21 on the VPS host), consult [`docs/OMNIROUTE_DEPLOYMENT.md`](OMNIROUTE_DEPLOYMENT.md), [`RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`](../RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md), and [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md`](../RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COHERENCE_AND_OBSERVABILITY.md).
 
 ### 5.1 Architecture & Network Topologies
 
 OmniRoute supports two deployment topologies:
 
 #### A. Production Coolify PaaS Topology
-- **Host**: VPS `62.164.214.145` (Contabo, Ubuntu 22.04 LTS)
-- **Coolify Application**: App 21 (`qmusbfbjcz0ohip348rv8fgc`)
-- **Public Domain**: `https://omniroute.workspacegroupefloteuil.eu` (Traefik v3.6 reverse proxy with Let's Encrypt TLS)
+- **Host**: VPS host (Ubuntu 22.04 LTS)
+- **Coolify Application**: App 21 (`<OMNIROUTE_APP_UUID>`)
+- **Public Domain**: `https://omniroute.example.com` (Traefik v3.6 reverse proxy with Let's Encrypt TLS)
 - **Internal Port**: `20128`
-- **Persistent Volume**: `/app/data` (`qmusbfbjcz0ohip348rv8fgc_data`)
-- **Integration**: Rakazo connects via `OMNIROUTE_BASE_URL=https://omniroute.workspacegroupefloteuil.eu/v1` and Bearer token `OMNIROUTE_API_KEY`.
+- **Persistent Volume**: `/app/data` (`omniroute_data`)
+- **Integration**: Rakazo connects via `OMNIROUTE_BASE_URL=https://omniroute.example.com/v1` and Bearer token `OMNIROUTE_API_KEY`.
 
 #### B. Local Docker Compose Topology
 ```text

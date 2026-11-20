@@ -265,7 +265,7 @@ describe("Adversarial Multi-Tenancy & Isolation Suite for skills.ts", () => {
   const actorParis: Actor = {
     userId: "usr-paris-lead",
     workspaceId: "ws-paris",
-    email: "lead@workspacegroupefloteuil.eu",
+    email: "lead@example.com",
     isDeploymentOwner: true,
   };
 

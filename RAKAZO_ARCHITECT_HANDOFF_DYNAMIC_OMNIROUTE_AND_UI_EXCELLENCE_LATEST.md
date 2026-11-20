@@ -3,7 +3,7 @@
 > **Document d'autorité destiné à l'Architecte IA (ChatGPT / Viber)**  
 > **Dépôt GitHub :** [https://github.com/floteuil/rakazo](https://github.com/floteuil/rakazo) (Branche `main`)  
 > **Dernier Commit en Production :** [`b0b018d`](https://github.com/floteuil/rakazo/commit/b0b018d) (*fix(omniroute): enable dynamic provider acceptance and canonical response cost resolution without static registry blocking*)  
-> **Passerelle OmniRoute :** `https://omniroute.workspacegroupefloteuil.eu/v1` (Version `v3.8.51` — Commit `38e26164`)  
+> **Passerelle OmniRoute :** `https://omniroute.example.com/v1` (Version `v3.8.51` — Commit `38e26164`)  
 > **Statut Global :** 🟢 **100 % OPÉRATIONNEL & CERTIFIÉ** (OpenRouter Premium + OmniRoute Dynamic + UI/UX enrichie + 0 erreur TypeScript).
 
 ---
@@ -78,7 +78,7 @@ Conformément à la directive d'architecture et aux instructions de l'utilisateu
 
 ## 4. 🌐 PARTIE 3 : TESTS EN DIRECT SUR L'INSTANCE OMNIROUTE DE PRODUCTION
 
-Tous les combos ont été testés en direct par requêtes réelles contre `https://omniroute.workspacegroupefloteuil.eu/v1` :
+Tous les combos ont été testés en direct par requêtes réelles contre `https://omniroute.example.com/v1` :
 
 ```
 ┌─────────────────────────┬───────────────────────────┬──────────────────────┬──────────┬──────────────┐
@@ -107,7 +107,7 @@ Tous les combos ont été testés en direct par requêtes réelles contre `https
 4. **Cache 2 Niveaux :**  
    * Découpage 4 blocs (Blocs A+B invariants à Token 0) + affinité de session FNV-1a `x-session-id`.
 5. **Sanctuaire VPS Coolify :**  
-   * Les 15 autres applications hébergées sur le serveur `62.164.214.145` sont restées **100 % saines et intactes**.
+   * Les 15 autres applications hébergées sur le serveur `<SERVER_IP>` sont restées **100 % saines et intactes**.
 
 ---
 

@@ -4,7 +4,7 @@
 > **Platform Version**: Rakazo v2.6.0-omniroute-production-certified  
 > **Repository**: [https://github.com/floteuil/rakazo](https://github.com/floteuil/rakazo) (`main` branch)  
 > **Monorepo Engine**: Turborepo 2.10.9 + pnpm 9.15.0 Workspaces (19 packages)  
-> **Target Environment**: Coolify PaaS (App 20: Rakazo Stack, App 21: OmniRoute Gateway `qmusbfbjcz0ohip348rv8fgc`) on VPS `62.164.214.145`  
+> **Target Environment**: Coolify PaaS (App 20: Rakazo Stack, App 21: OmniRoute Gateway `qmusbfbjcz0ohip348rv8fgc`) on VPS `<SERVER_IP>`  
 > **Verification Status**: **100% CERTIFIED READY FOR PRODUCTION** (0 TypeScript errors across 19 packages, 2,714 tests 100% passing across 190 test suites)  
 > **Date of Publication**: August 31, 2026  
 
@@ -113,7 +113,7 @@ This breakthrough guarantees:
   - Default / empty $\longrightarrow$ `combo/rakazo-fast`
 
 ### 2.3 Level 3: Dynamic Per-Turn Execution Resolution
-- Handled autonomously by OmniRoute at `omniroute.workspacegroupefloteuil.eu/v1`.
+- Handled autonomously by OmniRoute at `omniroute.example.com/v1`.
 - Evaluates upstream provider health, rate limits, and latency to dynamically route requests to the best available free model.
 - Emits real execution metadata in response headers (`x-omniroute-provider`, `x-omniroute-model`).
 - **Zero Static Coupling Guarantee**: Rakazo contains no enumeration or hardcoded catalog of upstream free models. Adding new models to OmniRoute requires zero modifications to Rakazo code.
@@ -337,7 +337,7 @@ $$\mathbf{OmniRoute\ Response\ Headers} \equiv \mathbf{PromptExecutionLog\ (SQL)
 
 ## 9. VPS Multi-App Sanctuary & Premium Route Protection
 
-The platform is deployed on a multi-tenant VPS running Coolify PaaS (`62.164.214.145`). Strict isolation safeguards the entire infrastructure:
+The platform is deployed on a multi-tenant VPS running Coolify PaaS (`<SERVER_IP>`). Strict isolation safeguards the entire infrastructure:
 
 ```text
                                    ┌───────────────────────────────┐
@@ -350,7 +350,7 @@ The platform is deployed on a multi-tenant VPS running Coolify PaaS (`62.164.214
                                                    │
                          ┌─────────────────────────┴─────────────────────────┐
                          │                                                   │
-                         ▼ (agents.workspacegroupefloteuil.eu)               ▼ (omniroute.workspacegroupefloteuil.eu)
+                         ▼ (agents.example.com)               ▼ (omniroute.example.com)
           ┌──────────────────────────────┐                    ┌──────────────────────────────┐
           │ Coolify App 20: Rakazo Stack │                    │ Coolify App 21: OmniRoute    │
           ├──────────────────────────────┤                    ├──────────────────────────────┤
@@ -454,7 +454,7 @@ docker start qmusbfbjcz0ohip348rv8fgc-0
 | Symptom | Root Cause | Remediation Procedure |
 |---|---|---|
 | **`Capacité gratuite temporairement indisponible`** | OmniRoute backend has zero configured provider keys or upstream rate limit reached | Verify upstream keys in OmniRoute dashboard or wait for rate limit cooldown. |
-| **HTTP 502 Bad Gateway on `omniroute.workspacegroupefloteuil.eu`** | Container is restarting or port 20128 is unreachable | Inspect Coolify container logs (`docker logs qmusbfbjcz0ohip348rv8fgc-0`). |
+| **HTTP 502 Bad Gateway on `omniroute.example.com`** | Container is restarting or port 20128 is unreachable | Inspect Coolify container logs (`docker logs qmusbfbjcz0ohip348rv8fgc-0`). |
 | **Telemetry DB Timeout Warning** | PostgreSQL under high concurrent load | Harmless; telemetry writes fail open without impacting agent execution or user chat turns. |
 | **Cache Hit Ratio is 0%** | First turn in new conversation thread or unique system prompt | Normal behavior at Token 0 before prefix cache warmup. |
 

@@ -110,7 +110,7 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     cloudflareApiToken: optional(source.CLOUDFLARE_API_TOKEN),
     cloudflareAccountId: optional(source.CLOUDFLARE_ACCOUNT_ID),
     omnirouteBaseUrl:
-      optional(source.OMNIROUTE_BASE_URL) ?? "https://omniroute.workspacegroupefloteuil.eu/v1",
+      optional(source.OMNIROUTE_BASE_URL) ?? "http://localhost:8080/v1",
     omnirouteApiKey: optional(source.OMNIROUTE_API_KEY),
     twentyApiUrl: optional(source.TWENTY_API_URL),
     twentyApiKey: optional(source.TWENTY_API_KEY),
