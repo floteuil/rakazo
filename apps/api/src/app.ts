@@ -204,6 +204,8 @@ export async function createApp(
       defaultProvider: env.defaultProvider,
       defaultModel: env.defaultModel,
       openRouterKey: env.openRouterKey,
+      omnirouteBaseUrl: env.omnirouteBaseUrl,
+      omnirouteApiKey: env.omnirouteApiKey,
       webOrigin: env.webOrigin,
       screenProxySecret: env.authSecret,
       sandboxProvider: env.sandboxProvider,

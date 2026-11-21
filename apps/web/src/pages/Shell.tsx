@@ -26,6 +26,7 @@ import {
   buildBlueprintMcpConfig,
   buildInterAgentRelayBriefFr,
   getBlueprintSkillIds,
+  MAX_ACTIVE_SKILLS_PER_BOT,
   sanitizeSkillPlaybookContent,
   SOVEREIGN_AGENT_BLUEPRINTS,
   SOVEREIGN_ROUTINE_TEMPLATES,
@@ -61,6 +62,7 @@ import {
   ShieldCheck,
   Sparkles,
   Square,
+  Wand2,
   X,
 } from "lucide-react";
 import {
@@ -139,6 +141,7 @@ import { BotMcpToolSelector, getRecommendedMcpConfig } from "./BotMcpToolSelecto
 import { BotSkillSelector } from "./BotSkillSelector";
 import { HostComputerPrompt } from "./HostComputerPrompt";
 import { PromptCompilerModal } from "./PromptCompilerModal";
+import { SkillAdvisorModal } from "./SkillAdvisorModal";
 import type { InitialDraftSkill } from "./SkillLibraryOverlay";
 import { WindowChrome } from "./WindowChrome";
 import { WorkspaceSearchResults } from "./WorkspaceSearch";
@@ -214,6 +217,8 @@ export function ShellPage() {
   const [cockpitOpen, setCockpitOpen] = useState(false);
   const [skillLibraryOpen, setSkillLibraryOpen] = useState(false);
   const [skillLibraryDraft, setSkillLibraryDraft] = useState<InitialDraftSkill | null>(null);
+  const [quickAdvisorOpen, setQuickAdvisorOpen] = useState(false);
+  const [quickAdvisorSkillIds, setQuickAdvisorSkillIds] = useState<string[]>([]);
   const [modelsOpen, setModelsOpen] = useState(false);
   const [voiceOpen, setVoiceOpen] = useState(false);
   const [callOpen, setCallOpen] = useState(false);
@@ -952,7 +957,7 @@ export function ShellPage() {
       await rpc.skills
         .assignToBot({
           botId: bot.id,
-          skillIds: input.skillIds,
+          skillIds: input.skillIds.slice(0, MAX_ACTIVE_SKILLS_PER_BOT),
         })
         .catch(() => undefined);
     }
@@ -1440,6 +1445,31 @@ export function ShellPage() {
                 <span className="hidden sm:inline">Transférer</span>
               </button>
             ) : null}
+            {active ? (
+              <div className="group relative">
+                <button
+                  type="button"
+                  data-testid="active-bot-skill-advisor-trigger"
+                  title="Conseiller IA de Compétences (Équiper cet agent parmi 3 538 skills)"
+                  aria-label="Conseiller IA de Compétences"
+                  onClick={() => {
+                    setQuickAdvisorSkillIds([]);
+                    setQuickAdvisorOpen(true);
+                    void rpc.skills
+                      .getBotSkills({ botId: active.id })
+                      .then((rows) => setQuickAdvisorSkillIds(rows.map((r) => r.id)))
+                      .catch(() => setQuickAdvisorSkillIds([]));
+                  }}
+                  className="flex h-[34px] items-center gap-1.5 rounded-[10px] border border-emerald-500/35 bg-emerald-500/10 px-2.5 text-[12px] font-semibold text-emerald-300 transition-colors hover:bg-emerald-500/20"
+                >
+                  <Wand2 size={15} strokeWidth={2} className="shrink-0 text-emerald-400" />
+                  <span className="hidden sm:inline">Skills IA</span>
+                </button>
+                <span className="pointer-events-none absolute right-0 top-full z-50 mt-1.5 hidden whitespace-nowrap rounded-lg border border-[#2C2C34] bg-[#141418] px-2.5 py-1 text-[11.5px] font-medium text-[#ECECEE] shadow-xl group-hover:block">
+                  Conseiller IA de Compétences (Max 20 skills)
+                </span>
+              </div>
+            ) : null}
             <div className="group relative">
               <button
                 type="button"
@@ -1814,7 +1844,7 @@ export function ShellPage() {
                     await rpc.skills
                       .assignToBot({
                         botId: active.id,
-                        skillIds,
+                        skillIds: skillIds.slice(0, MAX_ACTIVE_SKILLS_PER_BOT),
                       })
                       .catch(() => undefined);
                   }
@@ -2156,6 +2186,25 @@ export function ShellPage() {
             onClose={() => {
               setSkillLibraryOpen(false);
               setSkillLibraryDraft(null);
+            }}
+          />
+        ) : null}
+        {quickAdvisorOpen && active ? (
+          <SkillAdvisorModal
+            isOpen={quickAdvisorOpen}
+            onClose={() => setQuickAdvisorOpen(false)}
+            botName={active.name}
+            botTitle={active.title}
+            botDescription={active.description}
+            botInstructions={active.instructions}
+            currentSkillIds={quickAdvisorSkillIds}
+            onApplySkills={async (nextSkillIds) => {
+              await rpc.skills.assignToBot({
+                botId: active.id,
+                skillIds: nextSkillIds.slice(0, MAX_ACTIVE_SKILLS_PER_BOT),
+              });
+              setQuickAdvisorSkillIds(nextSkillIds.slice(0, MAX_ACTIVE_SKILLS_PER_BOT));
+              await refreshBots();
             }}
           />
         ) : null}
@@ -4030,6 +4079,10 @@ function CreateBotForm({
           selectedSkillIds={selectedSkillIds}
           onChange={setSelectedSkillIds}
           availableSkills={availableSkills}
+          botName={name}
+          botTitle={title}
+          botDescription={description}
+          botInstructions={instructions}
         />
       </div>
 
@@ -4222,6 +4275,10 @@ function BotSettings({
           availableSkills={availableSkills}
           botSkills={botSkills}
           disabled={saving}
+          botName={name}
+          botTitle={title}
+          botDescription={description}
+          botInstructions={instructions}
         />
       </div>
 

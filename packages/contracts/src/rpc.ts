@@ -47,6 +47,12 @@ import { Id } from "./ids.js";
 import { PromptCompileInputSchema, PromptCompileOutputSchema } from "./prompt-compiler.js";
 import { SearchQueryOutputSchema } from "./search.js";
 import type { SentinelReport } from "./sentinel.js";
+import {
+  RecommendSkillsForBotInputSchema,
+  RecommendSkillsForBotOutputSchema,
+  SearchSkillCatalogInputSchema,
+  SearchSkillCatalogOutputSchema,
+} from "./skill-advisor.js";
 
 const botId = z.object({ botId: Id });
 
@@ -243,6 +249,12 @@ export const appContract = {
       .input(AssignSkillsToBotInput)
       .output(z.object({ ok: z.literal(true), count: z.number() })),
     getBotSkills: oc.input(GetBotSkillsInput).output(z.array(SkillSchema)),
+    searchCatalog: oc
+      .input(SearchSkillCatalogInputSchema.optional())
+      .output(SearchSkillCatalogOutputSchema),
+    recommendForBot: oc
+      .input(RecommendSkillsForBotInputSchema)
+      .output(RecommendSkillsForBotOutputSchema),
   },
   taughtSkills: {
     list: oc.input(botId).output(z.array(TaughtSkillSchema)),

@@ -50,6 +50,7 @@ export * from "./sandbox-factory.js";
 export * from "./scripted-runtime.js";
 export * from "./scripted-voice.js";
 export * from "./secrets.js";
+export * from "./skill-advisor.js";
 export * from "./sovereign-skills-store.js";
 export * from "./subagent-inheritance.js";
 export * from "./supermemory-client.js";

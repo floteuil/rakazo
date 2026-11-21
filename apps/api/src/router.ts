@@ -138,6 +138,8 @@ export interface RouterDeps {
     defaultProvider: string;
     defaultModel: string;
     openRouterKey?: string;
+    omnirouteBaseUrl?: string;
+    omnirouteApiKey?: string;
     webOrigin: string;
     screenProxySecret: string;
     sandboxProvider: string;
@@ -155,7 +157,14 @@ export function createRouter(deps: RouterDeps) {
     home: deps.home,
     dataDir: deps.dataDir,
   });
-  const skills = createSkillsService({ prisma: deps.prisma });
+  const skills = createSkillsService({
+    prisma: deps.prisma,
+    advisorOptions: {
+      omnirouteBaseUrl: deps.env.omnirouteBaseUrl ?? process.env.OMNIROUTE_BASE_URL,
+      omnirouteApiKey: deps.env.omnirouteApiKey ?? process.env.OMNIROUTE_API_KEY,
+      openRouterApiKey: deps.env.openRouterKey ?? process.env.OPENROUTER_API_KEY,
+    },
+  });
 
   const authed = os.use(async ({ context, next }) => {
     if (!context.actor) throw new ORPCError("UNAUTHORIZED");
@@ -1319,6 +1328,12 @@ export function createRouter(deps: RouterDeps) {
       getBotSkills: authed.skills.getBotSkills.handler(async ({ context, input }) =>
         skills.getBotSkills(context.actor, input),
       ),
+      searchCatalog: authed.skills.searchCatalog.handler(async ({ context, input }) =>
+        skills.searchCatalog(context.actor, input),
+      ),
+      recommendForBot: authed.skills.recommendForBot.handler(async ({ context, input }) =>
+        skills.recommendForBot(context.actor, input),
+      ),
     },
     taughtSkills: {
       list: authed.taughtSkills.list.handler(async ({ context, input }) => {
@@ -1853,15 +1868,21 @@ export function createRouter(deps: RouterDeps) {
     },
     prompts: {
       compile: authed.prompts.compile.handler(async ({ input }) => {
-        const compilerModel = process.env.OPENROUTER_MODEL || DEFAULT_PROMPT_COMPILER_MODEL;
+        const omniKey = deps.env.omnirouteApiKey ?? process.env.OMNIROUTE_API_KEY;
+        const omniUrl = deps.env.omnirouteBaseUrl ?? process.env.OMNIROUTE_BASE_URL;
+        const useOmniRoute = Boolean(omniKey && omniUrl && !deps.env.openRouterKey);
+        const compilerModel = useOmniRoute
+          ? "combo/rakazo-reasoning"
+          : process.env.OPENROUTER_MODEL || DEFAULT_PROMPT_COMPILER_MODEL;
         const promptCompiler = createPromptCompilerService({
-          apiKey: deps.env.openRouterKey,
+          baseUrl: useOmniRoute ? omniUrl : undefined,
+          apiKey: useOmniRoute ? omniKey : deps.env.openRouterKey,
           modelId: compilerModel,
         });
         const result = await promptCompiler.compile(input);
         if (result.telemetry) {
           recordPromptExecutionLogAsync(deps.prisma, {
-            provider: "openrouter",
+            provider: useOmniRoute ? "omniroute" : "openrouter",
             model: compilerModel,
             levelUsed: result.levelUsed,
             promptTokens: result.telemetry.promptTokens,

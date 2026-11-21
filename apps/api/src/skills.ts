@@ -1,5 +1,10 @@
 import { ORPCError } from "@orpc/server";
-import { getSovereignSkillFull } from "@rakazo/adapters";
+import {
+  getSovereignSkillFull,
+  recommendSkillsForBot,
+  type SkillAdvisorOptions,
+  searchUnifiedSkillCatalog,
+} from "@rakazo/adapters";
 import {
   type Actor,
   type AssignSkillsToBotInput,
@@ -8,7 +13,12 @@ import {
   type GetBotSkillsInput,
   type GetSkillInput,
   type ListSkillsInput,
+  MAX_ACTIVE_SKILLS_PER_BOT,
   parseSkillMarkdown,
+  type RecommendSkillsForBotInput,
+  type RecommendSkillsForBotOutput,
+  type SearchSkillCatalogInput,
+  type SearchSkillCatalogOutput,
   type Skill,
   type SkillSummary,
   slugify,
@@ -20,6 +30,7 @@ import { withSerializableRetry } from "./serializable-retry.js";
 
 export interface SkillsDeps {
   prisma: PrismaClient;
+  advisorOptions?: SkillAdvisorOptions;
 }
 
 function mapSkill(row: {
@@ -477,6 +488,11 @@ export async function assignSkillsToBot(
   }
 
   const uniqueRequested = Array.from(new Set(input.skillIds));
+  if (uniqueRequested.length > MAX_ACTIVE_SKILLS_PER_BOT) {
+    throw new ORPCError("BAD_REQUEST", {
+      message: `Limite stricte : un agent ne peut activer que ${MAX_ACTIVE_SKILLS_PER_BOT} compétences maximum simultanément.`,
+    });
+  }
   const resolvedSkillIds: string[] = [];
 
   if (uniqueRequested.length > 0) {
@@ -606,5 +622,13 @@ export function createSkillsService(deps: SkillsDeps) {
     assignToBot: (actor: Actor, input: AssignSkillsToBotInput) =>
       assignSkillsToBot(deps, actor, input),
     getBotSkills: (actor: Actor, input: GetBotSkillsInput) => getBotSkills(deps, actor, input),
+    searchCatalog: (
+      _actor: Actor,
+      input?: SearchSkillCatalogInput,
+    ): SearchSkillCatalogOutput => searchUnifiedSkillCatalog(input ?? {}),
+    recommendForBot: (
+      _actor: Actor,
+      input: RecommendSkillsForBotInput,
+    ): Promise<RecommendSkillsForBotOutput> => recommendSkillsForBot(input, deps.advisorOptions),
   };
 }

@@ -1,11 +1,11 @@
 # RAKAZO MASTER BLUEPRINT — CURRENT ARCHITECTURE & PLATFORM SPECIFICATION
 
-**Version**: 2.9.0-full-stack-omniroute-sentinel-and-bundle-certified  
+**Version**: 3.0.0-unified-3538-skill-library-and-omniroute-advisor  
 **Repository**: [https://github.com/floteuil/rakazo](https://github.com/floteuil/rakazo) (Turborepo 2 + pnpm Monorepo)  
 **Branch**: `main` & `clean-release` (Zero-Secret Public Release Ready)  
-**Consolidation**: Cross-Wave Sovereign Consolidation (OpenMausBot Sentinel + Same-Request Deduplicator + Dynamic Memory Profiles, CopilotKit/OpenBot Anti-Dangles + Routine Checklists + Standing Rules + Secret Shield, NousResearch/Hermes Fuzzy Tool Repair + Denial Breaker + Asymmetric User Prompt Sanctuary, `n8n-io/nod` Untrusted Envelopes + 5-Min Cold-Cache Pruning + `.rakazo/outputs/` Offloading + Learned Procedural Skills + Routine Delta Watches + `N8nWorkflowCanvas` + `SandboxedArtifactModal`, OmniRoute v3.8.51 Live SSE Keepalive & Provider Inference + Zero-Token `/models` Telemetry Probe, Multi-Chunk Vite Bundle Splitting `< 500 kB`)  
+**Consolidation**: Cross-Wave Sovereign Consolidation (OpenMausBot Sentinel + Same-Request Deduplicator + Dynamic Memory Profiles, CopilotKit/OpenBot Anti-Dangles + Routine Checklists + Standing Rules + Secret Shield, NousResearch/Hermes Fuzzy Tool Repair + Denial Breaker + Asymmetric User Prompt Sanctuary, `n8n-io/nod` Untrusted Envelopes + 5-Min Cold-Cache Pruning + `.rakazo/outputs/` Offloading + Learned Procedural Skills + Routine Delta Watches + `N8nWorkflowCanvas` + `SandboxedArtifactModal`, OmniRoute v3.8.51 Live SSE Keepalive & Provider Inference + Zero-Token `/models` Telemetry Probe, Unified 3,538-Skill Sharded Native Library + 2-Stage OmniRoute AI Skill Advisor `MAX_ACTIVE_SKILLS_PER_BOT = 20`, Multi-Chunk Vite Bundle Splitting `< 500 kB`)  
 **Verification Date**: 2026-11-21  
-**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 100% Vitest Pass Rate across Monorepo Test Suites, 0 Plaintext Secrets, Live OmniRoute 5/5 Combos Verified)
+**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 100% Vitest Pass Rate across Monorepo Test Suites, 0 Plaintext Secrets, Live OmniRoute 5/5 Combos + 3,538 Native Skills Verified)
 
 ---
 
@@ -248,10 +248,22 @@ Multi-tag resolution selects the tag with the highest weight (`resolveDeterminis
 ```
 
 ### VPS Coolify Non-Interference Invariants
-1. **Isolated Namespace**: Scoped to Coolify application UUIDs (`qmusbfbjcz0ohip348rv8fgc` for OmniRoute, `s1253nc0yc4uu89lp6692r1s` for Rakazo).
-2. **Dedicated Volumes**: Storage scoped exclusively to named volumes (`qmusbfbjcz0ohip348rv8fgc_data`, `pgdata`, `appdata`).
+1. **Isolated Namespace**: Scoped strictly to dedicated Coolify application namespaces (`<OMNIROUTE_APP_UUID>` and `<RAKAZO_APP_UUID>`).
+2. **Dedicated Volumes**: Storage scoped exclusively to named volumes (`omniroute_data`, `pgdata`, `appdata`).
 3. **Zero Docker Socket Exposure**: No container has access to `/var/run/docker.sock`.
-4. **Tenant Non-Interference**: Absolute isolation against all 15 co-located applications on the VPS (HubtoWrite, Veinart, Open-Design, Postiz, DocuSeal, n8n, Flowise, Odoo, SearXNG, Minio, Beszel, Scraperr).
+4. **Tenant Non-Interference**: Absolute network & volume isolation against all co-located workloads on the host VPS.
+
+### Unified 3,538-Skill Native Library & 2-Stage OmniRoute AI Skill Advisor
+1. **Category-Sharded Gzipped Store (`packages/adapters/src/unified-skills-archive/`)**:
+   - `catalog-index.json.gz` (`~407 KB`): Unified metadata across **3,538 unique skills** and **11 French categories** (preserving 100% of the 379 French starter pack slugs).
+   - `shard-01_Design_et_UX.json.gz` .. `shard-11_Divers_et_Autres.json.gz` (`10.7 MB` total on disk): Decompressed lazily on the server with a bounded **3-shard LRU cache** (`< 5 MB` Node.js RAM, `0 B` added to frontend JS bundles, `0` PostgreSQL bloat for unused skills).
+2. **Strict Per-Agent Ceiling (`MAX_ACTIVE_SKILLS_PER_BOT = 20`)**:
+   - Enforced across Zod contracts (`RecommendSkillsForBotInputSchema`), API (`assignSkillsToBot`), runtime prompt assembly (`formatSkillsPrompt`), and WebUI (`BotSkillSelector` + `SkillAdvisorModal`).
+   - Progressive Disclosure injects compact skills (`< 4 KB`, cumulative `<= 12 KB`) directly into the KV-cached prompt block and indexes larger skills (`>= 4 KB`) for on-demand loading via `read_skill(name: "<slug>")`.
+3. **2-Stage Hybrid AI Skill Advisor (`packages/adapters/src/skill-advisor.ts`)**:
+   - **Stage 1**: Bilingual FR↔EN concept expansion + Okapi BM25 scoring across all 3,538 skills (`< 15 ms`), producing a category-diversified Top-90 candidate pool while excluding offensive pentest skills unless explicitly requested.
+   - **Stage 2**: **OmniRoute (`$0.00` primary, 99% usage)** curates `<= 20` non-redundant skills via `combo/rakazo-reasoning` / `combo/rakazo-fast` (with optional OpenRouter and deterministic BM25 fallbacks), validating every returned slug against the real catalog (zero hallucinated slugs) and grouping results into clear French poles (`groupFr` + `reasonFr`).
+   - Accessible across **all 3 agent lifecycles** on mobile & desktop: **Agent Creation**, **Agent Settings Modification**, and **1-Tap Live Chat Header (`Skills IA`)** on any active agent.
 
 ---
 

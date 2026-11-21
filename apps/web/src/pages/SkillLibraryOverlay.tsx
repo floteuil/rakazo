@@ -377,6 +377,8 @@ export function SkillLibraryOverlay({
 
   // Drag & Drop State
   const [isDragging, setIsDragging] = useState(false);
+  const [extendedCatalogTotal, setExtendedCatalogTotal] = useState<number>(3538);
+  const [loadingExtended, setLoadingExtended] = useState<boolean>(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const fileInputId = useId();
 
@@ -428,6 +430,58 @@ export function SkillLibraryOverlay({
       void refreshSkills();
     }
   }, [initialSkills]);
+
+  // Dynamic search across the full 3,538+ Unified Native Skill Catalog when typing a query
+  useEffect(() => {
+    if (initialSkills) return;
+    const q = searchQuery.trim();
+    if (q.length < 2) return;
+
+    let cancelled = false;
+    const timer = setTimeout(() => {
+      setLoadingExtended(true);
+      void rpc.skills
+        .searchCatalog({ query: q, limit: 80, offset: 0 })
+        .then((res) => {
+          if (cancelled) return;
+          setExtendedCatalogTotal(res.totalCatalogSize || 3538);
+          if (res.items.length === 0) return;
+          setSkills((prev) => {
+            const seenSlugs = new Set(prev.map((s) => s.slug.toLowerCase()));
+            const additions: SkillItem[] = [];
+            for (const item of res.items) {
+              if (!seenSlugs.has(item.slug.toLowerCase())) {
+                seenSlugs.add(item.slug.toLowerCase());
+                additions.push({
+                  id: item.id,
+                  name: item.name,
+                  slug: item.slug,
+                  description: item.description,
+                  tags: item.tags.length > 0 ? item.tags : [item.categoryLabel],
+                  sizeBytes: item.sizeBytes,
+                  metadata: {
+                    sovereign: true,
+                    category: item.categoryId,
+                    categoryLabel: item.categoryLabel,
+                    sizeBytes: item.sizeBytes,
+                  },
+                });
+              }
+            }
+            return additions.length > 0 ? [...prev, ...additions] : prev;
+          });
+        })
+        .catch(() => undefined)
+        .finally(() => {
+          if (!cancelled) setLoadingExtended(false);
+        });
+    }, 180);
+
+    return () => {
+      cancelled = true;
+      clearTimeout(timer);
+    };
+  }, [searchQuery, initialSkills]);
 
   // Derived tags for filter pills
   const allTags = useMemo(() => {
@@ -887,9 +941,8 @@ export function SkillLibraryOverlay({
                   0 activée par défaut
                 </span>
                 <span>
-                  Toutes les compétences de cette bibliothèque sont <strong>en réserve</strong>.
-                  Elles s'activent <strong>à la demande par agent</strong> (lors de la création ou
-                  dans les paramètres d'un agent existant).
+                  Toutes les compétences de cette bibliothèque ({extendedCatalogTotal.toLocaleString("fr-FR")} natives disponibles) sont <strong>en réserve</strong>.
+                  Elles s'activent <strong>à la demande par agent</strong> (via le Conseiller IA ou manuellement lors de la création / modification d'un agent, max 20 / agent).
                 </span>
               </div>
             </div>
@@ -916,11 +969,16 @@ export function SkillLibraryOverlay({
                 <Search size={14} className="absolute left-3 top-2.5 text-[#71717A]" />
                 <input
                   type="text"
-                  placeholder="Rechercher une compétence..."
+                  placeholder="Rechercher parmi 3 538 skills..."
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   className="w-full sm:w-64 rounded-lg border border-[#26262A] bg-[#17171A] pl-8 pr-3 py-1.5 text-[16px] sm:text-xs text-white placeholder-[#71717A] focus:border-neutral-500 focus:outline-none transition-colors"
                 />
+                {loadingExtended ? (
+                  <span className="mt-1 block text-right text-[10px] text-emerald-400">
+                    Recherche catalogue global…
+                  </span>
+                ) : null}
               </div>
             </div>
 

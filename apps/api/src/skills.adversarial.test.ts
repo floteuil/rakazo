@@ -621,5 +621,39 @@ Lyon isolated content.`;
       });
       expect(Array.isArray(result)).toBe(true);
     });
+
+    it("5.6 materializes non-starter skills from the 3,538 unified catalog and enforces the strict 20-skill per-bot cap", async () => {
+      mockDb.bots.set("bot-blog-paris", {
+        id: "bot-blog-paris",
+        workspaceId: "ws-paris",
+        userId: actorParis.userId,
+        name: "Blog Agent",
+      });
+
+      const catalogSearch = service.searchCatalog(actorParis, {
+        query: "blog copywriting seo",
+        limit: 25,
+      });
+      expect(catalogSearch.totalCatalogSize).toBeGreaterThanOrEqual(3536);
+      expect(catalogSearch.items.length).toBeGreaterThanOrEqual(21);
+
+      // Exactly 20 skills succeeds (including non-starter skills materialized on demand)
+      const twentyIds = catalogSearch.items.slice(0, 20).map((s) => s.id);
+      const okRes = await service.assignToBot(actorParis, {
+        botId: "bot-blog-paris",
+        skillIds: twentyIds,
+      });
+      expect(okRes.ok).toBe(true);
+      expect(okRes.count).toBe(20);
+
+      // 21 unique skills is strictly rejected with BAD_REQUEST
+      const twentyOneIds = catalogSearch.items.slice(0, 21).map((s) => s.id);
+      await expect(
+        service.assignToBot(actorParis, {
+          botId: "bot-blog-paris",
+          skillIds: twentyOneIds,
+        }),
+      ).rejects.toThrow(ORPCError);
+    });
   });
 });

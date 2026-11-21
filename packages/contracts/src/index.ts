@@ -20,6 +20,7 @@ export * from "./same-request.js";
 export * from "./search.js";
 export * from "./sensitive-masking.js";
 export * from "./sentinel.js";
+export * from "./skill-advisor.js";
 export * from "./skill-parser.js";
 export * from "./sovereign-agent-blueprints.js";
 export * from "./sovereign-skills-catalog.js";
