@@ -21,9 +21,11 @@ import {
   type BotMcpConfig,
   buildMemoryArchiveEntry,
   buildRoutineChecklistNudgeFr,
+  buildRoutineRunTrackBannerFr,
   DECLINED_BY_PERSON_FR,
   enforceMemoryBudget,
   extractRoutineParts,
+  formatLearnedSkillsIndexPrompt,
   getConnectorForTool,
   HANDLED_BY_PERSON_FR,
   identifyOpenRoutineParts,
@@ -32,7 +34,11 @@ import {
   isAttachmentImageMimeType,
   isRoutineChecklistComplete,
   isSovereignTool,
+  isWithinQuietHours,
   maskSensitiveData,
+  type QuietHoursPolicy,
+  SOVEREIGN_SKILLS_CATALOG,
+  validateMemorySaveSafety,
 } from "@rakazo/contracts";
 import {
   assertTransition,
@@ -86,6 +92,13 @@ import {
 } from "./computer-support.js";
 import { observationToolResult, parseComputerActions } from "./computer-tools.js";
 import { checkpointAndRecordComputerWorkspace } from "./computer-workspace.js";
+import {
+  loadBotLearnedSkillsDocument,
+  mutateBotLearnedSkill,
+  offloadLargeToolOutputIfNeeded,
+  readBotLearnedSkill,
+  recordBotRoutineObservation,
+} from "./context-output-store.js";
 import { executeEnterpriseTool, isEnterpriseTool, sanitizeToolError } from "./enterprise-tools.js";
 import { RakazoFreePolicyEngine } from "./free-policy-engine.js";
 import {
@@ -991,8 +1004,66 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 : { ok: true };
             }, finish);
           }
-          if (name === "remember") {
+          if (name === "remember" || name === "schedule_record_observation") {
+            const action =
+              name === "schedule_record_observation"
+                ? "observe"
+                : String(args.action ?? "save")
+                    .trim()
+                    .toLowerCase();
+
+            if (action === "observe") {
+              const rawStatus = String(args.status ?? "verified").trim().toLowerCase();
+              const obsStatus = rawStatus === "unavailable" ? "unavailable" : "verified";
+              const watchKey = String(args.watchKey ?? args.path ?? bot.name ?? "routine-watch");
+              const rawVal =
+                obsStatus === "unavailable"
+                  ? null
+                  : String(args.value ?? args.content ?? "");
+              const summary = String(args.summary ?? args.content ?? "");
+              const decision = await recordBotRoutineObservation(
+                deps.memory,
+                {
+                  botId: bot.id,
+                  observation: {
+                    watchKey,
+                    status: obsStatus,
+                    sourceUrl: args.sourceUrl ? String(args.sourceUrl) : undefined,
+                    value: rawVal,
+                    summary,
+                  },
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              );
+              return finish({
+                ok: true,
+                mode: "observe",
+                changed: decision.changed,
+                shouldStayQuiet: decision.shouldStayQuiet,
+                reason: decision.reason,
+                previousValue: decision.previousValue,
+                currentValue: decision.currentValue,
+                directive: decision.agentDirectiveFr,
+              });
+            }
+
             const rawContent = String(args.content ?? "");
+            const ownerMessages = [
+              ...history.filter((m) => m.role === "user").map((m) => m.content),
+              ...(run.trigger === "user" && task.prompt ? [task.prompt] : []),
+            ];
+            const safety = validateMemorySaveSafety({
+              content: rawContent,
+              quote: args.quote ? String(args.quote) : undefined,
+              ownerMessages,
+              trigger: run.trigger ?? "user",
+            });
+            if (!safety.allowed) {
+              return finish({ error: safety.reasonFr ?? "Sauvegarde mémoire refusée." });
+            }
+
             const sanitizedContent = maskSensitiveData(rawContent);
             const targetPath = String(args.path ?? "MEMORY.md");
             const modelKey = run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
@@ -1081,11 +1152,86 @@ export function createRunExecutor(deps: ExecutorDeps) {
             );
             return finish(result);
           }
-          if (name === "read_skill") {
+          if (
+            name === "read_skill" ||
+            name === "learned_skill_save" ||
+            name === "learned_skill_patch"
+          ) {
+            const skillAction =
+              name === "learned_skill_save"
+                ? "save"
+                : name === "learned_skill_patch"
+                  ? "patch"
+                  : String(args.action ?? "read")
+                      .trim()
+                      .toLowerCase();
+
             const target = String(args.name ?? args.skill ?? args.target ?? "").trim();
             if (!target) {
               return finish({ error: "Paramètre 'name' manquant pour read_skill." });
             }
+
+            if (skillAction === "save") {
+              const builtInCheck = getSovereignSkillFull(target);
+              const builtInSlugs = new Set<string>(
+                builtInCheck ? [builtInCheck.slug] : [],
+              );
+              for (const s of SOVEREIGN_SKILLS_CATALOG) {
+                if (s?.slug) builtInSlugs.add(s.slug);
+              }
+              const saved = await mutateBotLearnedSkill(
+                deps.memory,
+                {
+                  mode: "save",
+                  botId: bot.id,
+                  name: target,
+                  description: String(args.description ?? ""),
+                  body: String(args.content ?? args.body ?? ""),
+                  builtInSlugs,
+                  trigger: run.trigger ?? "user",
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              );
+              if (!saved.ok) {
+                return finish({ error: saved.errorFr });
+              }
+              return finish({
+                ok: true,
+                operation: saved.operation,
+                slug: saved.skill.slug,
+                revision: saved.skill.revision,
+                evictedSlugs: saved.evictedSlugs,
+              });
+            }
+
+            if (skillAction === "patch") {
+              const patched = await mutateBotLearnedSkill(
+                deps.memory,
+                {
+                  mode: "patch",
+                  botId: bot.id,
+                  name: target,
+                  oldText: String(args.old ?? args.oldText ?? ""),
+                  newText: String(args.new ?? args.newText ?? ""),
+                  trigger: run.trigger ?? "user",
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              );
+              if (!patched.ok) {
+                return finish({ error: patched.errorFr });
+              }
+              return finish({
+                ok: true,
+                operation: patched.operation,
+                slug: patched.skill.slug,
+                revision: patched.skill.revision,
+              });
+            }
+
             const targetLower = target.toLowerCase();
             const skill = deps.prisma.skill?.findFirst
               ? await deps.prisma.skill.findFirst({
@@ -1110,6 +1256,22 @@ export function createRunExecutor(deps: ExecutorDeps) {
                   content: sovereign.content,
                 });
               }
+              const learned = await readBotLearnedSkill(
+                deps.memory,
+                { botId: bot.id, nameOrSlug: target, runId, threadId: thread.id },
+                context,
+              );
+              if (learned) {
+                return finish({
+                  __untrustedSource: "learned_skill",
+                  learned: true,
+                  name: learned.name,
+                  slug: learned.slug,
+                  description: learned.description,
+                  tags: ["auto-appris"],
+                  content: learned.body,
+                });
+              }
               return finish({ error: `Skill '${target}' not found in workspace.` });
             }
             const tags = Array.isArray(skill.tags)
@@ -1117,7 +1279,14 @@ export function createRunExecutor(deps: ExecutorDeps) {
               : typeof skill.tags === "string"
                 ? [skill.tags]
                 : [];
+            const isLearnedRow = Boolean(
+              skill.metadata &&
+                typeof skill.metadata === "object" &&
+                !Array.isArray(skill.metadata) &&
+                (skill.metadata as Record<string, unknown>).learned === true,
+            );
             return finish({
+              ...(isLearnedRow ? { __untrustedSource: "learned_skill" } : {}),
               name: skill.name,
               slug: skill.slug,
               description: skill.description,
@@ -1244,7 +1413,27 @@ export function createRunExecutor(deps: ExecutorDeps) {
         ) => {
           try {
             const result = await rawApplyTool(name, args, executionId);
-            return sanitizeToolResult(result);
+            const sanitized = sanitizeToolResult(result);
+            // Déport asynchrone sans perte vers `.rakazo/outputs/<sha256>.txt` pour les gros payloads externes
+            if (sanitized !== null && sanitized !== undefined && name !== "read_file") {
+              try {
+                const serialized =
+                  typeof sanitized === "string" ? sanitized : JSON.stringify(sanitized);
+                if (serialized && serialized.length > 16_000) {
+                  void offloadLargeToolOutputIfNeeded({
+                    sandbox: deps.sandbox,
+                    computer,
+                    computerMode,
+                    botId: bot.id,
+                    context,
+                    compactedText: serialized,
+                  }).catch(() => undefined);
+                }
+              } catch {
+                // Ignore non-serializable payloads
+              }
+            }
+            return sanitized;
           } catch (error) {
             const message = sanitizeToolError(
               error instanceof Error ? error.message : String(error),
@@ -1297,6 +1486,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
             });
           }
         }
+        const learnedSkillsDoc = await loadBotLearnedSkillsDocument(deps.memory, bot.id, context);
+        const learnedSkillsPrompt = formatLearnedSkillsIndexPrompt(learnedSkillsDoc);
         const skillsPrompt = formatSkillsPrompt(activeBotSkills);
         const taskPrompt = [task.prompt, attachedFilesPrompt].filter(Boolean).join("\n\n");
         const invokedSkill = savedSkills.find((skill) =>
@@ -1364,6 +1555,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 recalledMemory ? redactSecrets(recalledMemory, runSecrets) : undefined,
                 pluginLine,
                 taughtSkillsLine,
+                learnedSkillsPrompt,
                 skillsPrompt,
               ]
                 .filter((instruction): instruction is string => Boolean(instruction))
@@ -1653,6 +1845,16 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 text += `\n\n${buildRoutineChecklistNudgeFr(open)}`;
               }
             }
+            if (task.createdAt instanceof Date && run.startedAt instanceof Date) {
+              const runTrackBanner = buildRoutineRunTrackBannerFr({
+                scheduledFor: task.createdAt,
+                startedAt: run.startedAt,
+                timeZone: "Europe/Paris",
+              });
+              if (runTrackBanner) {
+                text = `${runTrackBanner}\n\n${text}`;
+              }
+            }
           }
           if (containsSecret(text, runSecrets)) {
             throw new Error("refusing to persist a secret in the thread");
@@ -1671,7 +1873,22 @@ export function createRunExecutor(deps: ExecutorDeps) {
             blocks: [{ kind: "text", text }],
           });
           if (!completed) return;
-          if (bot.notifyOnFinish && !(run.trigger === "routine" && isSilentRoutineOutput(text))) {
+          const rawBotMeta =
+            bot.metadata && typeof bot.metadata === "object" && !Array.isArray(bot.metadata)
+              ? (bot.metadata as Record<string, unknown>)
+              : undefined;
+          const quietHoursCfg =
+            rawBotMeta?.quietHours && typeof rawBotMeta.quietHours === "object"
+              ? (rawBotMeta.quietHours as Partial<QuietHoursPolicy>)
+              : undefined;
+          const suppressedByQuietHours = Boolean(
+            run.trigger === "routine" && quietHoursCfg?.enabled && isWithinQuietHours(new Date(), quietHoursCfg),
+          );
+          if (
+            bot.notifyOnFinish &&
+            !(run.trigger === "routine" && isSilentRoutineOutput(text)) &&
+            !suppressedByQuietHours
+          ) {
             await notifyRun(deps, run, {
               kind: "completion",
               title: `${bot.name} finished`,

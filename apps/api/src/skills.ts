@@ -354,6 +354,19 @@ export async function updateSkill(
           finalSlug = await resolveUniqueSlug(tx, actor.workspaceId, base, existing.id);
         }
 
+        const prevMeta =
+          existing.metadata && typeof existing.metadata === "object" && !Array.isArray(existing.metadata)
+            ? (existing.metadata as Record<string, unknown>)
+            : {};
+        const nextMeta =
+          input.metadata !== undefined
+            ? prevMeta.learned === true
+              ? { ...input.metadata, learned: true, userEdited: true }
+              : input.metadata
+            : prevMeta.learned === true
+              ? { ...prevMeta, userEdited: true, userEditedAt: new Date().toISOString() }
+              : undefined;
+
         return tx.skill.update({
           where: { id: existing.id },
           data: {
@@ -362,8 +375,7 @@ export async function updateSkill(
             description: input.description !== undefined ? input.description.trim() : undefined,
             content: input.content !== undefined ? input.content : undefined,
             tags: input.tags !== undefined ? (input.tags as Prisma.InputJsonValue) : undefined,
-            metadata:
-              input.metadata !== undefined ? (input.metadata as Prisma.InputJsonValue) : undefined,
+            metadata: nextMeta !== undefined ? (nextMeta as Prisma.InputJsonValue) : undefined,
           },
         });
       },

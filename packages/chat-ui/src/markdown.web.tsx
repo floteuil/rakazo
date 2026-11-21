@@ -4,6 +4,8 @@ import remarkGfm from "remark-gfm";
 import "./markdown.web.css";
 import { type ChatMarkdownProps, closeUnterminatedFence, sanitizeMarkdownUrl } from "./markdown";
 import { isMermaidFence, mermaidSvgImage, renderMermaidSvgSync } from "./mermaid";
+import { N8nWorkflowCanvas } from "./N8nWorkflowCanvas";
+import { isN8nFenceLanguage, parseN8nWorkflowJson } from "./n8n-workflow";
 
 type MarkdownHast = {
   tagName?: string;
@@ -15,17 +17,32 @@ type MarkdownHast = {
 
 const StreamingSourceContext = createContext<string | undefined>(undefined);
 
-function mermaidFenceSource(node: MarkdownHast | undefined): string | undefined {
+function extractFencedCode(node: MarkdownHast | undefined): { lang: string; source: string } | undefined {
   const code = node?.children?.find((child) => child.tagName === "code");
   const classNames = code?.properties?.className;
-  const language = Array.isArray(classNames)
+  const languageClass = Array.isArray(classNames)
     ? classNames.find((name) => typeof name === "string" && name.startsWith("language-"))
     : undefined;
-  if (typeof language !== "string" || !isMermaidFence(language.slice("language-".length))) {
-    return undefined;
-  }
+  const lang = typeof languageClass === "string" ? languageClass.slice("language-".length) : "";
   const source = (code?.children ?? []).map((child) => child.value ?? "").join("");
-  return source.trim() ? source.trimEnd() : undefined;
+  return source.trim() ? { lang, source: source.trimEnd() } : undefined;
+}
+
+function isFenceClosedInStream(node: MarkdownHast | undefined, streamingSource: string | undefined): boolean {
+  if (streamingSource === undefined) return true;
+  const start = node?.position?.start?.offset;
+  const end = node?.position?.end?.offset;
+  const fence = start === undefined ? "" : streamingSource.slice(start, end);
+  const opening = fence.match(/^(`{3,}|~{3,})/);
+  const lastLine = fence.slice(fence.lastIndexOf("\n") + 1);
+  const closing = lastLine.match(/^(?:[ \t]*>[ \t]?)*[ \t]*(`{3,}|~{3,})[ \t]*$/);
+  return Boolean(
+    fence.includes("\n") &&
+      opening?.[1] &&
+      closing?.[1] &&
+      opening[1][0] === closing[1][0] &&
+      closing[1].length >= opening[1].length,
+  );
 }
 
 function MermaidDiagram({ source, fallback }: { source: string; fallback: ReactNode }) {
@@ -55,28 +72,22 @@ function MarkdownPre({
   ...props
 }: React.ComponentPropsWithoutRef<"pre"> & { node?: MarkdownHast }) {
   const streamingSource = useContext(StreamingSourceContext);
-  const diagram = mermaidFenceSource(node);
-  if (diagram === undefined) return <pre {...props} />;
+  const extracted = extractFencedCode(node);
+  if (!extracted) return <pre {...props} />;
 
-  // While streaming, do not render an incomplete Mermaid fence that was only closed by closeUnterminatedFence
-  if (streamingSource !== undefined) {
-    const start = node?.position?.start?.offset;
-    const end = node?.position?.end?.offset;
-    const fence = start === undefined ? "" : streamingSource.slice(start, end);
-    const opening = fence.match(/^(`{3,}|~{3,})/);
-    const lastLine = fence.slice(fence.lastIndexOf("\n") + 1);
-    const closing = lastLine.match(/^(?:[ \t]*>[ \t]?)*[ \t]*(`{3,}|~{3,})[ \t]*$/);
-    if (
-      !fence.includes("\n") ||
-      !opening?.[1] ||
-      !closing?.[1] ||
-      opening[1][0] !== closing[1][0] ||
-      closing[1].length < opening[1].length
-    ) {
-      return <pre {...props} />;
+  if (isMermaidFence(extracted.lang)) {
+    if (!isFenceClosedInStream(node, streamingSource)) return <pre {...props} />;
+    return <MermaidDiagram source={extracted.source} fallback={<pre {...props} />} />;
+  }
+
+  if (isN8nFenceLanguage(extracted.lang) && isFenceClosedInStream(node, streamingSource)) {
+    const workflow = parseN8nWorkflowJson(extracted.source);
+    if (workflow) {
+      return <N8nWorkflowCanvas workflow={workflow} rawSource={extracted.source} />;
     }
   }
-  return <MermaidDiagram source={diagram} fallback={<pre {...props} />} />;
+
+  return <pre {...props} />;
 }
 
 const components: Components = {
@@ -117,3 +128,6 @@ export const ChatMarkdown = memo(function ChatMarkdown({
 });
 
 export type { ChatMarkdownProps } from "./markdown";
+export { N8nWorkflowCanvas, type N8nWorkflowCanvasProps } from "./N8nWorkflowCanvas";
+export { parseN8nWorkflowJson, type ParsedN8nWorkflow } from "./n8n-workflow";
+

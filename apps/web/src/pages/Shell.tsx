@@ -80,6 +80,7 @@ import {
 } from "react";
 import { useNavigate, useParams, useSearchParams } from "react-router-dom";
 import {
+  ArtifactFileCard,
   type ChoiceBlock,
   ChoiceChipsCard,
   MentionPopover,
@@ -3289,18 +3290,16 @@ export const MessageView = memo(function MessageView({
               key={i}
               className={`flex w-full ${message.role === "user" ? "justify-end" : "justify-start"}`}
             >
-              <button
-                type="button"
-                onClick={() =>
+              <ArtifactFileCard
+                botId={botId}
+                artifactId={block.artifactId}
+                name={block.name}
+                mimeType={block.mimeType}
+                formattedSize={formatBytes(block.size)}
+                onDownload={() =>
                   void openArtifact(botId, block.artifactId, block.name, block.mimeType)
                 }
-                className="max-w-[98%] sm:max-w-[340px] rounded-[20px] border border-[#26262A] bg-[#17171A] px-4 py-3 text-left text-[14px] text-[#DFDFE2] hover:bg-[#1F1F22] cursor-pointer"
-              >
-                <div className="font-medium">{block.name}</div>
-                <div className="mt-1 text-[#85858A]">
-                  {block.mimeType} · {formatBytes(block.size)}
-                </div>
-              </button>
+              />
             </div>
           );
         }

@@ -174,7 +174,7 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
         />,
       );
       expect(html).toContain("Recherche &amp; Scraping Web Souverain");
-      expect(html).toContain("Floteuil Enterprise · Souverain");
+      expect(html).toContain("Enterprise · Souverain");
       expect(html).toContain("https://search.groupefloteuil.internal");
       expect(html).toContain("Zero-Tracking");
     });

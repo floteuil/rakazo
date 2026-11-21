@@ -1,3 +1,4 @@
+import { sanitizeToolJsonSchemaDraft2020 } from "@rakazo/contracts";
 import {
   FREE_INFERENCE_UNAVAILABLE_MESSAGE,
   RakazoFreePolicyEngine,
@@ -83,7 +84,9 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
         function: {
           name: t.name,
           description: t.description || "",
-          parameters: (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
+          parameters: sanitizeToolJsonSchemaDraft2020(
+            (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
+          ),
         },
       }));
 

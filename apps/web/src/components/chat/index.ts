@@ -24,3 +24,14 @@ export {
   MentionPopover,
   type MentionPopoverProps,
 } from "./MentionPopover.js";
+
+export {
+  ArtifactFileCard,
+  type ArtifactFileCardProps,
+  buildSandboxedSrcDoc,
+  isPreviewableArtifact,
+  SandboxedArtifactModal,
+  type SandboxedArtifactModalProps,
+  ZERO_NETWORK_ARTIFACT_CSP,
+} from "./SandboxedArtifactModal.js";
+

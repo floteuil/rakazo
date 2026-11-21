@@ -309,6 +309,7 @@ pnpm format
 The Rakazo codebase at Version 2.7.0-ui-excellence-and-robustness-certified fulfills 100% of the architectural, UI/UX, persistence, security, performance, ergonomics, container isolation, and QA criteria defined in the Master Project Plan.
 
 ### Key Canonical Documents
+- [`docs/NOD_ARCHITECTURE_INNOVATIONS.md`](docs/NOD_ARCHITECTURE_INNOVATIONS.md): Untrusted Tool Envelopes, Luhn/Source-Quote Memory Guard, 5-Min Cold-Cache Pruning, `.rakazo/outputs/` Offloading, Learned Procedural Skills, Quiet-by-Default Routine Watches, Interactive French `N8nWorkflowCanvas` & Zero-Network CSP `SandboxedArtifactModal`.
 - [`RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`](RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md): Authoritative Master Architecture, UI/UX Excellence, Robustness Hotfixes & Monorepo Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md): Authoritative Master Architecture, Forensic Audit & Platform Runtime Truth Certification Artifact.
 - [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md): Master Passation & Production Excellence Certification Artifact.

@@ -43,7 +43,50 @@ import {
   repairToolCallName,
   repairToolCallArguments,
   partitionMixedBatch,
+  applyColdCacheToolPruning,
+  ColdCacheTracker,
+  isExternalUntrustedTool,
+  isErrorLikeToolOutput,
+  wrapUntrustedToolResult,
+  annotateLocalTimestamps,
+  classifyProviderErrorForCompaction,
+  sanitizeToolJsonSchemaDraft2020,
+  searchLazyMcpTools,
 } from "@rakazo/contracts";
+
+export const globalColdCacheTracker = new ColdCacheTracker();
+
+/**
+ * Encapsule les résultats d'outils externes non fiables (Web, Scraping, MCP, Compétences apprises)
+ * dans l'enveloppe anti-prompt-injection `<untrusted_tool_result>` avec conversion automatique
+ * déterministe des horodatages UTC vers `Europe/Paris`.
+ */
+export function formatRuntimeToolOutput(
+  toolName: string,
+  compactedText: string,
+  rawResult?: unknown,
+  timeZone = "Europe/Paris",
+): string {
+  if (isErrorLikeToolOutput(rawResult, compactedText)) {
+    return compactedText;
+  }
+  const explicitSource =
+    rawResult &&
+    typeof rawResult === "object" &&
+    !Array.isArray(rawResult) &&
+    typeof (rawResult as Record<string, unknown>).__untrustedSource === "string"
+      ? String((rawResult as Record<string, unknown>).__untrustedSource)
+      : undefined;
+
+  if (!explicitSource && !isExternalUntrustedTool(toolName)) {
+    return compactedText;
+  }
+
+  const localTimeAnnotation = annotateLocalTimestamps(rawResult ?? compactedText, timeZone);
+  return wrapUntrustedToolResult(explicitSource ?? toolName, compactedText, {
+    localTimeAnnotation,
+  });
+}
 
 const running = new Map<string, AbortController>();
 const catalogModels = builtinModels();
@@ -187,7 +230,13 @@ export class CanonicalAgentRuntime implements AgentRuntime {
           });
 
           const sanitizedMessages = sanitizeSeededHistory(messages);
-          const effectiveMessages = asymmetricCompactHistory(sanitizedMessages, {
+          const coldPruned = applyColdCacheToolPruning(sanitizedMessages, {
+            tracker: globalColdCacheTracker,
+            sessionKey,
+            provider: request.model.provider,
+            model: request.model.id,
+          });
+          const effectiveMessages = asymmetricCompactHistory(coldPruned.messages, {
             maxMessages: 50,
             protectTailCount: 10,
           }).compactedMessages;
@@ -260,7 +309,9 @@ export class CanonicalAgentRuntime implements AgentRuntime {
               request.executeTool ||
               toolByName.has(resolvedName) ||
               resolvedName === "request_takeover" ||
-              resolvedName === "run_subagent",
+              resolvedName === "run_subagent" ||
+              resolvedName === "tool_search" ||
+              resolvedName === "nod_tool_search",
             );
 
             if (isExecutable) {
@@ -402,12 +453,27 @@ export class CanonicalAgentRuntime implements AgentRuntime {
               continue;
             }
 
+            if (toolName === "tool_search" || toolName === "nod_tool_search") {
+              const query = String(parsedArgs.query ?? parsedArgs.q ?? parsedArgs.name ?? "");
+              const found = searchLazyMcpTools(toolDefs, query, 3);
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: JSON.stringify(found),
+              });
+              continue;
+            }
+
             if (request.executeTool) {
               try {
                 const rawResult = await request.executeTool(toolName, parsedArgs, tc.id);
-                const resultString = isAgentToolExecutionResult(rawResult)
+                const baseText = isAgentToolExecutionResult(rawResult)
                   ? rawResult.content.map((c) => (c.type === "text" ? c.text : "")).join("")
                   : compactToolResult(toolName, rawResult);
+                const resultString = isAgentToolExecutionResult(rawResult)
+                  ? baseText
+                  : formatRuntimeToolOutput(toolName, baseText, rawResult);
 
                 messages.push({
                   role: "tool",
@@ -437,8 +503,14 @@ export class CanonicalAgentRuntime implements AgentRuntime {
           }
         }
       } catch (error) {
-        const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
-        queue.push({ type: "text", text: `I hit a problem: ${message}` });
+        const errAnalysis = classifyProviderErrorForCompaction(error);
+        const rawMsg = error instanceof Error ? error.message : String(error);
+        const message = sanitizeToolError(rawMsg);
+        const prefix =
+          errAnalysis.classification === "context_overflow"
+            ? "Context window full (compaction recommended): "
+            : "I hit a problem: ";
+        queue.push({ type: "text", text: `${prefix}${message}` });
         queue.push({ type: "done", text: message });
       } finally {
         queue.close();
@@ -549,7 +621,8 @@ export class PiAgentRuntime implements AgentRuntime {
               },
             }),
           getApiKey: async () => apiKey,
-          transformContext: async (messages) => pruneComputerScreenshotContext(messages),
+          transformContext: async (messages) =>
+            delimitUntrustedAgentMessages(pruneComputerScreenshotContext(messages)),
           initialState: {
             systemPrompt:
               request.instructions ||
@@ -639,8 +712,14 @@ export class PiAgentRuntime implements AgentRuntime {
         }
         queue.push({ type: "done", text: streamed });
       } catch (error) {
-        const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
-        queue.push({ type: "text", text: `I hit a problem: ${message}` });
+        const errAnalysis = classifyProviderErrorForCompaction(error);
+        const rawMsg = error instanceof Error ? error.message : String(error);
+        const message = sanitizeToolError(rawMsg);
+        const prefix =
+          errAnalysis.classification === "context_overflow"
+            ? "Context window full (compaction recommended): "
+            : "I hit a problem: ";
+        queue.push({ type: "text", text: `${prefix}${message}` });
         queue.push({ type: "done", text: message });
       } finally {
         queue.close();
@@ -1157,8 +1236,9 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
       if (host.request.executeTool) {
         const result = await host.request.executeTool(tool.name, args, executionId);
         if (isAgentToolExecutionResult(result)) return result;
+        const compacted = compactToolResult(tool.name, result);
         return {
-          content: [{ type: "text", text: compactToolResult(tool.name, result) }],
+          content: [{ type: "text", text: compacted }],
           details: result,
         };
       }
@@ -1370,7 +1450,8 @@ export async function executeSubagent(
         },
       }),
     getApiKey: async () => host.apiKey,
-    transformContext: async (messages) => pruneComputerScreenshotContext(messages),
+    transformContext: async (messages) =>
+      delimitUntrustedAgentMessages(pruneComputerScreenshotContext(messages)),
     initialState: {
       systemPrompt: compiledPrompt.compiledInstruction,
       model: host.model,
@@ -1487,7 +1568,15 @@ function parametersFor(tool: ConnectorTool) {
     return Type.Object({ reason: Type.String() });
   }
   if (tool.name === "remember") {
-    return Type.Object({ content: Type.String(), path: Type.String() });
+    return Type.Object({
+      content: Type.String(),
+      path: Type.Optional(Type.String()),
+      quote: Type.Optional(Type.String()),
+      action: Type.Optional(Type.String()),
+      watchKey: Type.Optional(Type.String()),
+      status: Type.Optional(Type.String()),
+      sourceUrl: Type.Optional(Type.String()),
+    });
   }
   if (tool.name === "shell") {
     return Type.Object({
@@ -1536,6 +1625,11 @@ function parametersFor(tool: ConnectorTool) {
   if (tool.name === "read_skill") {
     return Type.Object({
       name: Type.String(),
+      action: Type.Optional(Type.String()),
+      description: Type.Optional(Type.String()),
+      content: Type.Optional(Type.String()),
+      old: Type.Optional(Type.String()),
+      new: Type.Optional(Type.String()),
     });
   }
   // GitHub
@@ -1758,7 +1852,7 @@ function parametersFor(tool: ConnectorTool) {
       hosts: Type.Optional(Type.Array(Type.String())),
     });
   }
-  return jsonSchemaParameters(tool.inputSchema);
+  return jsonSchemaParameters(sanitizeToolJsonSchemaDraft2020(tool.inputSchema));
 }
 
 /** Keep recent visual state without repeatedly resending every earlier full screenshot. */
@@ -1779,6 +1873,37 @@ export function pruneComputerScreenshotContext(
     transformed[index] = {
       ...message,
       content: message.content.filter((part) => part.type !== "image"),
+    };
+  }
+  return transformed ?? messages;
+}
+
+/**
+ * Encapsule les messages `toolResult` externes/MCP/compétences apprises dans `<untrusted_tool_result>`
+ * juste avant l'envoi au LLM par `PiAgentRuntime`, tout en préservant l'objet JSON compacté brut
+ * dans `agent.state.messages` et `tool.execute()` pour l'interface et la télémétrie.
+ */
+export function delimitUntrustedAgentMessages(
+  messages: AgentMessage[],
+  timeZone = "Europe/Paris",
+): AgentMessage[] {
+  let transformed: AgentMessage[] | undefined;
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    if (!message || message.role !== "toolResult") continue;
+    if ("isError" in message && message.isError) continue;
+    const toolName = "toolName" in message && typeof message.toolName === "string" ? message.toolName : "";
+    const textParts = message.content.filter((part) => part.type === "text");
+    if (textParts.length === 0) continue;
+    const combinedText = textParts.map((part) => part.text).join("\n");
+    const wrapped = formatRuntimeToolOutput(toolName, combinedText, message.details, timeZone);
+    if (wrapped === combinedText) continue;
+
+    transformed ??= [...messages];
+    const nonTextParts = message.content.filter((part) => part.type !== "text");
+    transformed[index] = {
+      ...message,
+      content: [{ type: "text", text: wrapped }, ...nonTextParts],
     };
   }
   return transformed ?? messages;

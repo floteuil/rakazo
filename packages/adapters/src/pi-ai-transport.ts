@@ -1,5 +1,6 @@
 import type { Context, Message, Models, Tool } from "@earendil-works/pi-ai";
 import { builtinModels } from "@earendil-works/pi-ai/providers/all";
+import { sanitizeToolJsonSchemaDraft2020 } from "@rakazo/contracts";
 import type {
   InferenceTransport,
   InferenceTransportChunk,
@@ -115,7 +116,9 @@ export class PiAiInferenceTransport implements InferenceTransport {
         (t): Tool => ({
           name: t.name,
           description: t.description || "",
-          parameters: (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
+          parameters: sanitizeToolJsonSchemaDraft2020(
+            (t as any).parameters ?? t.inputSchema ?? { type: "object", properties: {} },
+          ) as any,
         }),
       ),
     };

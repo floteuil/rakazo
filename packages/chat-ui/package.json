@@ -5,6 +5,7 @@
   "type": "module",
   "exports": {
     "./mermaid": "./src/mermaid.ts",
+    "./n8n": "./src/n8n-workflow.ts",
     "./native": "./src/markdown.native.tsx",
     "./web": "./src/markdown.web.tsx"
   },

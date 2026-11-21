@@ -141,12 +141,35 @@ export const builtinAgentTools: ConnectorTool[] = [
   },
   {
     name: "remember",
-    description: "Store a durable fact in this bot's explicit memory.",
+    description:
+      "Store a durable fact in this bot's explicit memory (action='save', with optional verbatim user quote), or record a scheduled watch observation baseline (action='observe', watchKey, status='verified'|'unavailable', sourceUrl) to stay quiet when unchanged.",
     inputSchema: {
       type: "object",
       properties: {
         content: { type: "string" },
         path: { type: "string" },
+        quote: {
+          type: "string",
+          description: "Optional exact quote from the user's message proving provenance.",
+        },
+        action: {
+          type: "string",
+          enum: ["save", "observe"],
+          description: "Operation mode: 'save' (default durable memory) or 'observe' (routine delta baseline).",
+        },
+        watchKey: {
+          type: "string",
+          description: "Identifier for routine watch baseline when action='observe'.",
+        },
+        status: {
+          type: "string",
+          enum: ["verified", "unavailable"],
+          description: "Observation status when action='observe'.",
+        },
+        sourceUrl: {
+          type: "string",
+          description: "Observed source URL or endpoint when action='observe'.",
+        },
       },
       required: ["content"],
     },
@@ -269,13 +292,34 @@ export const builtinAgentTools: ConnectorTool[] = [
   {
     name: "read_skill",
     description:
-      "Read the full markdown documentation and instructions of an indexed skill by its slug or name.",
+      "Read the full markdown documentation and instructions of an indexed skill by its slug or name (action='read'), or save/patch a reusable anonymized procedural learned skill after solving a multi-step workflow (action='save'|'patch').",
     inputSchema: {
       type: "object",
       properties: {
         name: {
           type: "string",
-          description: "The slug or exact name of the skill to read.",
+          description: "The slug or exact name of the skill to read, save, or patch.",
+        },
+        action: {
+          type: "string",
+          enum: ["read", "save", "patch"],
+          description: "Skill operation: 'read' (default), 'save' (create/update learned skill), or 'patch' (update exact passage).",
+        },
+        description: {
+          type: "string",
+          description: "One-line trigger description starting with 'Utiliser quand...' when action='save'.",
+        },
+        content: {
+          type: "string",
+          description: "Anonymized reusable Markdown procedure body when action='save'.",
+        },
+        old: {
+          type: "string",
+          description: "Exact unique passage to replace when action='patch'.",
+        },
+        new: {
+          type: "string",
+          description: "Replacement passage when action='patch'.",
         },
       },
       required: ["name"],

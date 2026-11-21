@@ -20,6 +20,11 @@ Rakazo is in beta. Learn more at [rakazo.com](https://rakazo.com).
 - **Persistent Sovereign Bots**: Bots with their own conversations, memory, routines, and history.
 - **Sovereign In-Cluster MCP Adapters**: First-party isolated connectors for GitHub, Notion, WordPress, Postiz, Novamira, SearXNG, and Cloudflare.
 - **Bounded Autonomous Subagents**: Isolated execution with Level 1 compilation, depth = 1 strict ceiling, 8,192 token budgets, and anti-loop circuit breakers.
+- **Hardened Untrusted Boundaries & Cache-Aware Context (`n8n-io/nod` Innovations)**:
+  - `<untrusted_tool_result>` anti-prompt-injection envelopes with closing-tag neutralization, `Europe/Paris` deterministic timestamp conversion, and Luhn/API-key/source-quote memory guards.
+  - 5-minute Cold-Cache tool pruning (preserving warm KV prompt cache hits) and lossless `> 16 KB` `.rakazo/outputs/<sha256>.txt` workspace offloading.
+  - Self-evolving procedural **Learned Skills** (`save` / surgical `patch`, PII scrubbing, 40-skill LRU cap, human `userEdited` lock) and quiet-by-default **Routine Delta Watches** (`verified` vs `unavailable` baseline preservation, `22:00–08:00` Quiet Hours, server-written delay banners).
+  - Interactive SVG **n8n Workflow Canvas** (`N8nWorkflowCanvas`) and zero-network CSP **Sandboxed Artifact Preview** (`SandboxedArtifactModal` without `allow-same-origin`).
 - **Voice Mode**: Speak replies, dictate, and call a bot (ElevenLabs, OpenAI, Cartesia).
 - **Shared Team Computers & Private Sandboxes**: Browser, terminal, file, and desktop access (Docker, E2B, Daytona).
 - **Full-Stack Multi-Device WebUI**: Responsive mobile-first design (320px to 1440px+), safe area support, and touch-first interactions.
@@ -122,6 +127,7 @@ COMPUTER_E2E_MODEL=<vision-capable-openrouter-model-id> pnpm test:computer
 ```
 
 - [Testing & Anti-Runaway Certification Suite](./docs/TESTING_AND_ANTI_RUNAWAY_CERTIFICATION.md)
+- [n8n-io/nod Architectural & Security Innovations](./docs/NOD_ARCHITECTURE_INNOVATIONS.md)
 - [Architecture Master Blueprint](./RAKAZO_MASTER_BLUEPRINT_CURRENT.md)
 - [Architect Handoff Guide — Free Intelligence Gateway](./RAKAZO_ARCHITECT_HANDOFF_FREE_INTELLIGENCE_GATEWAY.md)
 - [Autonomous Agent Operating Constitution (AGENTS.md)](./AGENTS.md)
