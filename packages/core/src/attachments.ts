@@ -1,0 +1,186 @@
+import {
+  ATTACHMENT_MAX_BASE64_LENGTH,
+  ATTACHMENT_MAX_BYTES,
+  type AttachmentMimeType,
+  DECLINED_BY_PERSON_FR,
+  isAllowedAttachmentMimeType,
+  isAttachmentImageMimeType,
+  type MessageBlock,
+} from "@rakazo/contracts";
+
+export class AttachmentValidationError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "AttachmentValidationError";
+  }
+}
+
+export function decodeAttachmentBase64(contentBase64: string): Uint8Array {
+  const normalized = contentBase64.trim();
+  if (!normalized) throw new AttachmentValidationError("Attachment content is empty");
+  if (normalized.length > ATTACHMENT_MAX_BASE64_LENGTH) {
+    throw new AttachmentValidationError("Attachment exceeds the 10 MiB limit");
+  }
+  if (
+    normalized.length % 4 !== 0 ||
+    !/^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$/.test(normalized)
+  ) {
+    throw new AttachmentValidationError("Attachment content is not valid base64");
+  }
+  let bytes: Buffer;
+  try {
+    bytes = Buffer.from(normalized, "base64");
+  } catch {
+    throw new AttachmentValidationError("Attachment content is not valid base64");
+  }
+  if (bytes.byteLength === 0) throw new AttachmentValidationError("Attachment content is empty");
+  if (bytes.byteLength > ATTACHMENT_MAX_BYTES) {
+    throw new AttachmentValidationError("Attachment exceeds the 10 MiB limit");
+  }
+  return new Uint8Array(bytes);
+}
+
+export function validateAttachmentMimeType(mimeType: string): void {
+  if (!isAllowedAttachmentMimeType(mimeType)) {
+    throw new AttachmentValidationError(`Unsupported attachment type: ${mimeType}`);
+  }
+}
+
+export function attachmentKindForMimeType(mimeType: string): "image" | "file" {
+  return isAttachmentImageMimeType(mimeType) ? "image" : "file";
+}
+
+export function messageBlockForArtifact(artifact: {
+  id: string;
+  name: string;
+  mimeType: string;
+  size: number;
+}): Extract<MessageBlock, { kind: "image" | "file" }> {
+  if (attachmentKindForMimeType(artifact.mimeType) === "image") {
+    return {
+      kind: "image",
+      artifactId: artifact.id,
+      mimeType: artifact.mimeType,
+      name: artifact.name,
+    };
+  }
+  return {
+    kind: "file",
+    artifactId: artifact.id,
+    mimeType: artifact.mimeType,
+    name: artifact.name,
+    size: artifact.size,
+  };
+}
+
+export function promptTextForAttachments(
+  text: string | undefined,
+  artifacts: Array<{ name: string; mimeType: string; size: number }>,
+): string {
+  const caption = text?.trim() ?? "";
+  const notes = artifacts
+    .filter((artifact) => !isAttachmentImageMimeType(artifact.mimeType))
+    .map(
+      (artifact) =>
+        `User attached file ${JSON.stringify(artifact.name)} (${artifact.mimeType}, ${artifact.size} bytes).`,
+    );
+  return [caption, ...notes].filter(Boolean).join("\n\n") || "See attached files.";
+}
+
+export function blocksToAgentHistoryText(blocks: MessageBlock[]): string {
+  return blocks
+    .map((block) => {
+      if (block.kind === "text") return block.text;
+      if (block.kind === "image") return `[image: ${block.name}]`;
+      if (block.kind === "file") {
+        return `[file: ${block.name} (${block.mimeType}, ${block.size} bytes)]`;
+      }
+      if (block.kind === "ask") {
+        if (block.status === "answered" && block.answer) {
+          if (block.answer === "declined" || block.answer === "refused") {
+            return `${block.text}\n${DECLINED_BY_PERSON_FR}`;
+          }
+          return `${block.text}\nRéponse de l'utilisateur : ${block.answer}`;
+        }
+        return block.text;
+      }
+      if ("text" in block && typeof block.text === "string") return block.text;
+      return "";
+    })
+    .filter(Boolean)
+    .join("\n");
+}
+
+const EXTENSION_MIME_TYPES: Record<string, AttachmentMimeType> = {
+  ".mp4": "video/mp4",
+  ".jpg": "image/jpeg",
+  ".jpeg": "image/jpeg",
+  ".png": "image/png",
+  ".webp": "image/webp",
+  ".gif": "image/gif",
+  ".pdf": "application/pdf",
+  ".txt": "text/plain",
+  ".md": "text/markdown",
+  ".markdown": "text/markdown",
+  ".csv": "text/csv",
+  ".html": "text/html",
+  ".htm": "text/html",
+  ".json": "application/json",
+  ".zip": "application/zip",
+};
+
+const MIME_TYPE_EXTENSIONS: Record<AttachmentMimeType, string> = {
+  "video/mp4": ".mp4",
+  "image/jpeg": ".jpg",
+  "image/png": ".png",
+  "image/webp": ".webp",
+  "image/gif": ".gif",
+  "application/pdf": ".pdf",
+  "text/plain": ".txt",
+  "text/markdown": ".md",
+  "text/csv": ".csv",
+  "text/html": ".html",
+  "application/json": ".json",
+  "application/zip": ".zip",
+};
+
+export function inferAttachmentMimeType(
+  name: string,
+  reportedType?: string,
+): AttachmentMimeType | null {
+  if (
+    reportedType === "application/x-zip-compressed" ||
+    reportedType === "application/x-zip" ||
+    reportedType === "multipart/x-zip"
+  ) {
+    return "application/zip";
+  }
+  const dot = name.lastIndexOf(".");
+  const extensionType = dot < 0 ? undefined : EXTENSION_MIME_TYPES[name.slice(dot).toLowerCase()];
+  if (extensionType === "text/markdown" && (!reportedType || reportedType === "text/plain")) {
+    return extensionType;
+  }
+  if (reportedType && isAllowedAttachmentMimeType(reportedType)) return reportedType;
+  return extensionType ?? null;
+}
+
+export function attachmentExtensionForMimeType(mimeType: string): string {
+  return isAllowedAttachmentMimeType(mimeType) ? MIME_TYPE_EXTENSIONS[mimeType] : "";
+}
+
+export function attachmentsForBot<T extends { botId: string }>(
+  attachments: readonly T[],
+  botId: string | undefined,
+): T[] {
+  if (!botId) return [];
+  return attachments.filter((attachment) => attachment.botId === botId);
+}
+
+export function userTurnBlocksForRun(
+  trigger: string,
+  runId: string,
+  messages: Array<{ role: string; runId?: string | null; blocks: MessageBlock[] }>,
+): MessageBlock[] | undefined {
+  if (trigger !== "user") return undefined;
+  return messages.find((message) => message.role === "user" && message.runId === runId)?.blocks;
+}

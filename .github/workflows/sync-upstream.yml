@@ -1,0 +1,147 @@
+name: Synchronisation Amont Sécurisée
+
+on:
+  schedule:
+    # Exécution automatique quotidienne à 04:00 UTC
+    - cron: "0 4 * * *"
+  workflow_dispatch:
+    # Déclenchement manuel possible à tout moment depuis l'interface GitHub Actions
+
+concurrency:
+  group: sync-upstream
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  pull-requests: write
+
+jobs:
+  sync:
+    name: Sync avec le dépôt original (elie222/rakazo)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: Checkout du dépôt
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Setup Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Configuration de l'identité Git
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+      - name: Ajouter et récupérer le dépôt amont
+        run: |
+          git remote add upstream https://github.com/elie222/rakazo.git || git remote set-url upstream https://github.com/elie222/rakazo.git
+          git fetch upstream main
+
+      - name: Vérifier les nouveaux commits amont
+        id: check_commits
+        run: |
+          NEW_COMMITS=$(git log --oneline main..upstream/main)
+          if [ -z "$NEW_COMMITS" ]; then
+            echo "has_commits=false" >> $GITHUB_OUTPUT
+            echo "Aucune nouvelle mise à jour disponible sur le dépôt amont."
+          else
+            echo "has_commits=true" >> $GITHUB_OUTPUT
+            echo "Nouveaux commits détectés sur l'amont :"
+            echo "$NEW_COMMITS"
+          fi
+
+      - name: Installer les dépendances du projet
+        if: steps.check_commits.outputs.has_commits == 'true'
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm db:generate
+        env:
+          DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
+
+      - name: Tentative de fusion et validation par Gate de Sécurité
+        if: steps.check_commits.outputs.has_commits == 'true'
+        id: merge_and_validate
+        run: |
+          set +e
+          BASE_SHA=$(git rev-parse HEAD)
+          echo "Capture du snapshot SHA de base : $BASE_SHA"
+
+          echo "Tentative de merge de upstream/main dans main..."
+          git merge upstream/main --no-edit -m "chore(sync): synchronisation automatique avec elie222/rakazo"
+          MERGE_EXIT_CODE=$?
+
+          if [ $MERGE_EXIT_CODE -ne 0 ]; then
+            echo "merge_status=conflict" >> $GITHUB_OUTPUT
+            echo "Conflit Git détecté lors du merge. Annulation et rollback vers $BASE_SHA..."
+            git merge --abort || git reset --hard "$BASE_SHA" || true
+            exit 0
+          fi
+
+          echo "Merge Git réussi au niveau de l'arbre. Vérification de l'intégrité du lockfile post-merge..."
+          pnpm install --frozen-lockfile
+          LOCKFILE_EXIT_CODE=$?
+
+          if [ $LOCKFILE_EXIT_CODE -ne 0 ]; then
+            echo "merge_status=lockfile_error" >> $GITHUB_OUTPUT
+            echo "Erreur d'intégrité du lockfile pnpm après merge amont. Rollback vers $BASE_SHA..."
+            git reset --hard "$BASE_SHA" || true
+            exit 0
+          fi
+
+          echo "Dépendances valides. Exécution de la Gate de Sécurité CI stricte (db:generate && turbo check && test)..."
+          pnpm db:generate && pnpm exec turbo check --force && pnpm test
+          CI_GATE_EXIT_CODE=$?
+
+          if [ $CI_GATE_EXIT_CODE -eq 0 ]; then
+            echo "merge_status=success" >> $GITHUB_OUTPUT
+            git push origin main
+            echo "Validation réussie ! Modifications poussées sur origin/main."
+          else
+            echo "merge_status=validation_failed" >> $GITHUB_OUTPUT
+            echo "Échec de la validation TypeScript ou des tests. Rollback strict vers $BASE_SHA..."
+            git reset --hard "$BASE_SHA" || git merge --abort || true
+          fi
+        env:
+          DATABASE_URL: postgres://rakazo:rakazo@127.0.0.1:5433/rakazo
+          CI: "true"
+
+      - name: Préparer la branche de conflit en cas d'échec
+        if: steps.check_commits.outputs.has_commits == 'true' && steps.merge_and_validate.outputs.merge_status != 'success'
+        run: |
+          git checkout -B upstream-sync-conflict upstream/main
+          git push -f origin upstream-sync-conflict
+
+      - name: Créer ou mettre à jour la Pull Request d'alerte
+        if: steps.check_commits.outputs.has_commits == 'true' && steps.merge_and_validate.outputs.merge_status != 'success'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          branch: upstream-sync-conflict
+          base: main
+          title: "⚠️ Alerte Synchronisation Amont (Revue manuelle & tests requis)"
+          body: |
+            ## ⚠️ Conflit ou Régression détecté lors de la synchronisation amont
+
+            Le dépôt amont `elie222/rakazo` contient de nouveaux commits qui ne peuvent pas être intégrés automatiquement sur `main`.
+
+            **Raison de l'échec** :
+            - Statut du pipeline : `${{ steps.merge_and_validate.outputs.merge_status }}` (conflit de fusion Git, erreur lockfile ou échec de la gate `turbo check --force && pnpm test`).
+
+            **Consignes de résolution** :
+            1. Récupérer la branche `upstream-sync-conflict`.
+            2. Résoudre les conflits éventuels en préservant les personnalisations souveraines (traductions françaises, Prompt Compiler, connecteurs MCP, configuration Coolify).
+            3. Vérifier que `pnpm check` et `pnpm test` passent à 100 %.
+            4. Fusionner manuellement sur `main`.
+          labels: "sync, upstream, security-gate"
