@@ -308,7 +308,8 @@ describe("Dynamic Per-Bot Tool Filtering & Security Gate", () => {
           notion: false,
           postiz: false,
           wordpress_novamira: false,
-          n8n: false,
+          windmill_autolite: false,
+          windmill_proxy: false,
           cloudflare: false,
         },
       };
@@ -321,7 +322,8 @@ describe("Dynamic Per-Bot Tool Filtering & Security Gate", () => {
       expect(isToolPermitted("postiz_create_post", allConnectorsDisabled)).toBe(false);
       expect(isToolPermitted("wordpress_create_post", allConnectorsDisabled)).toBe(false);
       expect(isToolPermitted("novamira_execute_ability", allConnectorsDisabled)).toBe(false);
-      expect(isToolPermitted("n8n_trigger_webhook", allConnectorsDisabled)).toBe(false);
+      expect(isToolPermitted("windmill_autolite_run_script", allConnectorsDisabled)).toBe(false);
+      expect(isToolPermitted("windmill_proxy_run_flow", allConnectorsDisabled)).toBe(false);
       expect(isToolPermitted("cloudflare_list_zones", allConnectorsDisabled)).toBe(false);
 
       // System sandbox tools remain permitted

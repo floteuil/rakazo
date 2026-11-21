@@ -20,7 +20,7 @@
    - [3.6 AI Runtime, LLM Gateway & Free Intelligence (Pi Runtime, OpenRouter & OmniRoute)](#36-ai-runtime-llm-gateway--free-intelligence-pi-runtime-openrouter--omniroute)
    - [3.7 Memory & Semantic Vector Indexing (Supermemory)](#37-memory--semantic-vector-indexing-supermemory)
    - [3.8 Web Search & Web Scraping Services (SearXNG & Scraperr)](#38-web-search--web-scraping-services-searxng--scraperr)
-   - [3.9 Enterprise Tool Connectors (GitHub, Notion, Postiz, WordPress, Novamira, n8n, Cloudflare)](#39-enterprise-tool-connectors)
+   - [3.9 Enterprise Tool Connectors (GitHub, Notion, Postiz, WordPress, Novamira, Windmill RGPD, Cloudflare)](#39-enterprise-tool-connectors)
    - [3.10 Notifications, Email & Web Push (SMTP & VAPID)](#310-notifications-email--web-push-smtp--vapid)
 4. [Database & Persistence Workflows](#4-database--persistence-workflows)
 5. [OmniRoute Free Intelligence Gateway Deployment & Security Architecture](#5-omniroute-free-intelligence-gateway-deployment--security-architecture)
@@ -247,11 +247,15 @@ Enterprise connectors provide sovereign integrations to external developer and p
 |---|---|---|---|---|
 | `NOVAMIRA_API_KEY` | Novamira API Key (`nova_*`) | `""` | Optional | API token for managing multi-domain hosting, DNS zones, and DNS records on Novamira infrastructure. |
 
-#### n8n Workflow Automation Connector
+#### Windmill RGPD Orchestration Connectors (AutoLite & Proxy — Strictly Non-HDS)
 | Variable Name | Type / Format | Default Value | Required? | Description & Context |
 |---|---|---|---|---|
-| `N8N_API_KEY` | n8n API Key (`n8n_api_*`) | `""` | Optional | API key for triggering n8n workflows, querying executions, and managing webhook automations. |
-| `N8N_API_URL` | Valid HTTP/S URL | `""` | Optional | Base URL of self-hosted or cloud n8n instance (e.g. `https://n8n.internal.company.com`). |
+| `WINDMILL_AUTOLITE_URL` | Valid HTTPS URL (non-HDS) | `""` | Optional | Base URL of the RGPD Windmill AutoLite instance (e.g. `https://autolite.windmill.internal`). HDS endpoints are strictly vetoed at runtime. |
+| `WINDMILL_AUTOLITE_TOKEN` | Windmill Token (`wmill_*`) | `""` | Optional | Scoped Bearer token for Windmill AutoLite RGPD (`whoami`, scripts, flows, job status). |
+| `WINDMILL_AUTOLITE_WORKSPACE` | Workspace ID | `"main"` | Optional | Default Windmill AutoLite workspace slug. |
+| `WINDMILL_PROXY_URL` | Valid HTTPS URL (non-HDS) | `""` | Optional | Base URL of the RGPD Windmill Proxy instance (e.g. `https://proxy.windmill.internal`). HDS endpoints are strictly vetoed at runtime. |
+| `WINDMILL_PROXY_TOKEN` | Windmill Token (`wmill_*`) | `""` | Optional | Scoped Bearer token for Windmill Proxy RGPD (`whoami`, scripts, flows, job status). |
+| `WINDMILL_PROXY_WORKSPACE` | Workspace ID | `"main"` | Optional | Default Windmill Proxy workspace slug. |
 
 #### Cloudflare Infrastructure Connector
 | Variable Name | Type / Format | Default Value | Required? | Description & Context |

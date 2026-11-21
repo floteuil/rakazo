@@ -42,7 +42,7 @@ const EXTERNAL_TOOL_PREFIXES = [
   "postiz_",
   "wordpress_",
   "novamira_",
-  "n8n_",
+  "open_design_",
   "cloudflare_",
   "twenty_",
   "odoo_",
@@ -151,6 +151,7 @@ const PROHIBITED_MEMORY_SECRET_PATTERNS: readonly RegExp[] = [
   /\bgh[pousr]_[A-Za-z0-9]{20,}\b/,
   /\bxox[baprs]-[A-Za-z0-9-]{16,}\b/,
   /\bsecret_[A-Za-z0-9]{24,}\b/,
+  /\bwmill_[A-Za-z0-9_-]{16,}\b/,
   /\beyJ[A-Za-z0-9_-]{10,}\.eyJ[A-Za-z0-9_-]{10,}\.[A-Za-z0-9_-]{10,}\b/,
   /\bhttps?:\/\/[^/\s:@]+:[^/\s@]+@[^\s/]+/i,
 ];
@@ -312,7 +313,12 @@ export function validateMemorySaveSafety(
     };
   }
 
-  if (input.trigger && input.trigger !== "user" && input.trigger !== "created") {
+  if (
+    input.trigger &&
+    input.trigger !== "user" &&
+    input.trigger !== "manual" &&
+    input.trigger !== "created"
+  ) {
     // En mode routine ou webhook automatique, l'écriture de mémoire personnelle est bloquée par défaut
     // sauf si une citation exacte des consignes de l'utilisateur est prouvée
     if (!input.quote || !input.ownerMessages || !verifyMemorySourceQuote(input.quote, input.ownerMessages)) {

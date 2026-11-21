@@ -9,7 +9,7 @@ import {
   executeGithubCreateIssue,
   executeGithubGetFileContents,
   executeGithubSearchRepos,
-  executeN8nTriggerWebhook,
+  executeWindmillRgpdTool,
   executeNotionCreatePage,
   executeNotionSearch,
   executeNovamiraExecuteAbility,
@@ -314,7 +314,8 @@ describe("Tier 5 White-Box & Adversarial Hardening Audit", () => {
       delete process.env.POSTIZ_API_KEY;
       delete process.env.WORDPRESS_USERNAME;
       delete process.env.WORDPRESS_APP_PASSWORD;
-      delete process.env.N8N_API_KEY;
+      delete process.env.WINDMILL_AUTOLITE_URL;
+      delete process.env.WINDMILL_AUTOLITE_TOKEN;
       delete process.env.CLOUDFLARE_API_TOKEN;
 
       const ghRes = await executeGithubCreateIssue({ owner: "o", repo: "r", title: "t" });
@@ -329,8 +330,8 @@ describe("Tier 5 White-Box & Adversarial Hardening Audit", () => {
       const wpRes = await executeWordpressCreatePost({ title: "t", content: "c" });
       expect(wpRes.error).toMatch(/WORDPRESS_USERNAME/i);
 
-      const n8nRes = await executeN8nTriggerWebhook({ webhookPath: "hook" });
-      expect(n8nRes).toBeDefined();
+      const wmRes = await executeWindmillRgpdTool("autolite", "whoami", {});
+      expect(wmRes.error).toMatch(/WINDMILL_AUTOLITE/i);
 
       const cfRes = await executeCloudflareCreateDnsRecord({
         zone_id: "z",

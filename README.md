@@ -22,7 +22,10 @@ Rakazo is in beta. Learn more at [rakazo.com](https://rakazo.com).
   - **Strict Per-Agent Sobriety Ceiling (`MAX_ACTIVE_SKILLS_PER_BOT = 20`)**: 0 skills enabled by default; each agent activates at most 20 tailored skills across Creation, Settings Modification, or 1-tap Live Chat Header quick-equip.
   - **2-Stage Hybrid AI Skill Advisor (`Conseiller IA de Compétences`)**: Combines bilingual FR↔EN Okapi BM25 candidate retrieval across all 3,538 skills with **OmniRoute (`$0.00` primary)** AI curation (`combo/rakazo-reasoning` / `combo/rakazo-fast`, optional OpenRouter & deterministic BM25 fallbacks), grouping selected skills by functional pole with French rationales and conversational refinement.
 - **Persistent Sovereign Bots**: Bots with their own conversations, memory, routines, and history.
-- **Sovereign In-Cluster MCP Adapters (18 Connectors · 87 Tools)**: First-party isolated connectors for SearXNG/Scraperr, GitHub, Notion, Postiz, WordPress/Novamira, n8n, Cloudflare, Twenty CRM, AFFiNE, Context7, Open Design, Image Optimizer, Qdrant, Coolify, Flowise, PocketBase, Ubersuggest (strictly ad-hoc *hors-projet*), and System Sandbox, monitored by a zero-token **Sentinel Diagnostics Cockpit** with live OmniRoute latency & per-connector readiness badges.
+- **Sovereign In-Cluster MCP Adapters (19 Connectors · 96 Tools)**: First-party isolated connectors for SearXNG/Scraperr, GitHub, Notion, Postiz, WordPress/Novamira, **Windmill AutoLite RGPD**, **Windmill Proxy RGPD** (strictly non-HDS with runtime endpoint veto), Cloudflare, Twenty CRM, AFFiNE, Context7, Open Design, Image Optimizer, Qdrant, Coolify, Flowise, PocketBase, Ubersuggest (strictly ad-hoc *hors-projet*), and System Sandbox.
+- **10-Probe Self-Diagnostic & Forensic Flight Recorder (`pnpm doctor` & WebUI Black Box)**:
+  - **Zero-Token Active Probes (`$0.00`)**: Real-time verification of PostgreSQL/Prisma latency, stuck/failed worker runs, OmniRoute `$0` gateway combos, 3,538-skill `.json.gz` shards, Windmill AutoLite RGPD (`/api/users/whoami`), Windmill Proxy RGPD (`/api/users/whoami`), MCP HDS/Stripe security veto, V8 heap & event-loop lag, `/data` persistent storage, and client browser crashes.
+  - **Automatic Flight Recorder & 1-Click AI Forensic Dossier**: Captures API 5xx errors, failed worker runs, MCP tool timeouts, and mobile/desktop React exceptions into a sanitized 150-incident ring buffer + rotating `/data/diagnostics/incidents.jsonl` with suspected `file:line` localization and 1-click `Copier le Dossier Forensique IA` Markdown export.
 - **Bounded Autonomous Subagents**: Isolated execution with Level 1 compilation, depth = 1 strict ceiling, 8,192 token budgets, and anti-loop circuit breakers.
 - **Hardened Untrusted Boundaries & Cache-Aware Context (`n8n-io/nod` Innovations)**:
   - `<untrusted_tool_result>` anti-prompt-injection envelopes with closing-tag neutralization, `Europe/Paris` deterministic timestamp conversion, and Luhn/API-key/source-quote memory guards.
@@ -105,6 +108,7 @@ docs/       architecture, operations, and release guides
 Common checks:
 
 ```bash
+pnpm doctor            # 10-probe Self-Diagnostic & AI Forensic Flight Recorder report ($0.00)
 pnpm verify:sanctuary  # Full Sovereign Sanctuary & Anti-Runaway certification battery
 pnpm lint
 pnpm check

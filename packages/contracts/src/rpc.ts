@@ -2,6 +2,10 @@ import { eventIterator, oc } from "@orpc/contract";
 import * as z from "zod";
 import { ATTACHMENT_MAX_BASE64_LENGTH, ATTACHMENT_MAX_COUNT } from "./attachments.js";
 import {
+  DeepDiagnosticReportSchema,
+  ReportClientErrorInputSchema,
+} from "./diagnostics.js";
+import {
   AppBootstrapSchema,
   ArtifactSchema,
   ArtifactWithContentSchema,
@@ -337,6 +341,13 @@ export const appContract = {
   },
   sentinel: {
     report: oc.output(z.custom<SentinelReport>()),
+  },
+  diagnostics: {
+    runDeepCheck: oc.output(DeepDiagnosticReportSchema),
+    reportClientError: oc
+      .input(ReportClientErrorInputSchema)
+      .output(z.object({ ok: z.literal(true), incidentId: z.string() })),
+    clearIncidents: oc.output(z.object({ ok: z.literal(true), cleared: z.number() })),
   },
   export: {
     bot: oc.input(botId).output(ExportManifestSchema),

@@ -233,17 +233,21 @@ describe("Master Sovereign Sanctuary, Anti-Runaway & v0.8.0+ Certification Suite
   // 2. SOVEREIGN SANCTUARY: 18 MCP CONNECTORS, 87 TOOLS, ZERO STRIPE, POSTIZ
   // ==========================================================================
   describe("2. Sovereign MCP Catalog & Postiz JSON-RPC 2.0 Sanctuary", () => {
-    it("maintains exactly 18 sovereign MCP connectors and 87 catalog tools (73 enterprise + 14 catalog system tools) with zero Stripe presence", () => {
-      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
+    it("maintains exactly 19 sovereign MCP connectors and 96 catalog tools (82 enterprise + 14 catalog system tools) with zero Stripe or HDS presence", () => {
+      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(19);
       const allTools = getAllSovereignTools();
-      expect(allTools).toHaveLength(87);
-      expect(enterpriseAgentTools).toHaveLength(73);
-      expect(builtinAgentTools).toHaveLength(90);
+      expect(allTools).toHaveLength(96);
+      expect(enterpriseAgentTools).toHaveLength(82);
+      expect(builtinAgentTools).toHaveLength(99);
 
-      const stripePresent = SOVEREIGN_MCP_CONNECTORS.some(
-        (c) => c.id.toLowerCase().includes("stripe") || c.name.toLowerCase().includes("stripe"),
+      const stripeOrHdsPresent = SOVEREIGN_MCP_CONNECTORS.some(
+        (c) =>
+          c.id.toLowerCase().includes("stripe") ||
+          c.name.toLowerCase().includes("stripe") ||
+          c.id.toLowerCase().includes("hds") ||
+          c.id === "n8n",
       );
-      expect(stripePresent).toBe(false);
+      expect(stripeOrHdsPresent).toBe(false);
     });
 
     it("routes Postiz tools through native JSON-RPC 2.0 MCP (/api/mcp/:apiKey) and public v1 API", async () => {

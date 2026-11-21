@@ -62,8 +62,8 @@ const dummyCtx: AdapterContext = {
 };
 
 describe("n8n-io/nod End-to-End Runtime & Adapter Integration", () => {
-  it("preserves exact Sanctuary tool counts (90 builtin tools) while supporting polymorphic remember & read_skill schemas", () => {
-    expect(builtinAgentTools).toHaveLength(90);
+  it("preserves exact Sanctuary tool counts (99 builtin tools) while supporting polymorphic remember & read_skill schemas", () => {
+    expect(builtinAgentTools).toHaveLength(99);
     const rememberTool = builtinAgentTools.find((t) => t.name === "remember");
     const readSkillTool = builtinAgentTools.find((t) => t.name === "read_skill");
     expect(rememberTool?.inputSchema).toMatchObject({
@@ -82,9 +82,9 @@ describe("n8n-io/nod End-to-End Runtime & Adapter Integration", () => {
       scheduledAt: "2026-07-20T13:30:00Z",
     };
     const compacted = JSON.stringify(rawApiPayload);
-    const wrapped = formatRuntimeToolOutput("n8n_get_execution", compacted, rawApiPayload, "Europe/Paris");
+    const wrapped = formatRuntimeToolOutput("windmill_autolite_get_job", compacted, rawApiPayload, "Europe/Paris");
 
-    expect(wrapped).toContain('<untrusted_tool_result source="n8n_get_execution">');
+    expect(wrapped).toContain('<untrusted_tool_result source="windmill_autolite_get_job">');
     expect(wrapped.match(/<\/untrusted_tool_result>/gi)).toHaveLength(1);
     expect(wrapped).toContain("untrusted-tool-result");
     // July in Paris is CEST (+02:00) -> 13:30Z becomes 15:30:00+02:00

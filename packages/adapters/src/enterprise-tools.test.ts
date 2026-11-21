@@ -14,9 +14,7 @@ import {
   executeGithubGetPullRequest,
   executeGithubListIssues,
   executeGithubSearchRepos,
-  executeN8nGetExecution,
-  executeN8nListWorkflows,
-  executeN8nTriggerWebhook,
+  executeWindmillRgpdTool,
   executeNotionCreatePage,
   executeNotionGetPage,
   executeNotionQueryDatabase,
@@ -78,10 +76,11 @@ describe("Enterprise MCP Connectors", () => {
       expect(toolNames).toContain("wordpress_update_post");
       expect(toolNames).toContain("novamira_execute_ability");
 
-      // n8n
-      expect(toolNames).toContain("n8n_trigger_webhook");
-      expect(toolNames).toContain("n8n_list_workflows");
-      expect(toolNames).toContain("n8n_get_execution");
+      // Windmill RGPD (AutoLite & Proxy)
+      expect(toolNames).toContain("windmill_autolite_whoami");
+      expect(toolNames).toContain("windmill_autolite_run_script");
+      expect(toolNames).toContain("windmill_proxy_whoami");
+      expect(toolNames).toContain("windmill_proxy_run_flow");
 
       // Cloudflare
       expect(toolNames).toContain("cloudflare_list_zones");
@@ -103,7 +102,9 @@ describe("Enterprise MCP Connectors", () => {
       expect(isEnterpriseTool("postiz_create_post")).toBe(true);
       expect(isEnterpriseTool("wordpress_list_posts")).toBe(true);
       expect(isEnterpriseTool("novamira_execute_ability")).toBe(true);
-      expect(isEnterpriseTool("n8n_trigger_webhook")).toBe(true);
+      expect(isEnterpriseTool("windmill_autolite_whoami")).toBe(true);
+      expect(isEnterpriseTool("windmill_proxy_run_script")).toBe(true);
+      expect(isEnterpriseTool("n8n_trigger_webhook")).toBe(false);
       expect(isEnterpriseTool("cloudflare_list_zones")).toBe(true);
       expect(isEnterpriseTool("unknown_tool_xyz")).toBe(false);
       expect(isEnterpriseTool("shell")).toBe(false);
@@ -851,89 +852,58 @@ describe("Enterprise MCP Connectors", () => {
     });
   });
 
-  describe("5. n8n Integration", () => {
+  describe("5. Windmill RGPD Integration (AutoLite & Proxy)", () => {
     beforeEach(() => {
-      process.env.N8N_API_KEY = "n8n_api_mock_secret";
-      process.env.N8N_API_URL = "http://n8n:5678";
+      process.env.WINDMILL_AUTOLITE_URL = "https://autolite.windmill.internal";
+      process.env.WINDMILL_AUTOLITE_TOKEN = "wmill_mock_autolite_secret";
+      process.env.WINDMILL_AUTOLITE_WORKSPACE = "main";
+      process.env.WINDMILL_PROXY_URL = "https://proxy.windmill.internal";
+      process.env.WINDMILL_PROXY_TOKEN = "wmill_mock_proxy_secret";
+      process.env.WINDMILL_PROXY_WORKSPACE = "main";
     });
 
-    it("executes n8n_trigger_webhook", async () => {
+    it("executes windmill_autolite list_scripts", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         text: async () =>
-          JSON.stringify({ message: "Workflow was started", executionId: "exec-99" }),
+          JSON.stringify([{ path: "f/crm/sync_leads", summary: "Sync Leads", language: "python3" }]),
       });
 
-      const res = await executeN8nTriggerWebhook({
-        webhookPath: "lead-intake",
-        data: { name: "Client Lead", email: "client@example.com" },
-      });
-
+      const res = await executeWindmillRgpdTool("autolite", "list_scripts", { per_page: 10 });
       expect(res).toEqual({
         ok: true,
-        result: { message: "Workflow was started", executionId: "exec-99" },
+        instance: "autolite",
+        scripts: [{ path: "f/crm/sync_leads", summary: "Sync Leads", language: "python3" }],
       });
     });
 
-    it("executes n8n_list_workflows", async () => {
+    it("executes windmill_proxy list_flows", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         text: async () =>
-          JSON.stringify({
-            data: [
-              {
-                id: "wf-1",
-                name: "Sync Lead to CRM",
-                active: true,
-                createdAt: "2026-08-01T00:00:00Z",
-                updatedAt: "2026-08-20T00:00:00Z",
-                tags: [{ id: "t1", name: "CRM" }],
-              },
-            ],
-          }),
+          JSON.stringify([{ path: "f/ops/nightly_pipeline", summary: "Nightly Pipeline" }]),
       });
 
-      const res = await executeN8nListWorkflows({ active: true });
+      const res = await executeWindmillRgpdTool("proxy", "list_flows", { per_page: 10 });
       expect(res).toEqual({
-        workflows: [
-          {
-            id: "wf-1",
-            name: "Sync Lead to CRM",
-            active: true,
-            createdAt: "2026-08-01T00:00:00Z",
-            updatedAt: "2026-08-20T00:00:00Z",
-            tags: ["CRM"],
-          },
-        ],
+        ok: true,
+        instance: "proxy",
+        flows: [{ path: "f/ops/nightly_pipeline", summary: "Nightly Pipeline" }],
       });
     });
 
-    it("executes n8n_get_execution", async () => {
+    it("executes windmill_autolite get_job", async () => {
       global.fetch = vi.fn().mockResolvedValue({
         ok: true,
         text: async () =>
-          JSON.stringify({
-            id: "exec-99",
-            finished: true,
-            mode: "webhook",
-            status: "success",
-            startedAt: "2026-08-21T10:00:00Z",
-            stoppedAt: "2026-08-21T10:00:02Z",
-            workflowId: "wf-1",
-            data: { resultData: {} },
-          }),
+          JSON.stringify({ id: "job-99", type: "CompletedJob", success: true, result: { ok: true } }),
       });
 
-      const res = await executeN8nGetExecution({ executionId: "exec-99", includeData: true });
-      expect(res).toEqual({
-        id: "exec-99",
-        finished: true,
-        status: "success",
-        mode: "webhook",
-        startedAt: "2026-08-21T10:00:00Z",
-        stoppedAt: "2026-08-21T10:00:02Z",
-        workflowId: "wf-1",
-        resultSummary: "data included",
+      const res = await executeWindmillRgpdTool("autolite", "get_job", { job_id: "job-99" });
+      expect(res).toMatchObject({
+        ok: true,
+        instance: "autolite",
+        job: { id: "job-99", type: "CompletedJob", success: true, result: { ok: true } },
       });
     });
   });

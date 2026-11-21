@@ -1,5 +1,6 @@
 import {
   type Bot,
+  type DeepDiagnosticReport,
   MAX_SKILLS_PER_PACK,
   SOVEREIGN_MCP_CONNECTORS,
   SOVEREIGN_MEMORY_PROFILES,
@@ -9,7 +10,10 @@ import {
 } from "@rakazo/contracts";
 import {
   Activity,
+  AlertTriangle,
+  Check,
   CheckCircle2,
+  ClipboardCopy,
   Cpu,
   Database,
   Gauge,
@@ -18,6 +22,8 @@ import {
   Search,
   ShieldCheck,
   Sparkles,
+  Stethoscope,
+  Trash2,
   X,
   Zap,
 } from "lucide-react";
@@ -118,6 +124,9 @@ export function SovereignCockpitOverlay({
   const [searchQuery, setSearchQuery] = useState("");
   const [usage, setUsage] = useState(initialUsage);
   const [sentinelReport, setSentinelReport] = useState<SentinelReport | null>(null);
+  const [deepReport, setDeepReport] = useState<DeepDiagnosticReport | null>(null);
+  const [runningDeepCheck, setRunningDeepCheck] = useState(false);
+  const [copiedForensic, setCopiedForensic] = useState(false);
   const [refreshingUsage, setRefreshingUsage] = useState(false);
   const [lastCheckTime, setLastCheckTime] = useState<string>(() =>
     new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
@@ -151,12 +160,14 @@ export function SovereignCockpitOverlay({
   async function handleRefreshMetrics() {
     setRefreshingUsage(true);
     try {
-      const [summary, sentReport] = await Promise.all([
+      const [summary, sentReport, diag] = await Promise.all([
         rpc.usage.summary(),
         (rpc as any).sentinel?.report?.().catch(() => null),
+        rpc.diagnostics.runDeepCheck().catch(() => null),
       ]);
       setUsage(summary);
       if (sentReport) setSentinelReport(sentReport);
+      if (diag) setDeepReport(diag);
       setLastCheckTime(
         new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
       );
@@ -164,6 +175,47 @@ export function SovereignCockpitOverlay({
       // ignore in offline/static test environment
     } finally {
       setRefreshingUsage(false);
+    }
+  }
+
+  async function handleRunDeepDiagnostics() {
+    if (runningDeepCheck) return;
+    setRunningDeepCheck(true);
+    try {
+      const diag = await rpc.diagnostics.runDeepCheck();
+      setDeepReport(diag);
+      setLastCheckTime(
+        new Date().toLocaleTimeString("fr-FR", { hour: "2-digit", minute: "2-digit" }),
+      );
+    } catch {
+      // ignore offline
+    } finally {
+      setRunningDeepCheck(false);
+    }
+  }
+
+  async function handleCopyForensicMarkdown() {
+    let report = deepReport;
+    if (!report) {
+      report = await rpc.diagnostics.runDeepCheck().catch(() => null);
+      if (report) setDeepReport(report);
+    }
+    if (!report?.aiForensicMarkdownFr) return;
+    try {
+      await navigator.clipboard.writeText(report.aiForensicMarkdownFr);
+      setCopiedForensic(true);
+      setTimeout(() => setCopiedForensic(false), 2600);
+    } catch {
+      // ignore clipboard restriction
+    }
+  }
+
+  async function handleClearIncidents() {
+    try {
+      await rpc.diagnostics.clearIncidents();
+      await handleRunDeepDiagnostics();
+    } catch {
+      // ignore
     }
   }
 
@@ -230,12 +282,12 @@ export function SovereignCockpitOverlay({
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-[#26262A] bg-[#111113] px-4 py-2.5 sm:px-6">
+        <div className="rk-scroll flex items-center gap-2 overflow-x-auto border-b border-[#26262A] bg-[#111113] px-4 py-2.5 sm:px-6">
           <button
             type="button"
             data-testid="cockpit-tab-sobriety"
             onClick={() => setActiveTab("sobriety")}
-            className={`min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
+            className={`min-h-[42px] sm:min-h-[38px] shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
               activeTab === "sobriety"
                 ? "bg-emerald-500/15 text-emerald-300 border border-emerald-500/30"
                 : "text-[#85858A] hover:text-[#EDEDEF]"
@@ -248,27 +300,27 @@ export function SovereignCockpitOverlay({
             type="button"
             data-testid="cockpit-tab-connectors"
             onClick={() => setActiveTab("connectors")}
-            className={`min-h-[42px] sm:min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
+            className={`min-h-[42px] sm:min-h-[38px] shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
               activeTab === "connectors"
                 ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
                 : "text-[#85858A] hover:text-[#EDEDEF]"
             }`}
           >
             <Activity size={14} />
-            <span>Météo des 18 MCP & OmniRoute</span>
+            <span>Météo des {SOVEREIGN_MCP_CONNECTORS.length} MCP & OmniRoute</span>
           </button>
           <button
             type="button"
             data-testid="cockpit-tab-sentinel"
             onClick={() => setActiveTab("sentinel")}
-            className={`min-h-[42px] sm:min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
+            className={`min-h-[42px] sm:min-h-[38px] shrink-0 rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
               activeTab === "sentinel"
                 ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
                 : "text-[#85858A] hover:text-[#EDEDEF]"
             }`}
           >
-            <Zap size={14} />
-            <span>Sentinel & Sobriété Mémoire</span>
+            <Stethoscope size={14} />
+            <span>Sentinel & Sobriété Mémoire · Auto-Diagnostic IA</span>
           </button>
         </div>
 
@@ -521,6 +573,186 @@ export function SovereignCockpitOverlay({
             </div>
           ) : (
             <div data-testid="cockpit-sentinel-view" className="space-y-4">
+              {/* Auto-Diagnostic IA & Forensic Flight Recorder Command Center */}
+              <div
+                data-testid="forensic-diagnostics-center"
+                className="rounded-xl border border-emerald-500/30 bg-[#131917] p-4 space-y-3.5"
+              >
+                <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                  <div>
+                    <div className="flex flex-wrap items-center gap-2">
+                      <Stethoscope size={15} className="shrink-0 text-emerald-400" />
+                      <span className="text-xs font-semibold text-emerald-300">
+                        Auto-Diagnostic Complet & Boîte Noire Forensique IA (0,00 $)
+                      </span>
+                      {deepReport ? (
+                        <span
+                          className={`rounded-full border px-2.5 py-0.5 font-mono text-[10.5px] font-semibold ${
+                            deepReport.overallStatus === "healthy"
+                              ? "border-emerald-500/40 bg-emerald-500/15 text-emerald-300"
+                              : deepReport.overallStatus === "degraded"
+                                ? "border-amber-500/40 bg-amber-500/15 text-amber-300"
+                                : "border-rose-500/40 bg-rose-500/15 text-rose-300"
+                          }`}
+                        >
+                          {deepReport.overallStatus === "healthy"
+                            ? "100% Opérationnel"
+                            : deepReport.overallStatus === "degraded"
+                              ? "Vigilance (Warn)"
+                              : "Critique"}
+                        </span>
+                      ) : null}
+                    </div>
+                    <p className="mt-1 text-xs leading-relaxed text-[#A7B5AE]">
+                      Exécute 10 sondes actives (PostgreSQL, Worker, OmniRoute, 3 538 Skills,
+                      Windmill AutoLite &amp; Proxy RGPD, RAM V8, UI) et génère un dossier structuré
+                      prêt à coller dans <strong>Antigravity</strong> ou{" "}
+                      <strong>Gemini Flash</strong> pour résolution immédiate.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col gap-2 sm:flex-row sm:shrink-0">
+                    <button
+                      type="button"
+                      data-testid="run-deep-diagnostics-btn"
+                      disabled={runningDeepCheck}
+                      onClick={() => void handleRunDeepDiagnostics()}
+                      className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl border border-[#2F3E38] bg-[#18221E] px-3.5 py-2 text-xs font-semibold text-emerald-200 transition-colors hover:bg-[#1E2B26] disabled:opacity-50"
+                    >
+                      <RefreshCw
+                        size={13}
+                        className={runningDeepCheck ? "animate-spin" : ""}
+                      />
+                      <span>
+                        {runningDeepCheck ? "Diagnostic en cours…" : "Lancer les 10 sondes"}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      data-testid="copy-ai-forensic-btn"
+                      onClick={() => void handleCopyForensicMarkdown()}
+                      className="inline-flex min-h-[44px] items-center justify-center gap-1.5 rounded-xl bg-emerald-500 px-4 py-2 text-xs font-semibold text-black shadow-sm transition-colors hover:bg-emerald-400"
+                    >
+                      {copiedForensic ? <Check size={14} /> : <ClipboardCopy size={14} />}
+                      <span>
+                        {copiedForensic
+                          ? "Rapport IA copié ✓"
+                          : "Copier le Dossier Forensique IA"}
+                      </span>
+                    </button>
+                  </div>
+                </div>
+
+                {/* Runtime Footprint Strip */}
+                {deepReport ? (
+                  <div className="flex flex-wrap items-center gap-2 border-t border-[#22302B] pt-3 text-[11px] font-mono text-[#B7C6BF]">
+                    <span className="rounded-md bg-[#0E1311] px-2 py-1">
+                      RAM RSS : {deepReport.runtimeMetrics.rssMb} Mo
+                    </span>
+                    <span className="rounded-md bg-[#0E1311] px-2 py-1">
+                      V8 Heap : {deepReport.runtimeMetrics.heapUsedMb}/
+                      {deepReport.runtimeMetrics.heapTotalMb} Mo
+                    </span>
+                    <span className="rounded-md bg-[#0E1311] px-2 py-1">
+                      Event-Loop : {deepReport.runtimeMetrics.eventLoopLagMs} ms
+                    </span>
+                    <span className="rounded-md bg-[#0E1311] px-2 py-1">
+                      Uptime : {Math.round(deepReport.runtimeMetrics.uptimeSec / 60)} min
+                    </span>
+                    <span className="rounded-md bg-[#0E1311] px-2 py-1">
+                      SHA : {deepReport.gitSha.slice(0, 9)}
+                    </span>
+                  </div>
+                ) : null}
+
+                {/* 10 Active Probes Grid */}
+                {deepReport && deepReport.probes.length > 0 ? (
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+                    {deepReport.probes.map((probe) => (
+                      <div
+                        key={probe.id}
+                        data-testid={`diag-probe-${probe.id}`}
+                        className={`rounded-xl border p-2.5 text-xs ${
+                          probe.status === "pass"
+                            ? "border-[#25332D] bg-[#101614]"
+                            : probe.status === "warn"
+                              ? "border-amber-500/35 bg-amber-500/10"
+                              : "border-rose-500/40 bg-rose-500/10"
+                        }`}
+                      >
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="font-semibold text-[#F1F1F4]">{probe.nameFr}</span>
+                          <span
+                            className={`rounded px-1.5 py-0.5 font-mono text-[10px] font-semibold ${
+                              probe.status === "pass"
+                                ? "bg-emerald-500/20 text-emerald-300"
+                                : probe.status === "warn"
+                                  ? "bg-amber-500/20 text-amber-300"
+                                  : "bg-rose-500/25 text-rose-300"
+                            }`}
+                          >
+                            {probe.status.toUpperCase()} · {probe.latencyMs}ms
+                          </span>
+                        </div>
+                        <p className="mt-1 text-[11px] leading-relaxed text-[#9CA3AF]">
+                          {probe.detailFr}
+                        </p>
+                        {probe.status !== "pass" && probe.suspectedFile ? (
+                          <p className="mt-1 font-mono text-[10px] text-amber-300">
+                            Cible : {probe.suspectedFile}
+                          </p>
+                        ) : null}
+                      </div>
+                    ))}
+                  </div>
+                ) : null}
+
+                {/* Flight Recorder Incidents List */}
+                {deepReport && deepReport.recentIncidents.length > 0 ? (
+                  <div className="space-y-2 border-t border-[#22302B] pt-3">
+                    <div className="flex items-center justify-between gap-2">
+                      <span className="flex items-center gap-1.5 text-xs font-semibold text-amber-300">
+                        <AlertTriangle size={13} />
+                        <span>
+                          Boîte Noire : {deepReport.recentIncidents.length} incident(s) capturé(s)
+                        </span>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => void handleClearIncidents()}
+                        className="inline-flex min-h-[36px] items-center gap-1 rounded-lg border border-[#2C3531] bg-[#141A18] px-2.5 py-1 text-[11px] text-[#A1A1AA] hover:text-white"
+                      >
+                        <Trash2 size={12} />
+                        <span>Purger</span>
+                      </button>
+                    </div>
+                    <div className="max-h-56 space-y-2 overflow-y-auto pr-1">
+                      {deepReport.recentIncidents.map((inc) => (
+                        <div
+                          key={inc.id}
+                          className="rounded-lg border border-[#2A2E33] bg-[#111316] p-2.5 text-xs"
+                        >
+                          <div className="flex items-start justify-between gap-2">
+                            <span className="font-semibold text-[#F4F4F6]">
+                              [{inc.code}] {inc.title}
+                            </span>
+                            <span className="shrink-0 rounded bg-rose-500/20 px-1.5 py-0.5 font-mono text-[10px] text-rose-300">
+                              {inc.occurrences}x · {inc.parisTime}
+                            </span>
+                          </div>
+                          <p className="mt-1 text-[11px] text-[#C4C4CC]">{inc.message}</p>
+                          <div className="mt-1.5 flex flex-wrap items-center gap-2 font-mono text-[10px] text-emerald-300">
+                            <span>Fichier : {inc.suspectedFile}</span>
+                            <span className="text-[#8E8E95]">| Piste : {inc.remediationHintFr}</span>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ) : null}
+              </div>
+
               {/* Sentinel Banner */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 rounded-xl border border-amber-500/30 bg-amber-500/10 p-4">
                 <div>
@@ -529,12 +761,15 @@ export function SovereignCockpitOverlay({
                     <span>Diagnostic Sentinel Zéro-LLM (Inspiré d'OpenMausBot)</span>
                   </div>
                   <p className="mt-1 text-xs text-amber-200/80 leading-relaxed">
-                    Surveillance temps réel non-bloquante des 18 connecteurs MCP et de la santé des
-                    exécutions. Coût LLM : <strong>strictement 0,00 $ (0 token consommé)</strong>.
+                    Surveillance temps réel non-bloquante des {SOVEREIGN_MCP_CONNECTORS.length}{" "}
+                    connecteurs MCP et de la santé des exécutions. Coût LLM :{" "}
+                    <strong>strictement 0,00 $ (0 token consommé)</strong>.
                   </p>
                 </div>
                 <span className="self-start sm:self-auto shrink-0 rounded-full bg-emerald-500/20 border border-emerald-500/30 px-3 py-1 font-mono text-xs font-semibold text-emerald-300">
-                  {sentinelReport ? `${sentinelReport.healthyCount} / 18 Sains` : "18 / 18 Sains"}
+                  {sentinelReport
+                    ? `${sentinelReport.healthyCount} / ${SOVEREIGN_MCP_CONNECTORS.length} Sains`
+                    : `${SOVEREIGN_MCP_CONNECTORS.length} / ${SOVEREIGN_MCP_CONNECTORS.length} Sains`}
                 </span>
               </div>
 

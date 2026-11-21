@@ -3,6 +3,7 @@ export * from "./attachments.js";
 export * from "./cold-cache-pruning.js";
 export * from "./denial-breaker.js";
 export * from "./desktop.js";
+export * from "./diagnostics.js";
 export * from "./domain.js";
 export * from "./events.js";
 export * from "./history-sanitize.js";

@@ -23,6 +23,7 @@ import {
   PiOAuthLogins,
   PostgresRealtimeFanout,
   pushTokenPath,
+  recordDiagnosticIncident,
   ScriptedAgentRuntime,
 } from "@rakazo/adapters";
 import { blockedAuthPaths, createAuth } from "@rakazo/auth";
@@ -237,6 +238,22 @@ export async function createApp(
     }
     return auth.handler(c.req.raw);
   });
+  app.onError((err, c) => {
+    recordDiagnosticIncident({
+      severity: "error",
+      layer: "api_rpc",
+      code: "UNHANDLED_HTTP_ERROR",
+      title: `Exception HTTP sur ${c.req.method} ${c.req.path}`,
+      message: err instanceof Error ? err.message : String(err),
+      error: err,
+      dataDir: env.dataDir,
+      context: {
+        route: `${c.req.method} ${c.req.path}`,
+        statusCode: 500,
+      },
+    });
+    return c.json({ error: "Internal Server Error" }, 500);
+  });
   app.use("/rpc/*", async (c, next) => {
     const session = await auth.api.getSession({ headers: sessionHeaders(c.req.raw) });
     const actor = session?.user
@@ -246,7 +263,23 @@ export async function createApp(
       prefix: "/rpc",
       context: { actor, signal: c.req.raw.signal },
     });
-    if (matched) return c.newResponse(response.body, response);
+    if (matched) {
+      if (response.status >= 500) {
+        recordDiagnosticIncident({
+          severity: "error",
+          layer: "api_rpc",
+          code: "ORPC_INTERNAL_ERROR",
+          title: `Erreur interne oRPC (${response.status}) sur ${c.req.path}`,
+          message: `Procédure ${c.req.path} a retourné HTTP ${response.status}.`,
+          dataDir: env.dataDir,
+          context: {
+            route: c.req.path,
+            statusCode: response.status,
+          },
+        });
+      }
+      return c.newResponse(response.body, response);
+    }
     await next();
   });
   mountVoiceHttpRoutes(app, { prisma, secrets }, async (c) => {

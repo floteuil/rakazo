@@ -145,7 +145,8 @@ describe("builtin tools", () => {
         "notion_search",
         "postiz_create_post",
         "wordpress_list_posts",
-        "n8n_trigger_webhook",
+        "windmill_autolite_whoami",
+        "windmill_proxy_whoami",
         "cloudflare_list_zones",
       ]),
     );

@@ -275,13 +275,13 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       }
     });
 
-    it("4.2 PluginsOverlay: renders all 18 Sovereign connectors and 87 tools without XSS execution", () => {
+    it("4.2 PluginsOverlay: renders all 19 Sovereign connectors and 96 tools without XSS execution", () => {
       const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} />);
 
-      // Verify all 18 connectors exist
-      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
+      // Verify all 19 connectors exist
+      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(19);
       const totalTools = SOVEREIGN_MCP_CONNECTORS.reduce((acc, c) => acc + c.tools.length, 0);
-      expect(totalTools).toBe(87);
+      expect(totalTools).toBe(96);
 
       // Verify HTML escapes tags
       expect(html).not.toContain("<script>");
@@ -418,7 +418,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
         const skills = getBlueprintSkillIds(bp.packId);
         expect(skills.length).toBeLessThanOrEqual(MAX_SKILLS_PER_PACK);
         const mcp = buildBlueprintMcpConfig(bp.connectorIds);
-        expect(Object.keys(mcp.connectors ?? {}).length).toBe(18);
+        expect(Object.keys(mcp.connectors ?? {}).length).toBe(19);
       }
 
       // Idée n°2 : Passage de Relais Inter-Agents en 1 Clic
@@ -443,7 +443,7 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       );
       expect(cockpitHtml).toContain("sovereign-cockpit-overlay");
       expect(cockpitHtml).toContain("7 / 7 actifs");
-      expect(cockpitHtml).toContain("18 serveurs · 87 outils");
+      expect(cockpitHtml).toContain("19 serveurs · 96 outils");
       expect(cockpitHtml).toContain("379 skills (51 packs)");
 
       // Idée n°4 : Modèles de Routines Quotidiennes (Heure de Paris)

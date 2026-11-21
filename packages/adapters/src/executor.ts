@@ -93,6 +93,7 @@ import {
   teamBotWorkspaceDirectory,
 } from "./computer-support.js";
 import { observationToolResult, parseComputerActions } from "./computer-tools.js";
+import { recordDiagnosticIncident } from "./flight-recorder.js";
 import { checkpointAndRecordComputerWorkspace } from "./computer-workspace.js";
 import {
   loadBotLearnedSkillsDocument,
@@ -164,8 +165,14 @@ const READ_ONLY_AGENT_TOOLS = new Set([
   "postiz_list_posts",
   "wordpress_list_posts",
   "wordpress_get_post",
-  "n8n_list_workflows",
-  "n8n_get_execution",
+  "windmill_autolite_whoami",
+  "windmill_autolite_list_scripts",
+  "windmill_autolite_list_flows",
+  "windmill_autolite_get_job",
+  "windmill_proxy_whoami",
+  "windmill_proxy_list_scripts",
+  "windmill_proxy_list_flows",
+  "windmill_proxy_get_job",
   "cloudflare_list_zones",
   "cloudflare_list_dns_records",
   "tool_search",
@@ -173,7 +180,7 @@ const READ_ONLY_AGENT_TOOLS = new Set([
 ]);
 
 const READ_ONLY_ANTIGRAVITY_PATTERN =
-  /^(?:twenty|affine|odoo|windmill|coolify|qdrant|pocketbase|open_design|flowise|veinart)_(?:list|get|search|read|find|inspect|check|whoami|system_status)|^(?:context7|ubersuggest)_/i;
+  /^(?:twenty|affine|odoo|windmill(?:_autolite|_proxy)?|coolify|qdrant|pocketbase|open_design|flowise|veinart)_(?:list|get|search|read|find|inspect|check|whoami|system_status)|^(?:context7|ubersuggest)_/i;
 
 export function isReadOnlyAgentToolCall(name: string, args?: Record<string, unknown>): boolean {
   if (name === "read_skill") {
@@ -869,6 +876,26 @@ export function createRunExecutor(deps: ExecutorDeps) {
           }
           const finish = async (result: unknown) => {
             const sanitized = sanitizeToolResult(result);
+            if (
+              sanitized &&
+              typeof sanitized === "object" &&
+              "error" in sanitized &&
+              typeof (sanitized as Record<string, unknown>).error === "string"
+            ) {
+              recordDiagnosticIncident({
+                severity: "warn",
+                layer: "mcp_connector",
+                code: "MCP_TOOL_EXECUTION_ERROR",
+                title: `Outil '${name}' en erreur sur l'agent ${bot.name}`,
+                message: String((sanitized as Record<string, unknown>).error),
+                dataDir: deps.dataDir,
+                context: {
+                  botId: bot.id,
+                  runId,
+                  toolName: name,
+                },
+              });
+            }
             if (applied) await completeEffect(deps, applied.effect.id, sanitized);
             return sanitized;
           };
@@ -2097,6 +2124,20 @@ export function createRunExecutor(deps: ExecutorDeps) {
             error instanceof Error ? error.message : String(error),
             runSecrets,
           );
+          recordDiagnosticIncident({
+            severity: "error",
+            layer: "agent_executor",
+            code: "RUN_EXECUTION_FAILED",
+            title: `Échec d'exécution sur l'agent ${bot.name}`,
+            message,
+            error,
+            dataDir: deps.dataDir,
+            context: {
+              botId: bot.id,
+              runId,
+              model: botModelKey,
+            },
+          });
           const failed = await deps.events.finalizeRun({
             workspaceId: run.workspaceId,
             threadId: thread.id,

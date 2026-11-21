@@ -28,7 +28,7 @@ services:
     command:
       - bash
       - -lc
-      - pnpm --filter @rakazo/db exec prisma migrate deploy && pnpm --filter @rakazo/api start
+      - pnpm --filter @rakazo/db exec prisma migrate deploy && cd /app/apps/api && exec /app/node_modules/.bin/tsx src/index.ts
     init: true
     security_opt:
       - no-new-privileges:true
@@ -64,8 +64,12 @@ services:
       WORDPRESS_USERNAME: ${WORDPRESS_USERNAME:-}
       WORDPRESS_APP_PASSWORD: ${WORDPRESS_APP_PASSWORD:-}
       NOVAMIRA_API_KEY: ${NOVAMIRA_API_KEY:-}
-      N8N_API_KEY: ${N8N_API_KEY:-}
-      N8N_API_URL: ${N8N_API_URL:-}
+      WINDMILL_AUTOLITE_URL: ${WINDMILL_AUTOLITE_URL:-}
+      WINDMILL_AUTOLITE_TOKEN: ${WINDMILL_AUTOLITE_TOKEN:-}
+      WINDMILL_AUTOLITE_WORKSPACE: ${WINDMILL_AUTOLITE_WORKSPACE:-main}
+      WINDMILL_PROXY_URL: ${WINDMILL_PROXY_URL:-}
+      WINDMILL_PROXY_TOKEN: ${WINDMILL_PROXY_TOKEN:-}
+      WINDMILL_PROXY_WORKSPACE: ${WINDMILL_PROXY_WORKSPACE:-main}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
       E2B_API_KEY: ${E2B_API_KEY:-}
@@ -122,7 +126,10 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@rakazo/worker", "start"]
+    command:
+      - bash
+      - -lc
+      - cd /app/apps/worker && exec /app/node_modules/.bin/tsx src/index.ts
     init: true
     security_opt:
       - no-new-privileges:true
@@ -154,8 +161,12 @@ services:
       WORDPRESS_USERNAME: ${WORDPRESS_USERNAME:-}
       WORDPRESS_APP_PASSWORD: ${WORDPRESS_APP_PASSWORD:-}
       NOVAMIRA_API_KEY: ${NOVAMIRA_API_KEY:-}
-      N8N_API_KEY: ${N8N_API_KEY:-}
-      N8N_API_URL: ${N8N_API_URL:-}
+      WINDMILL_AUTOLITE_URL: ${WINDMILL_AUTOLITE_URL:-}
+      WINDMILL_AUTOLITE_TOKEN: ${WINDMILL_AUTOLITE_TOKEN:-}
+      WINDMILL_AUTOLITE_WORKSPACE: ${WINDMILL_AUTOLITE_WORKSPACE:-main}
+      WINDMILL_PROXY_URL: ${WINDMILL_PROXY_URL:-}
+      WINDMILL_PROXY_TOKEN: ${WINDMILL_PROXY_TOKEN:-}
+      WINDMILL_PROXY_WORKSPACE: ${WINDMILL_PROXY_WORKSPACE:-main}
       CLOUDFLARE_API_TOKEN: ${CLOUDFLARE_API_TOKEN:-}
       CLOUDFLARE_ACCOUNT_ID: ${CLOUDFLARE_ACCOUNT_ID:-}
       E2B_API_KEY: ${E2B_API_KEY:-}
@@ -203,7 +214,10 @@ services:
       context: .
       dockerfile: Dockerfile
     restart: unless-stopped
-    command: ["pnpm", "--filter", "@rakazo/web", "preview", "--host", "0.0.0.0", "--port", "5173"]
+    command:
+      - bash
+      - -lc
+      - cd /app/apps/web && exec /app/node_modules/.bin/vite preview --host 0.0.0.0 --port 5173
     init: true
     security_opt:
       - no-new-privileges:true

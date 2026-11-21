@@ -13,7 +13,7 @@ import {
 describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
   describe("Static Catalog & Helper Functions", () => {
     it("renders all Sovereign MCP Connectors from contracts", () => {
-      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
+      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(19);
       const ids = SOVEREIGN_MCP_CONNECTORS.map((c) => c.id);
       expect(ids).toEqual([
         "searxng_scraperr",
@@ -21,7 +21,8 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
         "notion",
         "postiz",
         "wordpress_novamira",
-        "n8n",
+        "windmill_autolite",
+        "windmill_proxy",
         "cloudflare",
         "twenty_crm",
         "affine",
@@ -39,7 +40,7 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
 
     it("getAllActiveMcpConfig enables all connectors and all tools", () => {
       const config = getAllActiveMcpConfig();
-      expect(Object.keys(config.connectors || {})).toHaveLength(18);
+      expect(Object.keys(config.connectors || {})).toHaveLength(19);
       expect(Object.keys(config.tools || {}).length).toBeGreaterThanOrEqual(40);
       for (const val of Object.values(config.connectors || {})) {
         expect(val).toBe(true);
@@ -51,7 +52,7 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
 
     it("getAllDisabledMcpConfig disables all connectors and all tools", () => {
       const config = getAllDisabledMcpConfig();
-      expect(Object.keys(config.connectors || {})).toHaveLength(18);
+      expect(Object.keys(config.connectors || {})).toHaveLength(19);
       expect(Object.keys(config.tools || {}).length).toBeGreaterThanOrEqual(40);
       for (const val of Object.values(config.connectors || {})) {
         expect(val).toBe(false);
@@ -103,7 +104,8 @@ describe("BotMcpToolSelector Component & MCP Assignment Suite", () => {
       expect(markup).toContain("Notion Workspace MCP");
       expect(markup).toContain("Postiz Social Media MCP");
       expect(markup).toContain("WordPress / Novamira MCP");
-      expect(markup).toContain("n8n Workflow MCP");
+      expect(markup).toContain("Windmill AutoLite RGPD MCP");
+      expect(markup).toContain("Windmill Proxy RGPD MCP");
       expect(markup).toContain("Cloudflare MCP");
       expect(markup).toContain("Système, Fichiers &amp; Multi-Agents");
     });

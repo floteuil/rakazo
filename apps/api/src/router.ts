@@ -21,6 +21,7 @@ import {
   ComputerBusyError,
   type ComputerExecutionLease,
   checkpointAndRecordComputerWorkspace,
+  clearRecordedIncidents,
   createPromptCompilerService,
   createVoiceProvider,
   deleteSupermemoryContainer,
@@ -35,8 +36,10 @@ import {
   type PiOAuthLogins,
   probeOmniRouteHealth,
   provisionComputer,
+  recordDiagnosticIncident,
   releaseComputerExecutionLease,
   resolveBotWorkspacePath,
+  runDeepSelfDiagnostics,
   sanitizeComposioError,
   savePushToken,
   scheduleComputerControlExpiry,
@@ -1719,6 +1722,36 @@ export function createRouter(deps: RouterDeps) {
           configuredConnectors: getConnectorReadinessMap(process.env),
         };
       }),
+    },
+    diagnostics: {
+      runDeepCheck: authed.diagnostics.runDeepCheck.handler(async () =>
+        runDeepSelfDiagnostics({
+          prisma: deps.prisma,
+          dataDir: deps.dataDir,
+        }),
+      ),
+      reportClientError: authed.diagnostics.reportClientError.handler(async ({ input }) => {
+        const incident = recordDiagnosticIncident({
+          severity: "error",
+          layer: "web_client",
+          code: input.code || "CLIENT_UI_EXCEPTION",
+          title: input.title,
+          message: input.componentHint
+            ? `${input.message} [Composant: ${input.componentHint}]`
+            : input.message,
+          stack: input.stack,
+          dataDir: deps.dataDir,
+          context: {
+            route: input.route,
+            userAgent: input.userAgent,
+          },
+        });
+        return { ok: true as const, incidentId: incident.id };
+      }),
+      clearIncidents: authed.diagnostics.clearIncidents.handler(async () => ({
+        ok: true as const,
+        cleared: clearRecordedIncidents(deps.dataDir),
+      })),
     },
     export: {
       bot: authed.export.bot.handler(async ({ context, input }) => {

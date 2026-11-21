@@ -1047,119 +1047,347 @@ export const SOVEREIGN_MCP_CONNECTORS: SovereignMcpConnector[] = [
     ],
   },
   {
-    id: "n8n",
-    slug: "n8n",
-    name: "n8n Workflow MCP",
+    id: "windmill_autolite",
+    slug: "windmill-autolite",
+    name: "Windmill AutoLite RGPD MCP",
     category: "automation",
-    categoryLabel: "Automatisation & Workflows",
+    categoryLabel: "Automatisation & Workflows RGPD",
     description:
-      "Moteur d'orchestration de flux d'automatisation d'entreprise, déclenchement de webhooks et suivi des exécutions.",
+      "Moteur d'automatisation souverain Windmill AutoLite (serveur RGPD Coolify) : exécution de scripts Python/Bun/Bash, flows visuels et suivi des jobs.",
     icon: "Workflow",
-    endpoint: "https://n8n.groupefloteuil.internal/api/v1",
-    protocol: "HTTPS / n8n REST API & Webhooks",
+    endpoint: "https://autolite.windmill.internal/api",
+    protocol: "HTTPS / Windmill REST API v1 (RGPD)",
     status: "connected",
     statusText: "Connecté",
-    badgeText: "n8n Sovereign Engine",
-    securityLevel: "Mutual TLS & Bearer API Key · Isolated Executor",
-    secretEnvVar: "N8N_API_KEY",
+    badgeText: "Windmill AutoLite RGPD",
+    securityLevel: "Bearer API Token · Périmètre RGPD Strict (Zéro HDS)",
+    secretEnvVar: "WINDMILL_AUTOLITE_TOKEN",
     isBuiltin: true,
     tools: [
       {
-        name: "n8n_trigger_webhook",
-        label: "Déclenchement Webhook n8n",
+        name: "windmill_autolite_whoami",
+        label: "Identité & Santé Windmill AutoLite",
         description:
-          "Déclenchement d'un workflow n8n via son endpoint webhook avec transmission d'une charge utile JSON personnalisée.",
-        connectorId: "n8n",
+          "Vérifie la connectivité et retourne l'utilisateur authentifié ainsi que le workspace actif sur l'instance Windmill AutoLite RGPD.",
+        connectorId: "windmill_autolite",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: [],
+        parameters: [],
+        exampleInvocation: {},
+      },
+      {
+        name: "windmill_autolite_list_scripts",
+        label: "Liste des Scripts AutoLite",
+        description:
+          "Liste les scripts déployés dans le workspace Windmill AutoLite RGPD avec filtrage optionnel par préfixe de chemin.",
+        connectorId: "windmill_autolite",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: [],
+        parameters: [
+          {
+            name: "path_start",
+            type: "string",
+            description: "Préfixe de dossier (ex: 'f/' ou 'u/').",
+            required: false,
+          },
+          {
+            name: "per_page",
+            type: "number",
+            description: "Nombre maximal de scripts retournés (défaut 30).",
+            required: false,
+          },
+        ],
+        exampleInvocation: { path_start: "f/", per_page: 20 },
+      },
+      {
+        name: "windmill_autolite_run_script",
+        label: "Exécution de Script AutoLite",
+        description:
+          "Exécute un script Windmill AutoLite RGPD par son chemin avec arguments JSON (mode synchrone par défaut).",
+        connectorId: "windmill_autolite",
         category: "automation",
         isSensitive: true,
-        requiredParams: [],
+        requiredParams: ["path"],
         parameters: [
           {
-            name: "webhookPath",
+            name: "path",
             type: "string",
-            description: "Identifiant du chemin webhook dans n8n.",
-            required: false,
-          },
-          {
-            name: "url",
-            type: "string",
-            description: "URL complète alternative du webhook.",
-            required: false,
-          },
-          {
-            name: "data",
-            type: "object",
-            description: "Données JSON transmises au déclencheur n8n.",
-            required: false,
-          },
-          {
-            name: "method",
-            type: "string",
-            description: "Méthode HTTP d'appel (POST ou GET).",
-            required: false,
-            enum: ["POST", "GET"],
-          },
-        ],
-        exampleInvocation: {
-          webhookPath: "lead-qualification-v2",
-          data: { email: "contact@example.com", source: "assistant" },
-          method: "POST",
-        },
-      },
-      {
-        name: "n8n_list_workflows",
-        label: "Liste des Workflows n8n",
-        description:
-          "Consultation des flux d'automatisation n8n enregistrés et vérification de leur état d'activation.",
-        connectorId: "n8n",
-        category: "automation",
-        isSensitive: false,
-        requiredParams: [],
-        parameters: [
-          {
-            name: "active",
-            type: "boolean",
-            description: "Filtrer uniquement les workflows actifs.",
-            required: false,
-          },
-          {
-            name: "limit",
-            type: "number",
-            description: "Nombre maximal de workflows retournés.",
-            required: false,
-          },
-        ],
-        exampleInvocation: {
-          active: true,
-          limit: 20,
-        },
-      },
-      {
-        name: "n8n_get_execution",
-        label: "Détail d'Exécution n8n",
-        description:
-          "Inspection de l'état, de la durée, des erreurs et des logs détaillés d'une exécution de workflow n8n.",
-        connectorId: "n8n",
-        category: "automation",
-        isSensitive: false,
-        requiredParams: ["executionId"],
-        parameters: [
-          {
-            name: "executionId",
-            type: "string",
-            description: "Identifiant unique de l'exécution n8n.",
+            description: "Chemin complet du script (ex: 'f/integrations/sync_leads').",
             required: true,
           },
           {
-            name: "includeData",
+            name: "args",
+            type: "object",
+            description: "Dictionnaire JSON des arguments d'entrée du script.",
+            required: false,
+          },
+          {
+            name: "wait",
             type: "boolean",
-            description: "Inclure les données étape par étape (step data).",
+            description: "Attendre la fin de l'exécution et retourner le résultat (défaut true).",
             required: false,
           },
         ],
         exampleInvocation: {
-          executionId: "987452",
-          includeData: true,
+          path: "f/integrations/sync_leads",
+          args: { dry_run: true },
+          wait: true,
+        },
+      },
+      {
+        name: "windmill_autolite_list_flows",
+        label: "Liste des Flows AutoLite",
+        description: "Consulte tous les flows d'automatisation déployés sur Windmill AutoLite RGPD.",
+        connectorId: "windmill_autolite",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: [],
+        parameters: [
+          {
+            name: "per_page",
+            type: "number",
+            description: "Nombre maximal de flows retournés.",
+            required: false,
+          },
+        ],
+        exampleInvocation: { per_page: 20 },
+      },
+      {
+        name: "windmill_autolite_run_flow",
+        label: "Déclenchement de Flow AutoLite",
+        description:
+          "Déclenche un flow multi-étapes sur Windmill AutoLite RGPD et retourne le résultat ou l'identifiant du job.",
+        connectorId: "windmill_autolite",
+        category: "automation",
+        isSensitive: true,
+        requiredParams: ["path"],
+        parameters: [
+          {
+            name: "path",
+            type: "string",
+            description: "Chemin du flow (ex: 'f/workflows/onboarding_client').",
+            required: true,
+          },
+          {
+            name: "args",
+            type: "object",
+            description: "Arguments JSON transmis au flow.",
+            required: false,
+          },
+          {
+            name: "wait",
+            type: "boolean",
+            description: "Attendre le résultat final du flow (défaut true).",
+            required: false,
+          },
+        ],
+        exampleInvocation: {
+          path: "f/workflows/onboarding_client",
+          args: { source: "rakazo" },
+          wait: true,
+        },
+      },
+      {
+        name: "windmill_autolite_get_job",
+        label: "Statut & Logs de Job AutoLite",
+        description:
+          "Récupère l'état d'exécution, le résultat et les journaux (logs) d'un job Windmill AutoLite RGPD.",
+        connectorId: "windmill_autolite",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: ["job_id"],
+        parameters: [
+          {
+            name: "job_id",
+            type: "string",
+            description: "UUID du job Windmill.",
+            required: true,
+          },
+          {
+            name: "include_logs",
+            type: "boolean",
+            description: "Inclure les logs complets d'exécution (défaut true).",
+            required: false,
+          },
+        ],
+        exampleInvocation: {
+          job_id: "0192a3b4-c5d6-7890-abcd-ef1234567890",
+          include_logs: true,
+        },
+      },
+    ],
+  },
+  {
+    id: "windmill_proxy",
+    slug: "windmill-proxy",
+    name: "Windmill Proxy RGPD MCP",
+    category: "automation",
+    categoryLabel: "Automatisation & Workflows RGPD",
+    description:
+      "Passerelle d'orchestration Windmill Proxy (serveur RGPD Coolify) dédiée aux flux passerelles, connecteurs d'API et tâches planifiées hors HDS.",
+    icon: "Workflow",
+    endpoint: "https://proxy.windmill.internal/api",
+    protocol: "HTTPS / Windmill REST API v1 (RGPD)",
+    status: "connected",
+    statusText: "Connecté",
+    badgeText: "Windmill Proxy RGPD",
+    securityLevel: "Bearer API Token · Périmètre RGPD Strict (Zéro HDS)",
+    secretEnvVar: "WINDMILL_PROXY_TOKEN",
+    isBuiltin: true,
+    tools: [
+      {
+        name: "windmill_proxy_whoami",
+        label: "Identité & Santé Windmill Proxy",
+        description:
+          "Vérifie la connectivité et retourne l'utilisateur authentifié sur l'instance Windmill Proxy RGPD.",
+        connectorId: "windmill_proxy",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: [],
+        parameters: [],
+        exampleInvocation: {},
+      },
+      {
+        name: "windmill_proxy_list_scripts",
+        label: "Liste des Scripts Proxy",
+        description:
+          "Liste les scripts déployés dans le workspace Windmill Proxy RGPD avec filtrage optionnel par chemin.",
+        connectorId: "windmill_proxy",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: [],
+        parameters: [
+          {
+            name: "path_start",
+            type: "string",
+            description: "Préfixe de dossier (ex: 'f/' ou 'u/').",
+            required: false,
+          },
+          {
+            name: "per_page",
+            type: "number",
+            description: "Nombre maximal de scripts retournés (défaut 30).",
+            required: false,
+          },
+        ],
+        exampleInvocation: { path_start: "f/", per_page: 20 },
+      },
+      {
+        name: "windmill_proxy_run_script",
+        label: "Exécution de Script Proxy",
+        description:
+          "Exécute un script sur l'instance Windmill Proxy RGPD avec transmission d'arguments JSON.",
+        connectorId: "windmill_proxy",
+        category: "automation",
+        isSensitive: true,
+        requiredParams: ["path"],
+        parameters: [
+          {
+            name: "path",
+            type: "string",
+            description: "Chemin complet du script sur Windmill Proxy.",
+            required: true,
+          },
+          {
+            name: "args",
+            type: "object",
+            description: "Arguments JSON d'entrée.",
+            required: false,
+          },
+          {
+            name: "wait",
+            type: "boolean",
+            description: "Attendre la fin de l'exécution (défaut true).",
+            required: false,
+          },
+        ],
+        exampleInvocation: {
+          path: "f/proxy/dispatch_webhook",
+          args: { event: "ping" },
+          wait: true,
+        },
+      },
+      {
+        name: "windmill_proxy_list_flows",
+        label: "Liste des Flows Proxy",
+        description: "Consulte les flows d'automatisation déployés sur Windmill Proxy RGPD.",
+        connectorId: "windmill_proxy",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: [],
+        parameters: [
+          {
+            name: "per_page",
+            type: "number",
+            description: "Nombre maximal de flows retournés.",
+            required: false,
+          },
+        ],
+        exampleInvocation: { per_page: 20 },
+      },
+      {
+        name: "windmill_proxy_run_flow",
+        label: "Déclenchement de Flow Proxy",
+        description:
+          "Déclenche un flow sur l'instance Windmill Proxy RGPD et retourne le résultat ou l'UUID du job.",
+        connectorId: "windmill_proxy",
+        category: "automation",
+        isSensitive: true,
+        requiredParams: ["path"],
+        parameters: [
+          {
+            name: "path",
+            type: "string",
+            description: "Chemin du flow sur Windmill Proxy.",
+            required: true,
+          },
+          {
+            name: "args",
+            type: "object",
+            description: "Arguments JSON transmis au flow.",
+            required: false,
+          },
+          {
+            name: "wait",
+            type: "boolean",
+            description: "Attendre la fin de l'exécution (défaut true).",
+            required: false,
+          },
+        ],
+        exampleInvocation: {
+          path: "f/proxy/process_pipeline",
+          args: { mode: "check" },
+          wait: true,
+        },
+      },
+      {
+        name: "windmill_proxy_get_job",
+        label: "Statut & Logs de Job Proxy",
+        description:
+          "Inspecte l'état, le résultat et les logs d'un job exécuté sur Windmill Proxy RGPD.",
+        connectorId: "windmill_proxy",
+        category: "automation",
+        isSensitive: false,
+        requiredParams: ["job_id"],
+        parameters: [
+          {
+            name: "job_id",
+            type: "string",
+            description: "UUID du job Windmill Proxy.",
+            required: true,
+          },
+          {
+            name: "include_logs",
+            type: "boolean",
+            description: "Inclure les journaux d'exécution (défaut true).",
+            required: false,
+          },
+        ],
+        exampleInvocation: {
+          job_id: "0192a3b4-c5d6-7890-abcd-ef1234567890",
+          include_logs: true,
         },
       },
     ],
@@ -3044,7 +3272,14 @@ export function isSovereignTool(toolName: string): boolean {
   return ALL_SOVEREIGN_TOOL_NAMES.includes(toolName);
 }
 
-export const FORBIDDEN_MCP_CONNECTORS = ["stripe", "stripe_agence"] as const;
+export const FORBIDDEN_MCP_CONNECTORS = [
+  "stripe",
+  "stripe_agence",
+  "windmill_backend_hds",
+  "windmill_proxy_hds",
+  "windmill-backend-hds",
+  "windmill-proxy-hds",
+] as const;
 
 export function isForbiddenMcpConnector(idOrSlug: string): boolean {
   const normalized = idOrSlug.toLowerCase().trim();

@@ -44,7 +44,8 @@ describe("n8n-io/nod Sovereign Innovations — Contracts & Security Invariants",
     it("classifies external MCP/web tools as untrusted while keeping workspace/custom tools raw", () => {
       expect(isExternalUntrustedTool("web_search")).toBe(true);
       expect(isExternalUntrustedTool("web_scrape")).toBe(true);
-      expect(isExternalUntrustedTool("n8n_list_workflows")).toBe(true);
+      expect(isExternalUntrustedTool("windmill_autolite_list_scripts")).toBe(true);
+      expect(isExternalUntrustedTool("windmill_proxy_list_flows")).toBe(true);
       expect(isExternalUntrustedTool("twenty_list_companies")).toBe(true);
       expect(isExternalUntrustedTool("mcp__custom__query")).toBe(true);
       expect(isExternalUntrustedTool("learned_skill")).toBe(true);

@@ -17,15 +17,17 @@ import { PluginsOverlay } from "./PluginsOverlay";
 
 describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", () => {
   describe("Sovereign MCP Catalog Contracts & Integrity", () => {
-    it("exports exactly 18 Sovereign MCP connectors", () => {
-      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
+    it("exports exactly 19 Sovereign MCP connectors (with Windmill RGPD AutoLite & Proxy replacing n8n)", () => {
+      expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(19);
       const ids = SOVEREIGN_MCP_CONNECTORS.map((c) => c.id);
       expect(ids).toContain("searxng_scraperr");
       expect(ids).toContain("github");
       expect(ids).toContain("notion");
       expect(ids).toContain("postiz");
       expect(ids).toContain("wordpress_novamira");
-      expect(ids).toContain("n8n");
+      expect(ids).toContain("windmill_autolite");
+      expect(ids).toContain("windmill_proxy");
+      expect(ids).not.toContain("n8n");
       expect(ids).toContain("cloudflare");
       expect(ids).toContain("system_platform");
       expect(ids).toContain("twenty_crm");
@@ -40,10 +42,10 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       expect(ids).toContain("ubersuggest");
     });
 
-    it("contains exactly 87 sovereign tools across all 18 connectors", () => {
+    it("contains exactly 96 sovereign tools across all 19 connectors", () => {
       const allTools = getAllSovereignTools();
-      expect(allTools).toHaveLength(87);
-      expect(ALL_SOVEREIGN_TOOL_NAMES).toHaveLength(87);
+      expect(allTools).toHaveLength(96);
+      expect(ALL_SOVEREIGN_TOOL_NAMES).toHaveLength(96);
       expect(DEFAULT_ENABLED_SOVEREIGN_TOOLS).toHaveLength(7);
     });
 
@@ -53,7 +55,9 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       expect(isSovereignTool("notion_search")).toBe(true);
       expect(isSovereignTool("postiz_create_post")).toBe(true);
       expect(isSovereignTool("wordpress_create_post")).toBe(true);
-      expect(isSovereignTool("n8n_trigger_webhook")).toBe(true);
+      expect(isSovereignTool("windmill_autolite_run_script")).toBe(true);
+      expect(isSovereignTool("windmill_proxy_run_flow")).toBe(true);
+      expect(isSovereignTool("n8n_trigger_webhook")).toBe(false);
       expect(isSovereignTool("cloudflare_purge_cache")).toBe(true);
       expect(isSovereignTool("shell")).toBe(true);
       expect(isSovereignTool("unknown_fake_tool")).toBe(false);
@@ -75,8 +79,11 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       const wpConn = getConnectorForTool("wordpress_list_posts");
       expect(wpConn?.id).toBe("wordpress_novamira");
 
-      const n8nConn = getConnectorForTool("n8n_get_execution");
-      expect(n8nConn?.id).toBe("n8n");
+      const wmAutoConn = getConnectorForTool("windmill_autolite_get_job");
+      expect(wmAutoConn?.id).toBe("windmill_autolite");
+
+      const wmProxyConn = getConnectorForTool("windmill_proxy_whoami");
+      expect(wmProxyConn?.id).toBe("windmill_proxy");
 
       const cfConn = getConnectorForTool("cloudflare_create_dns_record");
       expect(cfConn?.id).toBe("cloudflare");
@@ -96,7 +103,7 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       expect(systemTools).toHaveLength(12);
 
       const allTools = getSovereignToolsByCategory("all");
-      expect(allTools).toHaveLength(87);
+      expect(allTools).toHaveLength(96);
     });
 
     it("defines valid SOVEREIGN_CATEGORIES matching specifications", () => {
@@ -183,7 +190,7 @@ describe("PluginsOverlay and Sovereign MCP Catalog (Comprehensive Unit Tests)", 
       const html = renderToStaticMarkup(<PluginsOverlay onClose={() => {}} initialCatalog={[]} />);
       expect(html).toContain("Mode Souverain Pur Actif");
       expect(html).toContain(
-        "Les 18 Connecteurs MCP Souverains ci-dessus couvrent 100% des opérations",
+        "Les 19 Connecteurs MCP Souverains ci-dessus couvrent 100% des opérations",
       );
     });
 

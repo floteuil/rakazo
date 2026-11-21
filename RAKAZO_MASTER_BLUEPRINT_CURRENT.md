@@ -1,11 +1,11 @@
 # RAKAZO MASTER BLUEPRINT — CURRENT ARCHITECTURE & PLATFORM SPECIFICATION
 
-**Version**: 3.0.0-unified-3538-skill-library-and-omniroute-advisor  
+**Version**: 3.1.0-forensic-diagnostics-and-windmill-rgpd  
 **Repository**: [https://github.com/floteuil/rakazo](https://github.com/floteuil/rakazo) (Turborepo 2 + pnpm Monorepo)  
 **Branch**: `main` & `clean-release` (Zero-Secret Public Release Ready)  
-**Consolidation**: Cross-Wave Sovereign Consolidation (OpenMausBot Sentinel + Same-Request Deduplicator + Dynamic Memory Profiles, CopilotKit/OpenBot Anti-Dangles + Routine Checklists + Standing Rules + Secret Shield, NousResearch/Hermes Fuzzy Tool Repair + Denial Breaker + Asymmetric User Prompt Sanctuary, `n8n-io/nod` Untrusted Envelopes + 5-Min Cold-Cache Pruning + `.rakazo/outputs/` Offloading + Learned Procedural Skills + Routine Delta Watches + `N8nWorkflowCanvas` + `SandboxedArtifactModal`, OmniRoute v3.8.51 Live SSE Keepalive & Provider Inference + Zero-Token `/models` Telemetry Probe, Unified 3,538-Skill Sharded Native Library + 2-Stage OmniRoute AI Skill Advisor `MAX_ACTIVE_SKILLS_PER_BOT = 20`, Multi-Chunk Vite Bundle Splitting `< 500 kB`)  
+**Consolidation**: Cross-Wave Sovereign Consolidation (OpenMausBot Sentinel + Same-Request Deduplicator + Dynamic Memory Profiles, CopilotKit/OpenBot Anti-Dangles + Routine Checklists + Standing Rules + Secret Shield, NousResearch/Hermes Fuzzy Tool Repair + Denial Breaker + Asymmetric User Prompt Sanctuary, `n8n-io/nod` Untrusted Envelopes + 5-Min Cold-Cache Pruning + `.rakazo/outputs/` Offloading + Learned Procedural Skills + Routine Delta Watches + `N8nWorkflowCanvas` + `SandboxedArtifactModal`, OmniRoute v3.8.51 Live SSE Keepalive & Provider Inference + Zero-Token `/models` Telemetry Probe, Unified 3,538-Skill Sharded Native Library + 2-Stage OmniRoute AI Skill Advisor `MAX_ACTIVE_SKILLS_PER_BOT = 20`, 19 Sovereign MCP Connectors · 96 Tools with Windmill AutoLite/Proxy RGPD & Strict Zero-HDS Guard, 10-Probe Forensic Flight Recorder & `pnpm doctor`, Direct `exec` Container Launch & Multi-Chunk Vite Bundle Splitting `< 500 kB`)  
 **Verification Date**: 2026-11-21  
-**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 100% Vitest Pass Rate across Monorepo Test Suites, 0 Plaintext Secrets, Live OmniRoute 5/5 Combos + 3,538 Native Skills Verified)
+**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 100% Vitest Pass Rate across Monorepo Test Suites, 0 Plaintext Secrets, Live OmniRoute 5/5 Combos + Windmill RGPD + 3,538 Native Skills + 10-Probe Forensic Doctor Verified)
 
 ---
 
@@ -45,8 +45,8 @@ Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform 
 | `apps/desktop` | Electron, Node.js | Desktop application shell, sandbox local proxy, window management, screen-lease support. |
 | `apps/www` | Astro SSR | Public landing page, documentation portal, static assets. |
 | `infra/sandboxes/supervisor` | Node.js, Docker/Containerd | Secure containerized sandbox supervision, process isolation, resource quotas. |
-| `@rakazo/contracts` | TypeScript 5.8, Zod 3.23+ | Shared contracts, Zod schemas (`InferenceModeSchema`, `InferenceUsageTagSchema`, `BotInferenceConfigSchema`, `PromptExecutionLogInputSchema`), Sovereign MCP catalog (18 connectors · 87 tools), French Skills catalog (379 skills · 51 packs), Sentinel diagnostics, untrusted envelopes, Cold-Cache pruning, Learned Skills & Routine Watches. |
-| `@rakazo/adapters` | TypeScript 5.8, Node.js | `CanonicalAgentRuntime`, `OmniRouteInferenceTransport`, `PiAiInferenceTransport`, `RakazoFreePolicyEngine`, `pi-runtime.ts` with TypeBox MCP complex schema normalization (`jsonSchemaParameters`, `jsonField`, unions, single-item enums, null literals, dynamic records), PromptCompilerService, 4-block cache assembler, subagent inheritance, loop guards, secret sanitizer. |
+| `@rakazo/contracts` | TypeScript 5.8, Zod 3.23+ | Shared contracts, Zod schemas (`InferenceModeSchema`, `InferenceUsageTagSchema`, `BotInferenceConfigSchema`, `PromptExecutionLogInputSchema`, `DeepDiagnosticReportSchema`), Sovereign MCP catalog (**19 connectors · 96 tools**, including Windmill AutoLite RGPD & Windmill Proxy RGPD with strict HDS veto), French Skills catalog (379 starter skills · 51 packs + 3,538 unified skills), Sentinel & Forensic Flight Recorder contracts, untrusted envelopes, Cold-Cache pruning, Learned Skills & Routine Watches. |
+| `@rakazo/adapters` | TypeScript 5.8, Node.js | `CanonicalAgentRuntime`, `OmniRouteInferenceTransport`, `PiAiInferenceTransport`, `RakazoFreePolicyEngine`, `flight-recorder.ts` (10-probe active diagnostics + 150-incident sanitized ring buffer + JSONL rotation + AI Forensic Markdown generator), `pi-runtime.ts` with TypeBox MCP complex schema normalization, PromptCompilerService, 2-Stage Skill Advisor, 4-block cache assembler, subagent inheritance, loop guards, secret sanitizer. |
 | `@rakazo/adapter-kit` | TypeScript 5.8 | Standardized tool interfaces, connector registry, background job definitions. |
 | `@rakazo/db` | Prisma 7, PostgreSQL 16 | PostgreSQL schema, Repositories (`repos.ts`: `mapBot`, `createBot`, `updateBot`), async SQL telemetry (`PromptExecutionLog`), cascade relations (`onDelete: Cascade`). |
 | `@rakazo/core` | TypeScript 5.8 | Domain business logic, authentication handlers, cron execution, event bus, attachment management, runtime secret guards, `events.ts` with SSE UTF-16 surrogate sanitization (`isHighSurrogate`, `isLowSurrogate`, streaming redactor multi-byte boundary defense). |
@@ -89,7 +89,7 @@ Rakazo decouples model inference transport from agent orchestration through a **
                        └──────────────────────────┬──────────────────────────┘
                                                   ▼
                               [ Shared CanonicalAgentRuntime MCP Loop ]
-                              • Full MCP Tool Calling (18 connectors · 87 tools)
+                              • Full MCP Tool Calling (19 connectors · 96 tools)
                               • Robust TypeBox & Draft 2020-12 Schema Compilation
                               • SSE UTF-16 Surrogate Sanitization (PR #424)
                               • Untrusted Envelopes & 5-Min Cold-Cache Pruning
@@ -264,6 +264,20 @@ Multi-tag resolution selects the tag with the highest weight (`resolveDeterminis
    - **Stage 1**: Bilingual FR↔EN concept expansion + Okapi BM25 scoring across all 3,538 skills (`< 15 ms`), producing a category-diversified Top-90 candidate pool while excluding offensive pentest skills unless explicitly requested.
    - **Stage 2**: **OmniRoute (`$0.00` primary, 99% usage)** curates `<= 20` non-redundant skills via `combo/rakazo-reasoning` / `combo/rakazo-fast` (with optional OpenRouter and deterministic BM25 fallbacks), validating every returned slug against the real catalog (zero hallucinated slugs) and grouping results into clear French poles (`groupFr` + `reasonFr`).
    - Accessible across **all 3 agent lifecycles** on mobile & desktop: **Agent Creation**, **Agent Settings Modification**, and **1-Tap Live Chat Header (`Skills IA`)** on any active agent.
+
+### 10-Probe Self-Diagnostic & Forensic Flight Recorder System
+1. **Active Zero-LLM Subsystem Probes (`packages/adapters/src/flight-recorder.ts`)**:
+   - Executes 10 deterministic probes (`$0.00` token cost): PostgreSQL/Prisma connectivity & latency, Stuck/Failed Worker Runs, OmniRoute `$0` Gateway (`5/5` combos), Unified 3,538-Skill `.json.gz` Shards, Windmill AutoLite RGPD (`/api/users/whoami`), Windmill Proxy RGPD (`/api/users/whoami`), MCP HDS & Stripe Security Veto, Node.js V8 Heap & Event-Loop Lag, `/data` Persistent Storage writability, and Client Browser Crash Telemetry.
+2. **Automatic Incident Capture & Sanitized Flight Recorder**:
+   - Hooks into Hono `app.onError` / 5xx responses, `executor.ts` failed worker runs & MCP tool errors, and global browser `window.error` / `unhandledrejection` traps (`apps/web/src/lib/client-diagnostics.ts`).
+   - Scrubs all API keys, Bearer tokens, DB URLs, and Windmill `wmill_*` tokens before storing into a 150-incident deduplicated memory ring buffer and rotating `/data/diagnostics/incidents.jsonl` (`<= 1.5 MB`), extracting exact monorepo `suspectedFile` (`file:line`) stack frames.
+3. **1-Click WebUI & 1-Command Server CLI**:
+   - **WebUI (`SovereignCockpitOverlay.tsx`)**: *Auto-Diagnostic IA & Boîte Noire* section with `Lancer les 10 sondes` and `Copier le Dossier Forensique IA` (structured Markdown report ready for Antigravity or lightweight Flash models).
+   - **Server CLI (`pnpm doctor`)**: Standalone `scripts/rakazo-doctor.ts` supporting `--json` and `--offline` modes.
+
+### Container & Runtime Resource Sobriety
+1. **Direct Process Execution (`docker-compose.yaml`)**: Launches `tsx` and `vite` directly via `exec` in `api`, `worker`, and `web`, eliminating 3 idle `pnpm --filter` parent Node.js wrapper processes (~110–150 MiB live RAM saved).
+2. **Docker Image Store Pruning (`Dockerfile`)**: Runs `pnpm store prune` and purges `/root/.local/share/pnpm` & `/root/.cache` in the same layer after `pnpm install`.
 
 ---
 

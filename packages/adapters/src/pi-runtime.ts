@@ -1150,29 +1150,18 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
           params: raw.params,
         };
       }
-      // n8n
-      if (tool.name === "n8n_trigger_webhook") {
+      // Windmill RGPD (AutoLite & Proxy)
+      if (/^windmill_(?:autolite|proxy)_(?:run_script|run_flow)$/.test(tool.name)) {
         return {
-          webhookPath: raw.webhookPath
-            ? String(raw.webhookPath)
-            : raw.webhook_path
-              ? String(raw.webhook_path)
-              : undefined,
-          url: raw.url ? String(raw.url) : undefined,
-          data: raw.data,
-          method: raw.method ? String(raw.method) : undefined,
+          path: String(raw.path ?? ""),
+          args: raw.args && typeof raw.args === "object" ? raw.args : undefined,
+          wait: raw.wait !== undefined ? Boolean(raw.wait) : true,
         };
       }
-      if (tool.name === "n8n_list_workflows") {
+      if (/^windmill_(?:autolite|proxy)_get_job$/.test(tool.name)) {
         return {
-          active: raw.active !== undefined ? Boolean(raw.active) : undefined,
-          limit: raw.limit !== undefined ? Number(raw.limit) : undefined,
-        };
-      }
-      if (tool.name === "n8n_get_execution") {
-        return {
-          executionId: String(raw.executionId ?? raw.execution_id ?? ""),
-          includeData: raw.includeData !== undefined ? Boolean(raw.includeData) : undefined,
+          job_id: String(raw.job_id ?? raw.id ?? ""),
+          include_logs: raw.include_logs !== undefined ? Boolean(raw.include_logs) : true,
         };
       }
       // Cloudflare
@@ -1832,25 +1821,32 @@ function parametersFor(tool: ConnectorTool) {
       params: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
     });
   }
-  // n8n
-  if (tool.name === "n8n_trigger_webhook") {
+  // Windmill RGPD (AutoLite & Proxy)
+  if (/^windmill_(?:autolite|proxy)_whoami$/.test(tool.name)) {
+    return Type.Object({});
+  }
+  if (/^windmill_(?:autolite|proxy)_list_scripts$/.test(tool.name)) {
     return Type.Object({
-      webhookPath: Type.Optional(Type.String()),
-      url: Type.Optional(Type.String()),
-      data: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
-      method: Type.Optional(Type.String()),
+      path_start: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
     });
   }
-  if (tool.name === "n8n_list_workflows") {
+  if (/^windmill_(?:autolite|proxy)_list_flows$/.test(tool.name)) {
     return Type.Object({
-      active: Type.Optional(Type.Boolean()),
-      limit: Type.Optional(Type.Number()),
+      per_page: Type.Optional(Type.Number()),
     });
   }
-  if (tool.name === "n8n_get_execution") {
+  if (/^windmill_(?:autolite|proxy)_(?:run_script|run_flow)$/.test(tool.name)) {
     return Type.Object({
-      executionId: Type.String(),
-      includeData: Type.Optional(Type.Boolean()),
+      path: Type.String(),
+      args: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      wait: Type.Optional(Type.Boolean()),
+    });
+  }
+  if (/^windmill_(?:autolite|proxy)_get_job$/.test(tool.name)) {
+    return Type.Object({
+      job_id: Type.String(),
+      include_logs: Type.Optional(Type.Boolean()),
     });
   }
   // Cloudflare

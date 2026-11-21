@@ -457,7 +457,7 @@ describe("Full-Stack Cross-Wave Integration Certification (OpenMausBot + OpenBot
       expect(map.twenty_crm).toBe(false);
       expect(map.system_platform).toBe(true);
       expect(map.image_optimizer).toBe(true);
-      expect(Object.keys(map)).toHaveLength(18);
+      expect(Object.keys(map)).toHaveLength(19);
     } finally {
       fetchSpy.mockRestore();
     }

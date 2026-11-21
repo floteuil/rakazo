@@ -39,8 +39,12 @@ export interface AppEnv {
   wordpressUsername: string | undefined;
   wordpressAppPassword: string | undefined;
   novamiraApiKey: string | undefined;
-  n8nApiKey: string | undefined;
-  n8nApiUrl: string | undefined;
+  windmillAutoliteUrl?: string;
+  windmillAutoliteToken?: string;
+  windmillAutoliteWorkspace?: string;
+  windmillProxyUrl?: string;
+  windmillProxyToken?: string;
+  windmillProxyWorkspace?: string;
   cloudflareApiToken: string | undefined;
   cloudflareAccountId: string | undefined;
   omnirouteBaseUrl: string;
@@ -105,8 +109,12 @@ export function loadEnv(source: NodeJS.ProcessEnv = process.env): AppEnv {
     wordpressUsername: optional(source.WORDPRESS_USERNAME),
     wordpressAppPassword: optional(source.WORDPRESS_APP_PASSWORD),
     novamiraApiKey: optional(source.NOVAMIRA_API_KEY),
-    n8nApiKey: optional(source.N8N_API_KEY),
-    n8nApiUrl: optional(source.N8N_API_URL),
+    windmillAutoliteUrl: optional(source.WINDMILL_AUTOLITE_URL),
+    windmillAutoliteToken: optional(source.WINDMILL_AUTOLITE_TOKEN),
+    windmillAutoliteWorkspace: optional(source.WINDMILL_AUTOLITE_WORKSPACE),
+    windmillProxyUrl: optional(source.WINDMILL_PROXY_URL),
+    windmillProxyToken: optional(source.WINDMILL_PROXY_TOKEN),
+    windmillProxyWorkspace: optional(source.WINDMILL_PROXY_WORKSPACE),
     cloudflareApiToken: optional(source.CLOUDFLARE_API_TOKEN),
     cloudflareAccountId: optional(source.CLOUDFLARE_ACCOUNT_ID),
     omnirouteBaseUrl:

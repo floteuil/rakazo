@@ -292,7 +292,7 @@ export interface LazyToolSearchResponse {
 
 /**
  * Recherche intelligente d'outils MCP à la façon de `nod_tool_search` :
- * - Supporte la recherche exacte séparée par virgules (`"n8n_list_workflows, odoo_get_invoices"`)
+ * - Supporte la recherche exacte séparée par virgules (`"windmill_autolite_list_scripts, odoo_get_invoices"`)
  *   ou la recherche par mots-clés pondérée.
  * - Retourne les 3 premiers schémas complets et les suivants sous forme d'index ultra-compact
  *   pour économiser des milliers de tokens de déclaration.

@@ -411,7 +411,8 @@ export function getConnectorReadinessMap(
     postiz: has("POSTIZ_API_KEY"),
     wordpress_novamira:
       (has("WORDPRESS_URL") && has("WORDPRESS_APP_PASSWORD")) || has("NOVAMIRA_API_KEY"),
-    n8n: has("N8N_API_KEY"),
+    windmill_autolite: has("WINDMILL_AUTOLITE_URL") && has("WINDMILL_AUTOLITE_TOKEN"),
+    windmill_proxy: has("WINDMILL_PROXY_URL") && has("WINDMILL_PROXY_TOKEN"),
     cloudflare: has("CLOUDFLARE_API_TOKEN"),
     twenty_crm: has("TWENTY_API_URL") && has("TWENTY_API_KEY"),
     affine: has("AFFINE_BASE_URL"),

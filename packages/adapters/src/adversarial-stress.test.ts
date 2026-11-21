@@ -13,9 +13,7 @@ import {
   executeGithubGetPullRequest,
   executeGithubListIssues,
   executeGithubSearchRepos,
-  executeN8nGetExecution,
-  executeN8nListWorkflows,
-  executeN8nTriggerWebhook,
+  executeWindmillRgpdTool,
   executeNotionCreatePage,
   executeNotionGetPage,
   executeNotionQueryDatabase,
@@ -405,8 +403,8 @@ describe("ADVERSARIAL STRESS TEST SUITE (Challenger 1)", () => {
       const wpRes = await executeWordpressCreatePost({ title: "t", content: "c" });
       expect(wpRes).toEqual({ error: expect.stringMatching(/WORDPRESS_USERNAME/i) });
 
-      const n8nRes = await executeN8nListWorkflows({});
-      expect(n8nRes).toEqual({ error: expect.stringMatching(/N8N_API_KEY/i) });
+      const wmRes = await executeWindmillRgpdTool("autolite", "list_scripts", {});
+      expect(wmRes).toEqual({ error: expect.stringMatching(/WINDMILL_AUTOLITE/i) });
 
       const cfRes = await executeCloudflareListZones({});
       expect(cfRes).toEqual({ error: expect.stringMatching(/CLOUDFLARE_API_TOKEN/i) });
@@ -418,7 +416,8 @@ describe("ADVERSARIAL STRESS TEST SUITE (Challenger 1)", () => {
       process.env.POSTIZ_API_KEY = "pk_valid_key";
       process.env.WORDPRESS_USERNAME = "user";
       process.env.WORDPRESS_APP_PASSWORD = "pass";
-      process.env.N8N_API_KEY = "n8n_valid_key";
+      process.env.WINDMILL_AUTOLITE_URL = "https://autolite.windmill.internal";
+      process.env.WINDMILL_AUTOLITE_TOKEN = "wmill_valid_token";
       process.env.CLOUDFLARE_API_TOKEN = "cf_valid_token";
 
       const rateLimitResponse = {

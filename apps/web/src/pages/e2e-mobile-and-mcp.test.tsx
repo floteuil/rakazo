@@ -1014,27 +1014,28 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
 
     // Feature 8: Sovereign MCP Catalog Matrix
     describe("F8: Sovereign MCP Catalog Matrix", () => {
-      it("8.1 defines exactly 18 sovereign enterprise connectors", () => {
-        expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(18);
+      it("8.1 defines exactly 19 sovereign enterprise connectors", () => {
+        expect(SOVEREIGN_MCP_CONNECTORS).toHaveLength(19);
       });
 
-      it("8.2 defines exactly 87 sovereign enterprise tools across the catalog", () => {
+      it("8.2 defines exactly 96 sovereign enterprise tools across the catalog", () => {
         const totalTools = SOVEREIGN_MCP_CONNECTORS.reduce(
           (sum, connector) => sum + connector.tools.length,
           0,
         );
-        expect(totalTools).toBe(87);
-        expect(ALL_SOVEREIGN_TOOL_NAMES).toHaveLength(87);
+        expect(totalTools).toBe(96);
+        expect(ALL_SOVEREIGN_TOOL_NAMES).toHaveLength(96);
       });
 
-      it("8.3 includes all required enterprise connectors (SearXNG, GitHub, Notion, Postiz, WordPress, n8n, Cloudflare, Système)", () => {
+      it("8.3 includes all required enterprise connectors (SearXNG, GitHub, Notion, Postiz, WordPress, Windmill RGPD AutoLite & Proxy, Cloudflare, Système)", () => {
         const expectedSlugs = [
           "searxng_scraperr",
           "github",
           "notion",
           "postiz",
           "wordpress_novamira",
-          "n8n",
+          "windmill-autolite",
+          "windmill-proxy",
           "cloudflare",
           "system_platform",
         ];
@@ -1077,7 +1078,8 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
         expect(html).toContain("connector-card-notion");
         expect(html).toContain("connector-card-postiz");
         expect(html).toContain("connector-card-wordpress_novamira");
-        expect(html).toContain("connector-card-n8n");
+        expect(html).toContain("connector-card-windmill_autolite");
+        expect(html).toContain("connector-card-windmill_proxy");
         expect(html).toContain("connector-card-cloudflare");
         expect(html).toContain("connector-card-system_platform");
       });
@@ -1445,16 +1447,16 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
         }
       });
 
-      it("16.3 confirms all 18 sovereign connectors have unique identifiers and slugs", () => {
+      it("16.3 confirms all 19 sovereign connectors have unique identifiers and slugs", () => {
         const ids = SOVEREIGN_MCP_CONNECTORS.map((c) => c.id);
         const slugs = SOVEREIGN_MCP_CONNECTORS.map((c) => c.slug);
-        expect(new Set(ids).size).toBe(18);
-        expect(new Set(slugs).size).toBe(18);
+        expect(new Set(ids).size).toBe(19);
+        expect(new Set(slugs).size).toBe(19);
       });
 
-      it("16.4 confirms all 87 sovereign tools have unique function names across the entire catalog", () => {
+      it("16.4 confirms all 96 sovereign tools have unique function names across the entire catalog", () => {
         const toolNames = ALL_SOVEREIGN_TOOL_NAMES;
-        expect(new Set(toolNames).size).toBe(87);
+        expect(new Set(toolNames).size).toBe(96);
       });
 
       it("16.5 confirms all required tool parameters exist in the parameters array", () => {
@@ -1625,7 +1627,7 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
         expect(allowed).toHaveLength(0);
       });
 
-      it("2.2.2 handles all 18 connectors explicitly enabled (all 87 tools permitted)", () => {
+      it("2.2.2 handles all 19 connectors explicitly enabled (all 96 tools permitted)", () => {
         const connectors: Record<string, boolean> = {};
         for (const conn of SOVEREIGN_MCP_CONNECTORS) {
           connectors[conn.id] = true;
@@ -1633,7 +1635,7 @@ describe("Rakazo WebUI Mobile-First & Sovereign MCP Connectors (Master 4-Tier E2
         const config: BotMcpConfig = { connectors };
         const allTools = getAllSovereignTools();
         const allowed = filterToolsForBot(allTools, config);
-        expect(allowed).toHaveLength(87);
+        expect(allowed).toHaveLength(96);
       });
 
       it("2.2.3 handles single tool enabled while parent connector is disabled", () => {

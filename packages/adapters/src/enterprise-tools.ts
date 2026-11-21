@@ -28,6 +28,7 @@ export function sanitizeToolError(message: string): string {
     .replace(/pk_[a-zA-Z0-9_]+/g, "pk_[redacted]")
     .replace(/nova_[a-zA-Z0-9_]+/g, "nova_[redacted]")
     .replace(/n8n_api_[a-zA-Z0-9_]+/g, "n8n_api_[redacted]")
+    .replace(/wmill_[a-zA-Z0-9_-]+/g, "wmill_[redacted]")
     .replace(/cf_token_[a-zA-Z0-9_-]+/g, "cf_token_[redacted]")
     .replace(/cfat_[a-zA-Z0-9_-]+/g, "cfat_[redacted]")
     .replace(/ctx7sk-[a-zA-Z0-9_-]+/g, "ctx7sk_[redacted]")
@@ -49,7 +50,8 @@ const DEPLOYMENT_SECRET_ENV_KEYS = [
   "POSTIZ_API_KEY",
   "WORDPRESS_APP_PASSWORD",
   "NOVAMIRA_API_KEY",
-  "N8N_API_KEY",
+  "WINDMILL_AUTOLITE_TOKEN",
+  "WINDMILL_PROXY_TOKEN",
   "CLOUDFLARE_API_TOKEN",
   "TWENTY_API_KEY",
   "CONTEXT7_API_KEY",
@@ -1651,145 +1653,175 @@ export async function executeNovamiraExecuteAbility(
 }
 
 /* ========================================================================== */
-/* 5. n8n Integration                                                         */
+/* 5. Windmill RGPD Integration (AutoLite & Proxy ONLY — Strict Zero-HDS)     */
 /* ========================================================================== */
 
-function getN8nConfig() {
-  const apiKey = process.env.N8N_API_KEY?.trim();
-  const apiUrl = (process.env.N8N_API_URL?.trim() || "http://n8n:5678").replace(/\/+$/, "");
-  return { apiKey, apiUrl };
+export type WindmillRgpdInstance = "autolite" | "proxy";
+
+export function assertNonHdsWindmillEndpoint(baseUrl: string): void {
+  const normalized = baseUrl.toLowerCase().trim();
+  if (
+    /(?:^|\/\/)10\.\d{1,3}\.\d{1,3}\.\d{1,3}(?::|\/|$)/.test(normalized) ||
+    /(?:^|[-_.])hds(?:[-_.:/]|$)/.test(normalized)
+  ) {
+    throw new Error(
+      "SECURITY_VETO: HDS Windmill endpoints are strictly forbidden in Rakazo. Only RGPD Coolify instances (AutoLite / Proxy) are permitted.",
+    );
+  }
 }
 
-function getN8nHeaders(apiKey?: string): Record<string, string> {
+export function getWindmillRgpdConfig(instance: WindmillRgpdInstance) {
+  if (instance === "autolite") {
+    const baseUrl = (process.env.WINDMILL_AUTOLITE_URL?.trim() || "").replace(/\/+$/, "");
+    const token = process.env.WINDMILL_AUTOLITE_TOKEN?.trim() || "";
+    const workspace = process.env.WINDMILL_AUTOLITE_WORKSPACE?.trim() || "main";
+    if (baseUrl) assertNonHdsWindmillEndpoint(baseUrl);
+    return { baseUrl, token, workspace, label: "Windmill AutoLite RGPD" };
+  }
+  const baseUrl = (process.env.WINDMILL_PROXY_URL?.trim() || "").replace(/\/+$/, "");
+  const token = process.env.WINDMILL_PROXY_TOKEN?.trim() || "";
+  const workspace = process.env.WINDMILL_PROXY_WORKSPACE?.trim() || "main";
+  if (baseUrl) assertNonHdsWindmillEndpoint(baseUrl);
+  return { baseUrl, token, workspace, label: "Windmill Proxy RGPD" };
+}
+
+export async function executeWindmillRgpdTool(
+  instance: WindmillRgpdInstance,
+  action: "whoami" | "list_scripts" | "run_script" | "list_flows" | "run_flow" | "get_job",
+  args: Record<string, unknown>,
+  context?: { signal?: AbortSignal },
+) {
+  let cfg: ReturnType<typeof getWindmillRgpdConfig>;
+  try {
+    cfg = getWindmillRgpdConfig(instance);
+  } catch (err) {
+    return { error: err instanceof Error ? err.message : String(err) };
+  }
+
+  const envPrefix = instance === "autolite" ? "WINDMILL_AUTOLITE" : "WINDMILL_PROXY";
+  if (!cfg.baseUrl || !cfg.token) {
+    return {
+      error: `${cfg.label} is not configured. Please set ${envPrefix}_URL and ${envPrefix}_TOKEN.`,
+    };
+  }
+
   const headers: Record<string, string> = {
+    Authorization: `Bearer ${cfg.token}`,
     "Content-Type": "application/json",
     Accept: "application/json",
   };
-  if (apiKey) {
-    headers["X-N8N-API-KEY"] = apiKey;
-    headers.Authorization = `Bearer ${apiKey}`;
-  }
-  return headers;
-}
+  const ws = encodeURIComponent(
+    typeof args.workspace === "string" && args.workspace.trim()
+      ? args.workspace.trim()
+      : cfg.workspace,
+  );
 
-export interface N8nTriggerWebhookArgs {
-  webhookPath?: string;
-  url?: string;
-  data?: Record<string, unknown>;
-  method?: "POST" | "GET";
-}
-
-export async function executeN8nTriggerWebhook(
-  args: N8nTriggerWebhookArgs,
-  context?: { signal?: AbortSignal },
-) {
-  const { apiKey, apiUrl } = getN8nConfig();
-  const rawPath = (args.webhookPath || "").replace(/^\/+/, "");
-  const targetUrl = args.url ? args.url : `${apiUrl}/webhook/${rawPath}`;
-  if (!args.url && !rawPath) {
-    return { error: "Either 'webhookPath' or 'url' must be provided." };
+  if (action === "whoami") {
+    const res = await safeFetchJson<Record<string, unknown>>(
+      `${cfg.baseUrl}/api/users/whoami`,
+      { method: "GET", headers },
+      cfg.label,
+      context,
+    );
+    if (!res.ok) return { error: res.error, status: res.status };
+    return { ok: true, instance, workspace: cfg.workspace, user: res.data };
   }
 
-  const method = args.method || "POST";
-  const options: RequestInit = {
-    method,
-    headers: getN8nHeaders(apiKey),
-  };
-  if (method === "POST" && args.data) {
-    options.body = JSON.stringify(args.data);
+  if (action === "list_scripts") {
+    const q = new URLSearchParams();
+    if (args.per_page !== undefined) q.set("per_page", String(Math.min(Number(args.per_page) || 30, 100)));
+    if (typeof args.path_start === "string" && args.path_start.trim()) {
+      q.set("path_start", args.path_start.trim());
+    }
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    const res = await safeFetchJson<Array<Record<string, unknown>>>(
+      `${cfg.baseUrl}/api/w/${ws}/scripts/list${qs}`,
+      { method: "GET", headers },
+      cfg.label,
+      context,
+    );
+    if (!res.ok) return { error: res.error, status: res.status };
+    return { ok: true, instance, scripts: Array.isArray(res.data) ? res.data : [] };
   }
 
-  const res = await safeFetchJson<unknown>(targetUrl, options, "n8n Webhook", context);
-  if (!res.ok) return { error: res.error, status: res.status };
+  if (action === "run_script") {
+    const scriptPath = String(args.path ?? "").trim().replace(/^\/+/, "");
+    if (!scriptPath) return { error: "'path' is required to run a Windmill script." };
+    const wait = args.wait !== false;
+    const route = wait ? "run_wait_result" : "run";
+    const res = await safeFetchJson<unknown>(
+      `${cfg.baseUrl}/api/w/${ws}/jobs/${route}/p/${scriptPath}`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(
+          args.args && typeof args.args === "object" ? args.args : {},
+        ),
+      },
+      cfg.label,
+      context,
+    );
+    if (!res.ok) return { error: res.error, status: res.status };
+    return { ok: true, instance, path: scriptPath, waited: wait, result: res.data };
+  }
 
-  return {
-    ok: true,
-    result: res.data,
-  };
-}
+  if (action === "list_flows") {
+    const q = new URLSearchParams();
+    if (args.per_page !== undefined) q.set("per_page", String(Math.min(Number(args.per_page) || 30, 100)));
+    const qs = q.toString() ? `?${q.toString()}` : "";
+    const res = await safeFetchJson<Array<Record<string, unknown>>>(
+      `${cfg.baseUrl}/api/w/${ws}/flows/list${qs}`,
+      { method: "GET", headers },
+      cfg.label,
+      context,
+    );
+    if (!res.ok) return { error: res.error, status: res.status };
+    return { ok: true, instance, flows: Array.isArray(res.data) ? res.data : [] };
+  }
 
-export interface N8nListWorkflowsArgs {
-  active?: boolean;
-  tags?: string[];
-  limit?: number;
-}
+  if (action === "run_flow") {
+    const flowPath = String(args.path ?? "").trim().replace(/^\/+/, "");
+    if (!flowPath) return { error: "'path' is required to run a Windmill flow." };
+    const wait = args.wait !== false;
+    const route = wait ? "run_wait_result" : "run";
+    const res = await safeFetchJson<unknown>(
+      `${cfg.baseUrl}/api/w/${ws}/jobs/${route}/f/${flowPath}`,
+      {
+        method: "POST",
+        headers,
+        body: JSON.stringify(
+          args.args && typeof args.args === "object" ? args.args : {},
+        ),
+      },
+      cfg.label,
+      context,
+    );
+    if (!res.ok) return { error: res.error, status: res.status };
+    return { ok: true, instance, path: flowPath, waited: wait, result: res.data };
+  }
 
-export async function executeN8nListWorkflows(
-  args: N8nListWorkflowsArgs,
-  context?: { signal?: AbortSignal },
-) {
-  const { apiKey, apiUrl } = getN8nConfig();
-  if (!apiKey) return { error: "n8n API is not configured. Please set N8N_API_KEY." };
+  // get_job
+  const jobId = String(args.job_id ?? args.id ?? "").trim();
+  if (!jobId) return { error: "'job_id' is required." };
+  const jobRes = await safeFetchJson<Record<string, unknown>>(
+    `${cfg.baseUrl}/api/w/${ws}/jobs_u/get/${encodeURIComponent(jobId)}`,
+    { method: "GET", headers },
+    cfg.label,
+    context,
+  );
+  if (!jobRes.ok) return { error: jobRes.error, status: jobRes.status };
 
-  const params = new URLSearchParams();
-  if (args.active !== undefined) params.set("active", String(args.active));
-  if (args.limit) params.set("limit", String(Math.min(args.limit, 100)));
-
-  const url = `${apiUrl}/api/v1/workflows?${params.toString()}`;
-  const res = await safeFetchJson<{
-    data: Array<{
-      id: string;
-      name: string;
-      active: boolean;
-      createdAt: string;
-      updatedAt: string;
-      tags?: Array<{ id: string; name: string }>;
-    }>;
-  }>(url, { method: "GET", headers: getN8nHeaders(apiKey) }, "n8n", context);
-
-  if (!res.ok) return { error: res.error, status: res.status };
-
-  return {
-    workflows: (res.data.data || []).map((wf) => ({
-      id: wf.id,
-      name: wf.name,
-      active: wf.active,
-      createdAt: wf.createdAt,
-      updatedAt: wf.updatedAt,
-      tags: (wf.tags || []).map((t) => t.name),
-    })),
-  };
-}
-
-export interface N8nGetExecutionArgs {
-  executionId: string;
-  includeData?: boolean;
-}
-
-export async function executeN8nGetExecution(
-  args: N8nGetExecutionArgs,
-  context?: { signal?: AbortSignal },
-) {
-  const { apiKey, apiUrl } = getN8nConfig();
-  if (!apiKey) return { error: "n8n API is not configured. Please set N8N_API_KEY." };
-
-  const execId = String(args.executionId || "").trim();
-  if (!execId) return { error: "'executionId' is required." };
-
-  const url = `${apiUrl}/api/v1/executions/${encodeURIComponent(execId)}?includeData=${Boolean(args.includeData)}`;
-  const res = await safeFetchJson<{
-    id: string;
-    finished: boolean;
-    mode: string;
-    status: string;
-    startedAt: string;
-    stoppedAt: string;
-    workflowId: string;
-    data?: unknown;
-  }>(url, { method: "GET", headers: getN8nHeaders(apiKey) }, "n8n", context);
-
-  if (!res.ok) return { error: res.error, status: res.status };
-
-  return {
-    id: res.data.id,
-    finished: res.data.finished,
-    status: res.data.status,
-    mode: res.data.mode,
-    startedAt: res.data.startedAt,
-    stoppedAt: res.data.stoppedAt,
-    workflowId: res.data.workflowId,
-    resultSummary: res.data.data ? "data included" : "no data",
-  };
+  let logs: unknown;
+  if (args.include_logs !== false) {
+    const logsRes = await safeFetchJson<unknown>(
+      `${cfg.baseUrl}/api/w/${ws}/jobs_u/get_logs/${encodeURIComponent(jobId)}`,
+      { method: "GET", headers },
+      cfg.label,
+      context,
+    );
+    if (logsRes.ok) logs = logsRes.data;
+  }
+  return { ok: true, instance, job: jobRes.data, ...(logs !== undefined ? { logs } : {}) };
 }
 
 /* ========================================================================== */
@@ -2358,46 +2390,73 @@ const baseEnterpriseAgentTools: ConnectorTool[] = [
     },
   },
 
-  // n8n
-  {
-    name: "n8n_trigger_webhook",
-    description: "Trigger an n8n workflow webhook endpoint with a custom JSON payload.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        webhookPath: {
-          type: "string",
-          description: "Webhook path identifier (e.g. 'my-webhook-path').",
+  // Windmill RGPD (AutoLite & Proxy ONLY — Zero HDS)
+  ...(["autolite", "proxy"] as const).flatMap((inst) => [
+    {
+      name: `windmill_${inst}_whoami`,
+      description: `Verify connectivity and authenticated user on the Windmill ${inst === "autolite" ? "AutoLite" : "Proxy"} RGPD instance.`,
+      inputSchema: { type: "object" as const, properties: {} },
+    },
+    {
+      name: `windmill_${inst}_list_scripts`,
+      description: `List deployed scripts in Windmill ${inst === "autolite" ? "AutoLite" : "Proxy"} RGPD.`,
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          path_start: { type: "string", description: "Optional folder prefix (e.g. 'f/' or 'u/')." },
+          per_page: { type: "number", description: "Max scripts to return (default 30)." },
         },
-        url: { type: "string", description: "Optional full webhook URL." },
-        data: { type: "object", description: "JSON payload to send." },
-        method: { type: "string", enum: ["POST", "GET"] },
       },
     },
-  },
-  {
-    name: "n8n_list_workflows",
-    description: "List automated workflows in n8n and inspect their active statuses.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        active: { type: "boolean", description: "Filter by active status." },
-        limit: { type: "number", description: "Maximum workflows to return." },
+    {
+      name: `windmill_${inst}_run_script`,
+      description: `Execute a script by path on Windmill ${inst === "autolite" ? "AutoLite" : "Proxy"} RGPD.`,
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          path: { type: "string", description: "Full script path (e.g. 'f/integrations/sync')." },
+          args: { type: "object", description: "JSON key-value input arguments." },
+          wait: { type: "boolean", description: "Wait synchronously for result (default true)." },
+        },
+        required: ["path"],
       },
     },
-  },
-  {
-    name: "n8n_get_execution",
-    description: "Inspect the status, execution logs, and data of an n8n workflow run.",
-    inputSchema: {
-      type: "object",
-      properties: {
-        executionId: { type: "string", description: "n8n Execution ID." },
-        includeData: { type: "boolean", description: "Include detailed execution step data." },
+    {
+      name: `windmill_${inst}_list_flows`,
+      description: `List visual automation flows in Windmill ${inst === "autolite" ? "AutoLite" : "Proxy"} RGPD.`,
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          per_page: { type: "number", description: "Max flows to return." },
+        },
       },
-      required: ["executionId"],
     },
-  },
+    {
+      name: `windmill_${inst}_run_flow`,
+      description: `Trigger a visual flow by path on Windmill ${inst === "autolite" ? "AutoLite" : "Proxy"} RGPD.`,
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          path: { type: "string", description: "Flow path (e.g. 'f/workflows/main_flow')." },
+          args: { type: "object", description: "JSON input arguments for the flow." },
+          wait: { type: "boolean", description: "Wait synchronously for completion (default true)." },
+        },
+        required: ["path"],
+      },
+    },
+    {
+      name: `windmill_${inst}_get_job`,
+      description: `Inspect job execution status, result, and logs on Windmill ${inst === "autolite" ? "AutoLite" : "Proxy"} RGPD.`,
+      inputSchema: {
+        type: "object" as const,
+        properties: {
+          job_id: { type: "string", description: "Windmill job UUID." },
+          include_logs: { type: "boolean", description: "Include execution logs (default true)." },
+        },
+        required: ["job_id"],
+      },
+    },
+  ]),
 
   // Cloudflare
   {
@@ -2758,38 +2817,31 @@ export async function executeEnterpriseTool(
         context,
       );
 
-    // n8n
-    case "n8n_trigger_webhook":
-      return executeN8nTriggerWebhook(
-        {
-          webhookPath: args.webhookPath
-            ? String(args.webhookPath)
-            : args.webhook_path
-              ? String(args.webhook_path)
-              : undefined,
-          url: args.url ? String(args.url) : undefined,
-          data: args.data as Record<string, unknown> | undefined,
-          method: args.method as N8nTriggerWebhookArgs["method"],
-        },
-        context,
-      );
-    case "n8n_list_workflows":
-      return executeN8nListWorkflows(
-        {
-          active: args.active !== undefined ? Boolean(args.active) : undefined,
-          tags: Array.isArray(args.tags) ? args.tags.map(String) : undefined,
-          limit: args.limit !== undefined ? Number(args.limit) : undefined,
-        },
-        context,
-      );
-    case "n8n_get_execution":
-      return executeN8nGetExecution(
-        {
-          executionId: String(args.executionId ?? args.execution_id ?? ""),
-          includeData: args.includeData !== undefined ? Boolean(args.includeData) : undefined,
-        },
-        context,
-      );
+    // Windmill RGPD (AutoLite & Proxy)
+    case "windmill_autolite_whoami":
+      return executeWindmillRgpdTool("autolite", "whoami", args, context);
+    case "windmill_autolite_list_scripts":
+      return executeWindmillRgpdTool("autolite", "list_scripts", args, context);
+    case "windmill_autolite_run_script":
+      return executeWindmillRgpdTool("autolite", "run_script", args, context);
+    case "windmill_autolite_list_flows":
+      return executeWindmillRgpdTool("autolite", "list_flows", args, context);
+    case "windmill_autolite_run_flow":
+      return executeWindmillRgpdTool("autolite", "run_flow", args, context);
+    case "windmill_autolite_get_job":
+      return executeWindmillRgpdTool("autolite", "get_job", args, context);
+    case "windmill_proxy_whoami":
+      return executeWindmillRgpdTool("proxy", "whoami", args, context);
+    case "windmill_proxy_list_scripts":
+      return executeWindmillRgpdTool("proxy", "list_scripts", args, context);
+    case "windmill_proxy_run_script":
+      return executeWindmillRgpdTool("proxy", "run_script", args, context);
+    case "windmill_proxy_list_flows":
+      return executeWindmillRgpdTool("proxy", "list_flows", args, context);
+    case "windmill_proxy_run_flow":
+      return executeWindmillRgpdTool("proxy", "run_flow", args, context);
+    case "windmill_proxy_get_job":
+      return executeWindmillRgpdTool("proxy", "get_job", args, context);
 
     // Cloudflare
     case "cloudflare_list_zones":

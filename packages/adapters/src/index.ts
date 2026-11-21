@@ -28,6 +28,7 @@ export * from "./enterprise-tools.js";
 export * from "./executor.js";
 export * from "./expo-push.js";
 export * from "./fake-sandbox.js";
+export * from "./flight-recorder.js";
 export * from "./free-policy-engine.js";
 export * from "./home.js";
 export * from "./host-aware-sandbox.js";

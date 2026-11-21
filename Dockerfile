@@ -3,7 +3,7 @@ RUN corepack enable
 WORKDIR /app
 COPY . .
 ENV NODE_ENV=development
-RUN pnpm install --frozen-lockfile=false
+RUN pnpm install --frozen-lockfile=false && pnpm store prune && rm -rf /root/.local/share/pnpm /root/.cache /tmp/*
 RUN pnpm --filter @rakazo/db generate
 RUN RAKAZO_ALLOW_DEV_SECRETS=1 pnpm --filter @rakazo/web build
 RUN install -d -m 750 -o node -g node /data /app/apps/web/node_modules/.vite-temp
