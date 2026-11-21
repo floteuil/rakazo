@@ -35,10 +35,10 @@ services:
     cap_drop:
       - ALL
     pids_limit: 256
-    mem_limit: 384m
+    mem_limit: 640m
     environment:
       NODE_ENV: production
-      NODE_OPTIONS: "--max-old-space-size=256"
+      NODE_OPTIONS: "--max-old-space-size=512"
       DATABASE_URL: ${DATABASE_URL}
       DATA_DIR: /data
       SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-desktop}
@@ -94,6 +94,12 @@ services:
       POCKETBASE_URL: ${POCKETBASE_URL:-}
       POCKETBASE_ADMIN_TOKEN: ${POCKETBASE_ADMIN_TOKEN:-}
       UBERSUGGEST_API_KEY: ${UBERSUGGEST_API_KEY:-}
+      NOVAMIRA_URL: ${NOVAMIRA_URL:-}
+      NOTION_API_URL: ${NOTION_API_URL:-}
+      CLOUDFLARE_API_URL: ${CLOUDFLARE_API_URL:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      SUPERMEMORY_API_KEY: ${SUPERMEMORY_API_KEY:-}
+      SUPERMEMORY_API_URL: ${SUPERMEMORY_API_URL:-}
     expose:
       - "3100"
     volumes:
@@ -123,10 +129,10 @@ services:
     cap_drop:
       - ALL
     pids_limit: 512
-    mem_limit: 384m
+    mem_limit: 640m
     environment:
       NODE_ENV: production
-      NODE_OPTIONS: "--max-old-space-size=256"
+      NODE_OPTIONS: "--max-old-space-size=512"
       DATABASE_URL: ${DATABASE_URL}
       DATA_DIR: /data
       SANDBOX_PROVIDER: ${SANDBOX_PROVIDER:-desktop}
@@ -178,6 +184,12 @@ services:
       POCKETBASE_URL: ${POCKETBASE_URL:-}
       POCKETBASE_ADMIN_TOKEN: ${POCKETBASE_ADMIN_TOKEN:-}
       UBERSUGGEST_API_KEY: ${UBERSUGGEST_API_KEY:-}
+      NOVAMIRA_URL: ${NOVAMIRA_URL:-}
+      NOTION_API_URL: ${NOTION_API_URL:-}
+      CLOUDFLARE_API_URL: ${CLOUDFLARE_API_URL:-}
+      OPENROUTER_MODEL: ${OPENROUTER_MODEL:-}
+      SUPERMEMORY_API_KEY: ${SUPERMEMORY_API_KEY:-}
+      SUPERMEMORY_API_URL: ${SUPERMEMORY_API_URL:-}
     volumes:
       - appdata:/data
     depends_on:

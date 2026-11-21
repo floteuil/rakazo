@@ -136,34 +136,20 @@ export class PiAiInferenceTransport implements InferenceTransport {
           type: "text",
           text: event.delta,
         };
-      } else if (event.type === "toolcall_delta" || event.type === "toolcall_start") {
-        const tc = (event as any).toolCall ?? (event as any).toolcall ?? event;
-        if (tc?.name) {
-          yield {
-            type: "tool_call",
-            toolCall: {
-              id: tc.id,
-              index: tc.index,
-              name: tc.name,
-              arguments:
-                typeof tc.arguments === "string"
-                  ? tc.arguments
-                  : JSON.stringify(tc.arguments ?? {}),
-            },
-          };
-        }
       }
     }
 
     const finalMessage = await stream.result();
     if (finalMessage.role === "assistant") {
       if (finalMessage.content && Array.isArray(finalMessage.content)) {
+        let toolIndex = 0;
         for (const block of finalMessage.content) {
           if (block.type === "toolCall") {
             yield {
               type: "tool_call",
               toolCall: {
                 id: block.id,
+                index: toolIndex++,
                 name: block.name,
                 arguments:
                   typeof block.arguments === "string"

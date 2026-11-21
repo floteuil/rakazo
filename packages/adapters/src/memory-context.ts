@@ -1,12 +1,82 @@
 import type { AdapterContext, MemorySnapshot, MemoryStore } from "@rakazo/adapter-kit";
 import {
-  type MemoryBudgetProfile,
+  buildMemoryArchiveEntry,
   enforceMemoryBudget,
+  LEARNED_SKILLS_MEMORY_PATH,
+  type MemoryBudgetProfile,
   maskSensitiveData,
   resolveMemoryBudget,
 } from "@rakazo/contracts";
 
 const MAX_AGENT_MEMORY_BYTES = 32 * 1024;
+const MAX_ARCHIVE_HISTORY_LINES = 600;
+
+/**
+ * Identifie les documents techniques internes stockés dans `MemoryStore` qui ne doivent JAMAIS
+ * être réinjectés en JSON brut dans `<durable_memory>` (archives LRU, index JSON de compétences
+ * apprises déjà exposé en 1 ligne, et états delta de routines).
+ */
+export function isInternalRuntimeMemoryPath(path: string): boolean {
+  const normalized = (path || "").trim().replace(/^\/+/, "");
+  if (!normalized) return false;
+  return (
+    normalized.includes("archive") ||
+    normalized === LEARNED_SKILLS_MEMORY_PATH ||
+    normalized.startsWith("routines/observations/") ||
+    normalized.startsWith(".rakazo/")
+  );
+}
+
+/**
+ * Ajoute sans écrasement les lignes évincées par le plafond mémoire dans `memory/archive.md`,
+ * avec rotation bornée à `MAX_ARCHIVE_HISTORY_LINES` lignes pour éviter toute dérive infinie.
+ */
+export async function appendBoundedMemoryArchive(
+  memory: MemoryStore,
+  params: {
+    scope: "bot" | "user";
+    botId?: string;
+    evictedLines: readonly string[];
+    runId?: string;
+    threadId?: string;
+    maxArchiveLines?: number;
+  },
+  context: AdapterContext,
+): Promise<void> {
+  if (!params.evictedLines || params.evictedLines.length === 0) return;
+  const archivePath = "memory/archive.md";
+  const newBlock = buildMemoryArchiveEntry([...params.evictedLines]);
+  if (!newBlock.trim()) return;
+
+  let existingText = "";
+  try {
+    const snap = await memory.read(
+      { scope: params.scope, botId: params.botId, path: archivePath },
+      context,
+    );
+    const existingDoc = snap.documents.find((d) => d.path === archivePath);
+    existingText = existingDoc?.content?.trim() ?? "";
+  } catch {
+    existingText = "";
+  }
+
+  const combined = existingText ? `${existingText}\n\n${newBlock}` : newBlock;
+  const lines = combined.split("\n");
+  const cap = params.maxArchiveLines ?? MAX_ARCHIVE_HISTORY_LINES;
+  const boundedContent = lines.length > cap ? lines.slice(-cap).join("\n") : combined;
+
+  await memory.commit(
+    {
+      scope: params.scope,
+      botId: params.botId,
+      path: archivePath,
+      content: boundedContent,
+      sourceRunId: params.runId,
+      sourceThreadId: params.threadId,
+    },
+    context,
+  );
+}
 
 type ScopedMemoryDocument = MemorySnapshot["documents"][number] & {
   scope: "bot" | "user";
@@ -57,8 +127,8 @@ export async function loadAgentMemoryContext(
   let remainingLines = profile.maxLines;
 
   for (const document of documents) {
-    // Les archives délestées ne sont pas réinjectées dans le prompt direct (préservation du contexte)
-    if (document.path.includes("archive")) continue;
+    // Les archives délestées et états techniques JSON internes ne sont pas réinjectés dans <durable_memory>
+    if (isInternalRuntimeMemoryPath(document.path)) continue;
 
     const enforcement = enforceMemoryBudget(document.content, profile.id);
     const contentToUse = maskSensitiveData(enforcement.activeContent);

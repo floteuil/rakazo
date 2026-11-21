@@ -120,7 +120,8 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
         }
       }
 
-      const providerHeader = response.headers.get("x-omniroute-provider");
+      const providerHeader = response.headers.get("x-omniroute-provider")?.trim() || undefined;
+      const modelHeader = response.headers.get("x-omniroute-model")?.trim() || undefined;
       if (providerHeader) {
         this.policyEngine.assertZeroCostAndAllowed(
           providerHeader,
@@ -135,6 +136,8 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
       const reader = response.body.getReader();
       const decoder = new TextDecoder();
       let buffer = "";
+      let emittedUsage = false;
+      let lastChunkModel: string | undefined;
 
       while (true) {
         if (controller.signal.aborted || request.signal?.aborted) {
@@ -156,6 +159,20 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
           if (!trimmed || trimmed.startsWith(":")) continue;
 
           if (trimmed === "data: [DONE]") {
+            if (!emittedUsage && (providerHeader || modelHeader || lastChunkModel)) {
+              emittedUsage = true;
+              yield {
+                type: "usage",
+                usage: {
+                  inputTokens: 0,
+                  outputTokens: 0,
+                  cachedTokens: 0,
+                  totalTokens: 0,
+                  resolvedProvider: providerHeader,
+                  resolvedModel: modelHeader ?? lastChunkModel,
+                },
+              };
+            }
             return;
           }
 
@@ -163,6 +180,9 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
             const dataStr = trimmed.slice(6);
             try {
               const parsed = JSON.parse(dataStr);
+              if (typeof parsed?.model === "string" && parsed.model.trim()) {
+                lastChunkModel = parsed.model.trim();
+              }
 
               const chunkCost =
                 parsed?.pricing?.total_cost ??
@@ -210,6 +230,7 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
                   parsed.usage.cached_tokens ??
                   0;
                 const totalTokens = parsed.usage.total_tokens ?? promptTokens + completionTokens;
+                emittedUsage = true;
 
                 yield {
                   type: "usage",
@@ -218,6 +239,8 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
                     outputTokens: completionTokens,
                     cachedTokens,
                     totalTokens,
+                    resolvedProvider: providerHeader,
+                    resolvedModel: modelHeader ?? lastChunkModel,
                   },
                 };
               }

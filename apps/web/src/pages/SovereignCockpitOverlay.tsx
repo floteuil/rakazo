@@ -21,7 +21,7 @@ import {
   X,
   Zap,
 } from "lucide-react";
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { rpc } from "../lib/rpc";
 
 export interface SovereignCockpitOverlayProps {
@@ -158,6 +158,10 @@ export function SovereignCockpitOverlay({
       setRefreshingUsage(false);
     }
   }
+
+  useEffect(() => {
+    void handleRefreshMetrics();
+  }, []);
 
   return (
     <div
@@ -413,7 +417,12 @@ export function SovereignCockpitOverlay({
                       </p>
                     </div>
                     <div className="mt-3 flex items-center justify-between border-t border-[#26262A] pt-2.5 text-[10px] text-[#A1A1AA]">
-                      <span className="font-mono">{conn.tools.length} outil(s)</span>
+                      <span className="font-mono">
+                        {conn.tools.length} outil(s)
+                        {sentinelReport?.connectorHealth?.[conn.id]?.totalCalls
+                          ? ` · ${sentinelReport.connectorHealth[conn.id]?.totalCalls} appel(s)`
+                          : ""}
+                      </span>
                       <span className="truncate max-w-[170px] text-[#71717A]">
                         {conn.badgeText}
                       </span>
@@ -568,6 +577,52 @@ export function SovereignCockpitOverlay({
                     </div>
                     <div className="text-[10.5px] text-[#85858A] leading-relaxed">
                       Masquage automatique des clés API, JWT, mots de passe, cartes et OTP dans les mémoires et skills.
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Innovations Hermes Agent & n8n-io/nod (Enveloppe Untrusted, Cold-Cache 5 min, Learned Skills & Canevas n8n) */}
+              <div data-testid="cockpit-hermes-nod-innovations" className="rounded-xl border border-[#26262A] bg-[#18181B] p-4 space-y-3">
+                <h3 className="text-xs font-semibold text-[#ECECEE] flex items-center gap-1.5">
+                  <Sparkles size={14} className="text-purple-400" />
+                  <span>Sécurité Contextuelle & Auto-Apprentissage (Hermes + n8n-io/nod)</span>
+                </h3>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Enveloppe Untrusted</span>
+                      <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">Luhn + Quote</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Cloisonnement XML anti-injection des retours Web/MCP et blocage Luhn/citations sur la mémoire.
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Cold-Cache 5 min</span>
+                      <span className="text-[10px] font-mono text-sky-300 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded">KV Préservé</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Gel du préfixe KV à chaud (&lt; 5 min) et déchargement disque sans perte &gt; 16 Ko (.rakazo/outputs).
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Learned Skills</span>
+                      <span className="text-[10px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">Max 40 LRU</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Capitalisation procédurale save/patch synchronisée à la bibliothèque avec verrou humain userEdited.
+                    </div>
+                  </div>
+                  <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
+                    <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
+                      <span>Canevas n8n &amp; CSP</span>
+                      <span className="text-[10px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/20 px-1.5 py-0.5 rounded">Zéro Réseau</span>
+                    </div>
+                    <div className="text-[10.5px] text-[#85858A] leading-relaxed">
+                      Graphe SVG interactif des workflows n8n et aperçu d&#x27;artefacts isolé sans allow-same-origin.
                     </div>
                   </div>
                 </div>

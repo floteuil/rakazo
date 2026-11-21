@@ -4,6 +4,7 @@ import { loadRootEnv } from "@rakazo/core/node/load-root-env";
 loadRootEnv();
 
 import {
+  collectDeploymentSecretValues,
   createBackgroundJobHandlers,
   createConnectorStack,
   createJobReconciler,
@@ -67,18 +68,7 @@ async function main() {
     artifacts,
     connector: stack.connector,
     listConnectedPluginSlugs: stack.composio?.listConnectedSlugs.bind(stack.composio),
-    secrets: [
-      process.env.OPENROUTER_API_KEY ?? "",
-      process.env.OMNIROUTE_API_KEY ?? "",
-      process.env.COMPOSIO_API_KEY ?? "",
-      process.env.GITHUB_TOKEN ?? "",
-      process.env.NOTION_API_KEY ?? "",
-      process.env.POSTIZ_API_KEY ?? "",
-      process.env.WORDPRESS_APP_PASSWORD ?? "",
-      process.env.NOVAMIRA_API_KEY ?? "",
-      process.env.N8N_API_KEY ?? "",
-      process.env.CLOUDFLARE_API_TOKEN ?? "",
-    ].filter(Boolean),
+    secrets: collectDeploymentSecretValues(process.env),
     secretStore: secrets,
     deploymentModelKey: process.env.OPENROUTER_API_KEY,
     dataDir,

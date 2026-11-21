@@ -41,6 +41,8 @@ export interface InferenceTransportChunk {
     outputTokens: number;
     cachedTokens?: number;
     totalTokens: number;
+    resolvedProvider?: string;
+    resolvedModel?: string;
   };
 }
 

@@ -288,6 +288,8 @@ export type AgentRuntimeEvent =
       outputTokens: number;
       provider: string;
       model: string;
+      resolvedProvider?: string;
+      resolvedModel?: string;
       cachedTokens?: number;
       cacheHitRatio?: number;
     }

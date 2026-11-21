@@ -2,6 +2,7 @@ import { rm } from "node:fs/promises";
 import { RPCHandler } from "@orpc/server/fetch";
 import type { JobPublisher, RealtimeFanout, SandboxProvider } from "@rakazo/adapter-kit";
 import {
+  collectDeploymentSecretValues,
   type ComposioProvider,
   createBackgroundJobHandlers,
   createConnectorStack,
@@ -154,7 +155,13 @@ export async function createApp(
     artifacts,
     connector: stack.connector,
     listConnectedPluginSlugs: stack.composio?.listConnectedSlugs.bind(stack.composio),
-    secrets: [env.openRouterKey ?? "", env.composioApiKey ?? ""].filter(Boolean),
+    secrets: Array.from(
+      new Set([
+        ...collectDeploymentSecretValues(process.env),
+        ...(env.openRouterKey ? [env.openRouterKey] : []),
+        ...(env.composioApiKey ? [env.composioApiKey] : []),
+      ]),
+    ),
     secretStore: secrets,
     deploymentModelKey: env.openRouterKey,
     dataDir: env.dataDir,

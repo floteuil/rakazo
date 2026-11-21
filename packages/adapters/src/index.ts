@@ -35,6 +35,7 @@ export * from "./inference-transport.js";
 export * from "./job-reconciler.js";
 export * from "./loop-guards.js";
 export * from "./mcp-emulator.js";
+export * from "./memory-context.js";
 export * from "./omniroute-adapter.js";
 export * from "./omniroute-transport.js";
 export * from "./openai-voice.js";

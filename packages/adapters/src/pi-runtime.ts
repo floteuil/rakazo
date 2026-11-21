@@ -163,6 +163,10 @@ export class CanonicalAgentRuntime implements AgentRuntime {
 
     const toolDefs = Array.isArray(request.tools) ? request.tools : builtinAgentTools;
     const normalizedNames = normalizeAgentToolNames(toolDefs);
+    const normalizedToolDefs: ConnectorTool[] = toolDefs.map((tool, index) => ({
+      ...tool,
+      name: normalizedNames[index]!,
+    }));
     const toolByName = new Map<string, ConnectorTool>();
     toolDefs.forEach((tool, index) => {
       const norm = normalizedNames[index]!;
@@ -245,7 +249,7 @@ export class CanonicalAgentRuntime implements AgentRuntime {
             model: request.model.id,
             provider: request.model.provider,
             messages: effectiveMessages,
-            tools: toolDefs,
+            tools: normalizedToolDefs,
             signal,
             sessionId: sessionKey,
           })) {
@@ -260,7 +264,9 @@ export class CanonicalAgentRuntime implements AgentRuntime {
               queue.push({ type: "text", text: chunk.text });
             } else if (chunk.type === "tool_call" && chunk.toolCall) {
               const tc = chunk.toolCall;
-              const index = tc.index ?? pendingToolCalls.length;
+              const existingIdx = tc.id ? pendingToolCalls.findIndex((p) => p && p.id === tc.id) : -1;
+              const index =
+                existingIdx >= 0 ? existingIdx : (tc.index ?? pendingToolCalls.length);
               if (!pendingToolCalls[index]) {
                 pendingToolCalls[index] = {
                   id: tc.id || `${request.runId}:tool_${index}`,
@@ -269,7 +275,9 @@ export class CanonicalAgentRuntime implements AgentRuntime {
                 };
               } else {
                 if (tc.id) pendingToolCalls[index].id = tc.id;
-                if (tc.name) pendingToolCalls[index].name += tc.name;
+                if (tc.name && pendingToolCalls[index].name !== tc.name) {
+                  pendingToolCalls[index].name += tc.name;
+                }
                 if (tc.arguments) pendingToolCalls[index].arguments += tc.arguments;
               }
             } else if (chunk.type === "usage" && chunk.usage) {
@@ -285,6 +293,8 @@ export class CanonicalAgentRuntime implements AgentRuntime {
                 cacheHitRatio: Math.min(1.0, Math.max(0.0, cacheHitRatio)),
                 provider: request.model.provider,
                 model: request.model.id,
+                resolvedProvider: chunk.usage.resolvedProvider,
+                resolvedModel: chunk.usage.resolvedModel,
               });
             }
           }
@@ -602,6 +612,12 @@ export class PiAgentRuntime implements AgentRuntime {
         const tools = toAgentTools(toolDefs, host);
         const history = toHistory(request.history, request.prompt);
 
+        const piSessionKey = computeSessionAffinityKey({
+          workspaceId: context.workspaceId || "default-ws",
+          botId: request.botId || "default-bot",
+          threadId: request.threadId || "default-thread",
+        });
+
         const agent = new Agent({
           streamFn: (m, ctx, options) =>
             models.streamSimple(m, ctx, {
@@ -622,7 +638,13 @@ export class PiAgentRuntime implements AgentRuntime {
             }),
           getApiKey: async () => apiKey,
           transformContext: async (messages) =>
-            delimitUntrustedAgentMessages(pruneComputerScreenshotContext(messages)),
+            delimitUntrustedAgentMessages(
+              pruneColdCacheAgentMessages(pruneComputerScreenshotContext(messages), {
+                sessionKey: piSessionKey,
+                provider: model.provider,
+                model: model.id,
+              }),
+            ),
           initialState: {
             systemPrompt:
               request.instructions ||
@@ -701,8 +723,14 @@ export class PiAgentRuntime implements AgentRuntime {
 
         const error = agent.state.errorMessage;
         if (error) {
-          queue.push({ type: "text", text: `I hit a problem: ${sanitizeToolError(error)}` });
-          queue.push({ type: "done", text: sanitizeToolError(error) });
+          const errAnalysis = classifyProviderErrorForCompaction(error);
+          const sanitized = sanitizeToolError(error);
+          const prefix =
+            errAnalysis.classification === "context_overflow"
+              ? "Context window full (compaction recommended): "
+              : "I hit a problem: ";
+          queue.push({ type: "text", text: `${prefix}${sanitized}` });
+          queue.push({ type: "done", text: sanitized });
           return;
         }
         if (!streamed) {
@@ -1204,14 +1232,17 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
       return raw as never;
     },
     execute: async (toolCallId, params) => {
+      const sessionKey = `${host.request.botId}:${host.request.threadId}`;
       const guard = evaluateToolCallGuard(host.tracker, tool.name, params);
       if (!guard.allow) {
+        const denial = recordToolSecurityDenial(host.tracker, sessionKey, guard.reason);
         return {
-          content: [{ type: "text", text: guard.reason }],
-          details: { error: guard.reason },
-          terminate: guard.terminate,
+          content: [{ type: "text", text: denial.reason }],
+          details: { error: denial.reason },
+          terminate: guard.terminate || denial.terminate,
         };
       }
+      host.tracker.denialBreaker.recordApproval(sessionKey);
       const args = (params ?? {}) as Record<string, unknown>;
       const executionId = toolCallId || `${host.request.runId}:${tool.name}`;
       host.queue.push({ type: "tool", name: tool.name, args, executionId });
@@ -1231,6 +1262,15 @@ function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): 
         return {
           content: [{ type: "text", text: result }],
           details: { result },
+        };
+      }
+      if (tool.name === "tool_search" || tool.name === "nod_tool_search") {
+        const query = String(args.query ?? args.q ?? args.name ?? "");
+        const catalog = Array.isArray(host.request.tools) ? host.request.tools : builtinAgentTools;
+        const found = searchLazyMcpTools(catalog, query, 3);
+        return {
+          content: [{ type: "text", text: JSON.stringify(found) }],
+          details: found,
         };
       }
       if (host.request.executeTool) {
@@ -1873,6 +1913,64 @@ export function pruneComputerScreenshotContext(
     transformed[index] = {
       ...message,
       content: message.content.filter((part) => part.type !== "image"),
+    };
+  }
+  return transformed ?? messages;
+}
+
+/**
+ * Élague les résultats d'outils historiques volumineux (> 2 000 car.) dans `PiAgentRuntime`
+ * uniquement lorsque le cache KV fournisseur est devenu froid (>= 5 min d'inactivité), tout en
+ * figeant strictement le préfixe tant que le cache est chaud (< 5 min).
+ */
+export function pruneColdCacheAgentMessages(
+  messages: AgentMessage[],
+  options: {
+    sessionKey: string;
+    provider: string;
+    model: string;
+    nowMs?: number;
+  },
+): AgentMessage[] {
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  const activeBoundaryIndex = Math.max(0, lastUserIdx);
+  const evaluation = globalColdCacheTracker.evaluateAndRecord({
+    sessionKey: options.sessionKey,
+    provider: options.provider,
+    model: options.model,
+    candidatePruneBeforeIndex: activeBoundaryIndex,
+    nowMs: options.nowMs,
+  });
+
+  if (evaluation.pruneBeforeIndex <= 0) return messages;
+  const safeCutoff = Math.min(evaluation.pruneBeforeIndex, Math.max(0, messages.length - 6));
+  if (safeCutoff <= 0) return messages;
+
+  let transformed: AgentMessage[] | undefined;
+  for (let index = 0; index < safeCutoff; index += 1) {
+    const message = messages[index];
+    if (!message || message.role !== "toolResult") continue;
+    const textParts = message.content.filter((part) => part.type === "text");
+    if (textParts.length === 0) continue;
+    const combined = textParts.map((part) => part.text).join("\n");
+    if (combined.length <= 2_000) continue;
+
+    const pruned =
+      `${combined.slice(0, 700)}\n` +
+      `… [${combined.length - 1_200} caractères élagués après expiration du cache froid] …\n` +
+      combined.slice(-500);
+
+    transformed ??= [...messages];
+    const nonText = message.content.filter((part) => part.type !== "text");
+    transformed[index] = {
+      ...message,
+      content: [{ type: "text", text: pruned }, ...nonText],
     };
   }
   return transformed ?? messages;

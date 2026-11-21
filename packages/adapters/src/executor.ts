@@ -19,7 +19,6 @@ import {
   ATTACHMENT_MAX_BYTES,
   type BotInferenceConfig,
   type BotMcpConfig,
-  buildMemoryArchiveEntry,
   buildRoutineChecklistNudgeFr,
   buildRoutineRunTrackBannerFr,
   DECLINED_BY_PERSON_FR,
@@ -36,8 +35,11 @@ import {
   isSovereignTool,
   isWithinQuietHours,
   maskSensitiveData,
+  OUTCOME_UNKNOWN_FR,
   type QuietHoursPolicy,
+  resolveToolApprovalStatus,
   SOVEREIGN_SKILLS_CATALOG,
+  type StandingRule,
   validateMemorySaveSafety,
 } from "@rakazo/contracts";
 import {
@@ -99,7 +101,12 @@ import {
   readBotLearnedSkill,
   recordBotRoutineObservation,
 } from "./context-output-store.js";
-import { executeEnterpriseTool, isEnterpriseTool, sanitizeToolError } from "./enterprise-tools.js";
+import {
+  collectDeploymentSecretValues,
+  executeEnterpriseTool,
+  isEnterpriseTool,
+  sanitizeToolError,
+} from "./enterprise-tools.js";
 import { RakazoFreePolicyEngine } from "./free-policy-engine.js";
 import {
   COMPACTION_BATCH_SIZE,
@@ -109,7 +116,7 @@ import {
   LEGACY_HISTORY_WINDOW_SIZE,
   shouldEnqueueCompaction,
 } from "./history-compaction.js";
-import { loadAgentMemoryContext } from "./memory-context.js";
+import { appendBoundedMemoryArchive, loadAgentMemoryContext } from "./memory-context.js";
 import { FreeOmniRouteAdapter } from "./omniroute-adapter.js";
 import { toOAuthCredential } from "./pi-credentials.js";
 import {
@@ -161,7 +168,26 @@ const READ_ONLY_AGENT_TOOLS = new Set([
   "n8n_get_execution",
   "cloudflare_list_zones",
   "cloudflare_list_dns_records",
+  "tool_search",
+  "nod_tool_search",
 ]);
+
+const READ_ONLY_ANTIGRAVITY_PATTERN =
+  /^(?:twenty|affine|odoo|windmill|coolify|qdrant|pocketbase|open_design|flowise|veinart)_(?:list|get|search|read|find|inspect|check|whoami|system_status)|^(?:context7|ubersuggest)_/i;
+
+export function isReadOnlyAgentToolCall(name: string, args?: Record<string, unknown>): boolean {
+  if (name === "read_skill") {
+    const action = String(args?.action ?? "read")
+      .trim()
+      .toLowerCase();
+    return action !== "save" && action !== "patch";
+  }
+  if (name === "learned_skill_save" || name === "learned_skill_patch") {
+    return false;
+  }
+  if (READ_ONLY_AGENT_TOOLS.has(name)) return true;
+  return READ_ONLY_ANTIGRAVITY_PATTERN.test(name);
+}
 const MAX_MODEL_FILE_BYTES = 250_000;
 const GRAPHICAL_AGENT_TOOLS = new Set([
   "computer_observe",
@@ -584,19 +610,15 @@ export function createRunExecutor(deps: ExecutorDeps) {
       }, 1_000);
       cancelPoll.unref?.();
 
-      const runSecrets = [...deps.secrets];
-      const enterpriseTokens = [
-        process.env.GITHUB_TOKEN,
-        process.env.NOTION_API_KEY,
-        process.env.POSTIZ_API_KEY,
-        process.env.WORDPRESS_APP_PASSWORD,
-        process.env.WORDPRESS_USERNAME,
-        process.env.NOVAMIRA_API_KEY,
-        process.env.N8N_API_KEY,
-        process.env.CLOUDFLARE_API_TOKEN,
-        process.env.CLOUDFLARE_ACCOUNT_ID,
-      ].filter((val): val is string => Boolean(val && val.length >= 4));
-      runSecrets.push(...enterpriseTokens);
+      const runSecrets = Array.from(
+        new Set([
+          ...deps.secrets,
+          ...collectDeploymentSecretValues(process.env),
+          ...[process.env.WORDPRESS_USERNAME, process.env.CLOUDFLARE_ACCOUNT_ID].filter(
+            (val): val is string => Boolean(val && val.length >= 6),
+          ),
+        ]),
+      );
       try {
         const [
           bot,
@@ -781,6 +803,29 @@ export function createRunExecutor(deps: ExecutorDeps) {
           return result;
         };
 
+        const botMetaObj =
+          bot.metadata && typeof bot.metadata === "object" && !Array.isArray(bot.metadata)
+            ? (bot.metadata as Record<string, unknown>)
+            : undefined;
+        const botStandingRules: StandingRule[] = Array.isArray(botMetaObj?.standingRules)
+          ? (botMetaObj.standingRules as StandingRule[])
+          : [];
+        const botRequireApprovalTools = new Set<string>(
+          Array.isArray(botMetaObj?.requireApprovalTools)
+            ? (botMetaObj.requireApprovalTools as unknown[]).map((t) => String(t).toLowerCase())
+            : [],
+        );
+        const botDeclinedTools = new Set<string>(
+          Array.isArray(botMetaObj?.declinedTools)
+            ? (botMetaObj.declinedTools as unknown[]).map((t) => String(t).toLowerCase())
+            : [],
+        );
+        const botHandledTools = new Set<string>(
+          Array.isArray(botMetaObj?.handledByPersonTools)
+            ? (botMetaObj.handledByPersonTools as unknown[]).map((t) => String(t).toLowerCase())
+            : [],
+        );
+
         const rawApplyTool = async (
           name: string,
           args: Record<string, unknown>,
@@ -791,7 +836,25 @@ export function createRunExecutor(deps: ExecutorDeps) {
               error: `Tool '${name}' is not permitted for this bot. Execution was blocked by security policy.`,
             };
           }
-          const applied = READ_ONLY_AGENT_TOOLS.has(name)
+          const lowerToolName = name.toLowerCase();
+          if (botDeclinedTools.has(lowerToolName)) {
+            return { error: DECLINED_BY_PERSON_FR };
+          }
+          if (botHandledTools.has(lowerToolName)) {
+            return { ok: true, handledByPerson: true, notice: HANDLED_BY_PERSON_FR };
+          }
+          if (botRequireApprovalTools.has(lowerToolName)) {
+            const approval = resolveToolApprovalStatus(botStandingRules, name, {
+              threadId: thread.id,
+              agentId: bot.id,
+            });
+            if (approval === "needs_approval") {
+              return {
+                error: `Approbation humaine requise pour '${name}'. Utilisez une demande explicite à l'utilisateur avant d'exécuter cette action.`,
+              };
+            }
+          }
+          const applied = isReadOnlyAgentToolCall(name, args)
             ? undefined
             : await recordEffect(deps, run, name, executionId, args);
           if (applied?.duplicate) {
@@ -799,7 +862,9 @@ export function createRunExecutor(deps: ExecutorDeps) {
               return applied.effect.result ?? { duplicate: true };
             }
             if (name !== "spawn_bot" && name !== "archive_bot" && name !== "delete_bot") {
-              throw new Error(`tool ${name} has an earlier execution with an uncertain outcome`);
+              throw new Error(
+                `tool ${name} has an earlier execution with an uncertain outcome (${OUTCOME_UNKNOWN_FR})`,
+              );
             }
           }
           const finish = async (result: unknown) => {
@@ -1081,22 +1146,19 @@ export function createRunExecutor(deps: ExecutorDeps) {
               context,
             );
 
-            // Archivage LRU automatique des lignes excédentaires pour préserver le contexte
+            // Archivage LRU automatique sans écrasement des lignes excédentaires
             if (enforcement.evictedLines.length > 0) {
-              const archiveEntry = buildMemoryArchiveEntry(enforcement.evictedLines);
-              await deps.memory
-                .commit(
-                  {
-                    scope: "bot",
-                    botId: bot.id,
-                    path: "memory/archive.md",
-                    content: archiveEntry,
-                    sourceRunId: runId,
-                    sourceThreadId: thread.id,
-                  },
-                  context,
-                )
-                .catch(() => undefined);
+              await appendBoundedMemoryArchive(
+                deps.memory,
+                {
+                  scope: "bot",
+                  botId: bot.id,
+                  evictedLines: enforcement.evictedLines,
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              ).catch(() => undefined);
             }
 
             return finish({
@@ -1171,6 +1233,85 @@ export function createRunExecutor(deps: ExecutorDeps) {
               return finish({ error: "Paramètre 'name' manquant pour read_skill." });
             }
 
+            if (skillAction === "save" || skillAction === "patch") {
+              // Vérification bidirectionnelle du verrou humain (userEdited) dans la table Prisma `skill`
+              try {
+                if (deps.prisma.skill?.findFirst) {
+                  const dbSkill = await deps.prisma.skill.findFirst({
+                    where: {
+                      workspaceId: run.workspaceId,
+                      OR: [
+                        { slug: target.toLowerCase() },
+                        { name: { equals: target, mode: "insensitive" } },
+                      ],
+                    },
+                    select: { id: true, metadata: true },
+                  });
+                  const dbMeta =
+                    dbSkill?.metadata &&
+                    typeof dbSkill.metadata === "object" &&
+                    !Array.isArray(dbSkill.metadata)
+                      ? (dbSkill.metadata as Record<string, unknown>)
+                      : undefined;
+                  if (dbMeta?.userEdited === true) {
+                    return finish({
+                      error: `Compétence '${target}' verrouillée : elle a été modifiée manuellement par l'utilisateur dans la bibliothèque et ne peut plus être écrasée automatiquement.`,
+                    });
+                  }
+                }
+              } catch {
+                // Ignore si Prisma partiel en test unitaire
+              }
+            }
+
+            const mirrorLearnedSkillToWorkspace = async (learnedEntry: {
+              slug: string;
+              name: string;
+              description: string;
+              body: string;
+              revision: number;
+            }) => {
+              try {
+                if (!deps.prisma.skill?.upsert) return;
+                await deps.prisma.skill.upsert({
+                  where: {
+                    workspaceId_slug: {
+                      workspaceId: run.workspaceId,
+                      slug: learnedEntry.slug,
+                    },
+                  },
+                  create: {
+                    workspaceId: run.workspaceId,
+                    userId: run.userId,
+                    name: learnedEntry.name,
+                    slug: learnedEntry.slug,
+                    description: learnedEntry.description,
+                    content: learnedEntry.body,
+                    tags: ["auto-appris"],
+                    metadata: {
+                      learned: true,
+                      botId: bot.id,
+                      revision: learnedEntry.revision,
+                      userEdited: false,
+                    },
+                  },
+                  update: {
+                    name: learnedEntry.name,
+                    description: learnedEntry.description,
+                    content: learnedEntry.body,
+                    metadata: {
+                      learned: true,
+                      botId: bot.id,
+                      revision: learnedEntry.revision,
+                      userEdited: false,
+                    },
+                  },
+                });
+              } catch {
+                // Non bloquant : la source primaire reste `memory/learned-skills.json`
+              }
+            };
+
             if (skillAction === "save") {
               const builtInCheck = getSovereignSkillFull(target);
               const builtInSlugs = new Set<string>(
@@ -1197,6 +1338,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               if (!saved.ok) {
                 return finish({ error: saved.errorFr });
               }
+              await mirrorLearnedSkillToWorkspace(saved.skill);
               return finish({
                 ok: true,
                 operation: saved.operation,
@@ -1224,6 +1366,7 @@ export function createRunExecutor(deps: ExecutorDeps) {
               if (!patched.ok) {
                 return finish({ error: patched.errorFr });
               }
+              await mirrorLearnedSkillToWorkspace(patched.skill);
               return finish({
                 ok: true,
                 operation: patched.operation,
@@ -1529,6 +1672,13 @@ export function createRunExecutor(deps: ExecutorDeps) {
           };
         }
 
+        let lastResolvedProvider: string | undefined = isFreeMode
+          ? freeRouteDecision?.provider
+          : runtimeModel.provider;
+        let lastResolvedModel: string | undefined = isFreeMode
+          ? freeRouteDecision?.model
+          : runtimeModel.id;
+
         try {
           for await (const event of activeRuntime.run(
             {
@@ -1737,14 +1887,23 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 ]);
               }
             } else if (event.type === "usage") {
+              const effectiveResolvedProvider =
+                event.resolvedProvider ??
+                (isFreeMode ? (freeRouteDecision?.provider ?? event.provider) : event.provider);
+              const effectiveResolvedModel =
+                event.resolvedModel ??
+                (isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model);
+              lastResolvedProvider = effectiveResolvedProvider;
+              lastResolvedModel = effectiveResolvedModel;
+
               await deps.prisma.usageRecord.create({
                 data: {
                   workspaceId: run.workspaceId,
                   botId: bot.id,
                   userId: run.userId,
                   runId,
-                  provider: event.provider,
-                  model: event.model,
+                  provider: effectiveResolvedProvider,
+                  model: effectiveResolvedModel,
                   inputTokens: event.inputTokens,
                   outputTokens: event.outputTokens,
                 },
@@ -1768,10 +1927,8 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 durationMs: runDurationMs,
                 inferenceMode: isFreeMode ? "free" : "premium",
                 requestedCategory: isFreeMode ? (freeRouteDecision?.category ?? "general") : null,
-                resolvedProvider: isFreeMode
-                  ? (freeRouteDecision?.provider ?? event.provider)
-                  : event.provider,
-                resolvedModel: isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model,
+                resolvedProvider: effectiveResolvedProvider,
+                resolvedModel: effectiveResolvedModel,
                 isFree: isFreeMode,
               });
             } else if (event.type === "done") {
@@ -1807,20 +1964,17 @@ export function createRunExecutor(deps: ExecutorDeps) {
                 context,
               );
               if (enforcement.evictedLines.length > 0) {
-                const archiveEntry = buildMemoryArchiveEntry(enforcement.evictedLines);
-                await deps.memory
-                  .commit(
-                    {
-                      scope: mem.scope,
-                      botId: mem.scope === "bot" ? bot.id : undefined,
-                      path: "memory/archive.md",
-                      content: archiveEntry,
-                      sourceRunId: runId,
-                      sourceThreadId: thread.id,
-                    },
-                    context,
-                  )
-                  .catch(() => undefined);
+                await appendBoundedMemoryArchive(
+                  deps.memory,
+                  {
+                    scope: mem.scope,
+                    botId: mem.scope === "bot" ? bot.id : undefined,
+                    evictedLines: enforcement.evictedLines,
+                    runId,
+                    threadId: thread.id,
+                  },
+                  context,
+                ).catch(() => undefined);
               }
               await deps.events.append({
                 workspaceId: run.workspaceId,
@@ -1860,6 +2014,10 @@ export function createRunExecutor(deps: ExecutorDeps) {
             throw new Error("refusing to persist a secret in the thread");
           }
           if (!(await renewRunLease(deps, runId, workerId, fence))) return;
+          const totalTurnDurationMs = Math.max(
+            0,
+            Date.now() - (run.startedAt?.getTime() ?? Date.now()),
+          );
           const completed = await deps.events.finalizeRun({
             workspaceId: run.workspaceId,
             threadId: thread.id,
@@ -1871,6 +2029,12 @@ export function createRunExecutor(deps: ExecutorDeps) {
             leaseFence: fence,
             outcome: "completed",
             blocks: [{ kind: "text", text }],
+            inferenceMeta: {
+              resolvedProvider: lastResolvedProvider,
+              resolvedModel: lastResolvedModel,
+              isFree: isFreeMode,
+              durationMs: totalTurnDurationMs,
+            },
           });
           if (!completed) return;
           const rawBotMeta =

@@ -40,6 +40,50 @@ export function sanitizeToolError(message: string): string {
     .replace(/Basic\s+[a-zA-Z0-9_\-.+/=]+/gi, "Basic [redacted]");
 }
 
+const DEPLOYMENT_SECRET_ENV_KEYS = [
+  "OPENROUTER_API_KEY",
+  "OMNIROUTE_API_KEY",
+  "COMPOSIO_API_KEY",
+  "GITHUB_TOKEN",
+  "NOTION_API_KEY",
+  "POSTIZ_API_KEY",
+  "WORDPRESS_APP_PASSWORD",
+  "NOVAMIRA_API_KEY",
+  "N8N_API_KEY",
+  "CLOUDFLARE_API_TOKEN",
+  "TWENTY_API_KEY",
+  "CONTEXT7_API_KEY",
+  "QDRANT_API_KEY",
+  "COOLIFY_API_TOKEN",
+  "FLOWISE_API_KEY",
+  "POCKETBASE_ADMIN_TOKEN",
+  "UBERSUGGEST_API_KEY",
+  "E2B_API_KEY",
+  "DAYTONA_API_KEY",
+  "BOX_API_KEY",
+  "SUPERMEMORY_API_KEY",
+  "BETTER_AUTH_SECRET",
+  "ENCRYPTION_KEY",
+] as const;
+
+/**
+ * Collecte de façon centralisée toutes les clés API et jetons secrets d'environnement actifs
+ * (longueur >= 6 caractères pour éviter les faux positifs) afin d'alimenter `createStreamingRedactor`
+ * de manière homogène entre `api`, `worker` et `executor`.
+ */
+export function collectDeploymentSecretValues(
+  env: Record<string, string | undefined> = process.env,
+): string[] {
+  const unique = new Set<string>();
+  for (const key of DEPLOYMENT_SECRET_ENV_KEYS) {
+    const val = env[key]?.trim();
+    if (val && val.length >= 6) {
+      unique.add(val);
+    }
+  }
+  return Array.from(unique);
+}
+
 export async function safeFetchJson<T>(
   url: string,
   options: RequestInit,

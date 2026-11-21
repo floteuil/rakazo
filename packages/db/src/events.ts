@@ -68,7 +68,19 @@ interface FinalizeRunBase {
 }
 
 export type FinalizeRunInput = FinalizeRunBase &
-  ({ outcome: "completed"; blocks: MessageBlock[] } | { outcome: "failed"; error: string });
+  (
+    | {
+        outcome: "completed";
+        blocks: MessageBlock[];
+        inferenceMeta?: {
+          resolvedProvider?: string;
+          resolvedModel?: string;
+          isFree?: boolean;
+          durationMs?: number;
+        };
+      }
+    | { outcome: "failed"; error: string }
+  );
 
 export interface PauseRunForInput {
   workspaceId: string;
@@ -498,6 +510,12 @@ export async function finalizeRun(
         completedAt: now,
         leaseOwner: null,
         leaseExpiresAt: null,
+        ...(input.outcome === "completed" && input.inferenceMeta?.resolvedProvider
+          ? { modelProvider: input.inferenceMeta.resolvedProvider }
+          : {}),
+        ...(input.outcome === "completed" && input.inferenceMeta?.resolvedModel
+          ? { modelId: input.inferenceMeta.resolvedModel }
+          : {}),
       },
     });
     if (terminal.count !== 1) return null;
@@ -541,7 +559,12 @@ export async function finalizeRun(
         botId: input.botId,
         type: "thread.message.created",
         runId: input.runId,
-        payload: { messageId: message.id, role: "bot", blocks: input.blocks },
+        payload: {
+          messageId: message.id,
+          role: "bot",
+          blocks: input.blocks,
+          ...(input.inferenceMeta ?? {}),
+        },
       });
     }
     const lastEvent = await appendEventInTransaction(tx, {

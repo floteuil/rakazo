@@ -1599,25 +1599,92 @@ export function createRouter(deps: RouterDeps) {
     },
     sentinel: {
       report: authed.sentinel.report.handler(async ({ context }) => {
-        // Diagnostic de santé Zéro-LLM ($0.00) sur les exécutions et outils récents
-        const recentRuns = await deps.prisma.run.findMany({
-          where: { workspaceId: context.actor.workspaceId },
-          orderBy: { createdAt: "desc" },
-          take: 150,
-          select: {
-            id: true,
-            status: true,
-            error: true,
-            createdAt: true,
-          },
+        // Diagnostic de santé Zéro-LLM ($0.00) agrégeant les effets MCP, appels d'outils en lecture et exécutions
+        const [recentRuns, recentEffects, recentToolEvents] = await Promise.all([
+          deps.prisma.run.findMany({
+            where: { workspaceId: context.actor.workspaceId },
+            orderBy: { createdAt: "desc" },
+            take: 120,
+            select: {
+              id: true,
+              status: true,
+              error: true,
+              createdAt: true,
+            },
+          }),
+          deps.prisma.externalEffect?.findMany
+            ? deps.prisma.externalEffect.findMany({
+                where: { workspaceId: context.actor.workspaceId },
+                orderBy: { createdAt: "desc" },
+                take: 200,
+                select: {
+                  kind: true,
+                  idempotencyKey: true,
+                  status: true,
+                  result: true,
+                  createdAt: true,
+                },
+              })
+            : Promise.resolve([]),
+          deps.prisma.event?.findMany
+            ? deps.prisma.event.findMany({
+                where: {
+                  workspaceId: context.actor.workspaceId,
+                  type: "agent.tool.called",
+                },
+                orderBy: { createdAt: "desc" },
+                take: 200,
+                select: {
+                  payload: true,
+                  createdAt: true,
+                },
+              })
+            : Promise.resolve([]),
+        ]);
+
+        const seenExecutionIds = new Set<string>();
+        const effectLogs: TelemetryLogEntry[] = recentEffects.map((eff) => {
+          if (eff.idempotencyKey) seenExecutionIds.add(eff.idempotencyKey);
+          const resObj =
+            eff.result && typeof eff.result === "object" && !Array.isArray(eff.result)
+              ? (eff.result as Record<string, unknown>)
+              : undefined;
+          const errStr = typeof resObj?.error === "string" ? resObj.error : undefined;
+          const ok = eff.status === "completed" && !errStr;
+          return {
+            toolName: eff.kind,
+            ok,
+            error: errStr ?? (eff.status !== "completed" ? `Effect status: ${eff.status}` : undefined),
+            timestamp: eff.createdAt,
+          };
         });
-        const telemetryLogs: TelemetryLogEntry[] = recentRuns.map((r) => ({
-          toolName: "run_execution",
-          ok: r.status === "completed" || r.status === "waiting_input",
-          error: r.error ?? undefined,
-          timestamp: r.createdAt,
-        }));
-        return analyzeSentinelTelemetry(telemetryLogs);
+
+        const readOnlyToolLogs: TelemetryLogEntry[] = [];
+        for (const ev of recentToolEvents) {
+          const payload =
+            ev.payload && typeof ev.payload === "object" && !Array.isArray(ev.payload)
+              ? (ev.payload as Record<string, unknown>)
+              : undefined;
+          const toolName = typeof payload?.name === "string" ? payload.name : "";
+          const executionId = typeof payload?.executionId === "string" ? payload.executionId : "";
+          if (!toolName || (executionId && seenExecutionIds.has(executionId))) continue;
+          readOnlyToolLogs.push({
+            toolName,
+            ok: true,
+            timestamp: ev.createdAt,
+          });
+        }
+
+        const runLogs: TelemetryLogEntry[] = recentRuns
+          .filter((r) => r.status === "completed" || r.status === "failed")
+          .map((r) => ({
+            toolName: "run_execution",
+            ok: r.status === "completed",
+            error: r.error ?? undefined,
+            timestamp: r.createdAt,
+          }));
+
+        return analyzeSentinelTelemetry([...effectLogs, ...readOnlyToolLogs, ...runLogs]);
       }),
     },
     export: {
