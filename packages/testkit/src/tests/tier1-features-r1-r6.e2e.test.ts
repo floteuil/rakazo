@@ -865,11 +865,8 @@ describe("Tier 1: Feature Coverage E2E Suite (Features 1-15 per TEST_INFRA.md)",
       expect(content).toContain("OmniRoute");
     });
 
-    it("F15-3: Master architect handoff document exists and is populated", () => {
-      const handoffPath = resolve(
-        rootDir,
-        "RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md",
-      );
+    it("F15-3: Authoritative OmniRoute deployment runbook exists and is populated", () => {
+      const handoffPath = resolve(rootDir, "docs/OMNIROUTE_DEPLOYMENT.md");
       expect(existsSync(handoffPath)).toBe(true);
       const content = readFileSync(handoffPath, "utf-8");
       expect(content).toContain("OmniRoute");

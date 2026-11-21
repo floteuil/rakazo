@@ -45,7 +45,7 @@ Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform 
 | `apps/desktop` | Electron, Node.js | Desktop application shell, sandbox local proxy, window management, screen-lease support. |
 | `apps/www` | Astro SSR | Public landing page, documentation portal, static assets. |
 | `infra/sandboxes/supervisor` | Node.js, Docker/Containerd | Secure containerized sandbox supervision, process isolation, resource quotas. |
-| `@rakazo/contracts` | TypeScript 5.8, Zod 3.23+ | Shared contracts, Zod schemas (`InferenceModeSchema`, `InferenceUsageTagSchema`, `BotInferenceConfigSchema`, `PromptExecutionLogInputSchema`), MCP catalog (40 tools), immutability validators. |
+| `@rakazo/contracts` | TypeScript 5.8, Zod 3.23+ | Shared contracts, Zod schemas (`InferenceModeSchema`, `InferenceUsageTagSchema`, `BotInferenceConfigSchema`, `PromptExecutionLogInputSchema`), Sovereign MCP catalog (18 connectors · 87 tools), French Skills catalog (379 skills · 51 packs), Sentinel diagnostics, untrusted envelopes, Cold-Cache pruning, Learned Skills & Routine Watches. |
 | `@rakazo/adapters` | TypeScript 5.8, Node.js | `CanonicalAgentRuntime`, `OmniRouteInferenceTransport`, `PiAiInferenceTransport`, `RakazoFreePolicyEngine`, `pi-runtime.ts` with TypeBox MCP complex schema normalization (`jsonSchemaParameters`, `jsonField`, unions, single-item enums, null literals, dynamic records), PromptCompilerService, 4-block cache assembler, subagent inheritance, loop guards, secret sanitizer. |
 | `@rakazo/adapter-kit` | TypeScript 5.8 | Standardized tool interfaces, connector registry, background job definitions. |
 | `@rakazo/db` | Prisma 7, PostgreSQL 16 | PostgreSQL schema, Repositories (`repos.ts`: `mapBot`, `createBot`, `updateBot`), async SQL telemetry (`PromptExecutionLog`), cascade relations (`onDelete: Cascade`). |
@@ -89,11 +89,11 @@ Rakazo decouples model inference transport from agent orchestration through a **
                        └──────────────────────────┬──────────────────────────┘
                                                   ▼
                               [ Shared CanonicalAgentRuntime MCP Loop ]
-                              • Full MCP Tool Calling (40 tools)
-                              • Robust TypeBox Schema Compilation (PR #450)
+                              • Full MCP Tool Calling (18 connectors · 87 tools)
+                              • Robust TypeBox & Draft 2020-12 Schema Compilation
                               • SSE UTF-16 Surrogate Sanitization (PR #424)
-                              • Semantic Compaction (compactToolResult)
-                              • Anti-Loop Disjoncteurs (3 identical / 25 steps)
+                              • Untrusted Envelopes & 5-Min Cold-Cache Pruning
+                              • Anti-Loop Disjoncteurs (10-Layer Shield · 25 steps)
                               • Native AbortSignal Cancellation
                               • FNV-1a Session Affinity (x-session-id)
                                                   │
@@ -109,7 +109,7 @@ Rakazo decouples model inference transport from agent orchestration through a **
 ### 3.1 The 3-Tier Decoupling Architecture
 1. **Tier 1 (Stable Product Intent)**: Mode `free` + cognitive profile (`coding`, `reasoning`, `fast`, `writing`, `analysis`) persisted in PostgreSQL `bot.metadata.inference`.
 2. **Tier 2 (Logical Route Contract)**: Canonical route string (`combo/rakazo-coding`, `combo/rakazo-reasoning`, etc.) transmitted to OmniRoute as a capability contract via the Cognitive Priority Matrix.
-3. **Tier 3 (Real Execution Resolution)**: Live provider (`mistral`, `groq`, `qwen`, `deepseek`) and model (`mistralai/codestral-latest`, etc.) dynamically resolved per turn by OmniRoute.
+3. **Tier 3 (Real Execution Resolution)**: Live approved free provider (`gemini`, `mistralai`, `qwen`, `deepseek`, `meta-llama`, `nvidia`, `opencode`) and model (`gemini-3.5-flash-lite`, `mistralai/codestral-latest`, etc.) dynamically resolved per turn by OmniRoute with strict `$0.0000` verification.
 
 ### 3.2 Triple Coherence Formal Invariant
 $$\mathbf{OmniRoute\ Response\ Headers} \equiv \mathbf{PromptExecutionLog\ (SQL)} \equiv \mathbf{WebUI\ Rendered\ Metadata}$$
@@ -310,10 +310,8 @@ The Rakazo codebase at Version 2.7.0-ui-excellence-and-robustness-certified fulf
 
 ### Key Canonical Documents
 - [`docs/NOD_ARCHITECTURE_INNOVATIONS.md`](docs/NOD_ARCHITECTURE_INNOVATIONS.md): Untrusted Tool Envelopes, Luhn/Source-Quote Memory Guard, 5-Min Cold-Cache Pruning, `.rakazo/outputs/` Offloading, Learned Procedural Skills, Quiet-by-Default Routine Watches, Interactive French `N8nWorkflowCanvas` & Zero-Network CSP `SandboxedArtifactModal`.
-- [`RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md`](RAKAZO_ARCHITECT_HANDOFF_UI_EXCELLENCE_AND_ROBUSTNESS.md): Authoritative Master Architecture, UI/UX Excellence, Robustness Hotfixes & Monorepo Certification Artifact.
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_RUNTIME_TRUTH_FINAL.md): Authoritative Master Architecture, Forensic Audit & Platform Runtime Truth Certification Artifact.
-- [`RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md`](RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_PRODUCTION_EXCELLENCE_FINAL.md): Master Passation & Production Excellence Certification Artifact.
+- [`docs/TESTING_AND_ANTI_RUNAWAY_CERTIFICATION.md`](docs/TESTING_AND_ANTI_RUNAWAY_CERTIFICATION.md): 10-Layer Anti-Runaway Shield, Sentinel Zéro-LLM Diagnostics, Dynamic Memory Budgets, Standing Rules & Test Certification Matrix.
 - [`AGENTS.md`](AGENTS.md): Authoritative Operating Guide & 6 Core Platform Pillars.
 - [`docs/ENVIRONMENT_SETUP.md`](docs/ENVIRONMENT_SETUP.md): Comprehensive Developer Setup & 54+ Environment Variables Taxonomy.
-- [`docs/OMNIROUTE_DEPLOYMENT.md`](docs/OMNIROUTE_DEPLOYMENT.md): Authoritative Coolify PaaS Runbook for OmniRoute Gateway.
-- [`TEST_READY.md`](TEST_READY.md): Master E2E & UI/UX Excellence Test Ready Certification Report.
+- [`docs/OMNIROUTE_DEPLOYMENT.md`](docs/OMNIROUTE_DEPLOYMENT.md): Authoritative Coolify PaaS & Live Streaming Runbook for OmniRoute Gateway.
+- [`TEST_INFRA.md`](TEST_INFRA.md): 4-Tier Test Infrastructure & Methodology.

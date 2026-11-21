@@ -81,7 +81,7 @@ Rakazo provides a unified, sovereign Model Context Protocol (MCP) agentic execut
      - Redundancy Detector (`evaluateToolCallGuard`): Blocks identical repeated calls with the same arguments (maximum 3 repetitions allowed).
    - **Session Affinity**: Deterministic 32-bit FNV-1a hash key `computeSessionAffinityKey` injected as `x-session-id` header to maximize KV cache hit rates on Blocks A+B.
 3. **Double Barrier Zero-Cost Architecture ($0.0000)**:
-   - **Barrier 1 (Local Policy Engine - `RakazoFreePolicyEngine`)**: Pre-dispatch check enforcing approved provider allowlist (`omniroute`, `combo`, `meta-llama`, `mistralai`, `qwen`, `deepseek`, `google`), model format, and price verification ($0.000000). Commercial or positive-cost routes are rejected immediately.
+   - **Barrier 1 (Local Policy Engine - `RakazoFreePolicyEngine`)**: Pre-dispatch check enforcing approved sovereign free provider allowlist (`omniroute`, `combo`, `meta-llama`, `mistralai`, `mistral`, `qwen`, `deepseek`, `google`, `gemini`, `gemma`, `nvidia`, `opencode`), model format, and price verification ($0.000000). Commercial or positive-cost routes are rejected immediately.
    - **Barrier 2 (Transport Response Verification - `OmniRouteInferenceTransport`)**: Real-time inspection of HTTP response headers (`x-omniroute-response-cost`, `x-omniroute-cost`) and streaming chunks. If cost > $0.00 is detected, the stream is aborted immediately.
 4. **Strict Fail-Closed (Never-Paid Fallback)**:
    - If free capacity is exhausted, rate-limited, or unavailable, execution terminates with the sanitized message `"Capacité gratuite temporairement indisponible"`.

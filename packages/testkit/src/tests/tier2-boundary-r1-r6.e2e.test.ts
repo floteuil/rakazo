@@ -756,15 +756,16 @@ describe("Tier 2: Boundary & Corner Cases E2E Suite (Features 1-15 per TEST_INFR
     });
 
     it("F15-B3: Verifies documentation contains no placeholder [TODO] or [FIXME] markers", () => {
-      const handoffPaths = [
-        resolve(rootDir, "RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_FINAL_INTEGRATION.md"),
-        resolve(rootDir, "RAKAZO_ARCHITECT_HANDOFF_POST_EXCELLENCE_ITERATION.md"),
-        resolve(rootDir, "RAKAZO_ARCHITECT_HANDOFF_OMNIROUTE_COOLIFY_DEPLOYMENT.md"),
+      const canonicalDocPaths = [
+        resolve(rootDir, "RAKAZO_MASTER_BLUEPRINT_CURRENT.md"),
+        resolve(rootDir, "docs/OMNIROUTE_DEPLOYMENT.md"),
+        resolve(rootDir, "docs/NOD_ARCHITECTURE_INNOVATIONS.md"),
       ];
-      const existingHandoff = handoffPaths.find((p) => existsSync(p));
-      if (existingHandoff) {
-        const content = readFileSync(existingHandoff, "utf-8");
+      for (const p of canonicalDocPaths) {
+        expect(existsSync(p)).toBe(true);
+        const content = readFileSync(p, "utf-8");
         expect(content).not.toContain("[TODO]");
+        expect(content).not.toContain("[FIXME]");
       }
     });
 
