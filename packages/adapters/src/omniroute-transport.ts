@@ -355,12 +355,22 @@ export async function probeOmniRouteHealth(options?: {
       return failed;
     }
 
-    const payload = (await response.json()) as { data?: Array<{ id?: string }> };
+    const payload = (await response.json()) as {
+      data?: Array<{ id?: string; owned_by?: string }>;
+    };
     const models = Array.isArray(payload?.data) ? payload.data : [];
-    const rakazoCombos = models
-      .map((m) => (typeof m?.id === "string" ? m.id.trim() : ""))
-      .filter((id) => id.startsWith("combo/rakazo-"))
-      .sort();
+    const rakazoCombos = Array.from(
+      new Set(
+        models
+          .map((m) => {
+            const rawId = typeof m?.id === "string" ? m.id.trim() : "";
+            if (rawId.startsWith("combo/rakazo-")) return rawId;
+            if (rawId.startsWith("rakazo-")) return `combo/${rawId}`;
+            return "";
+          })
+          .filter(Boolean),
+      ),
+    ).sort();
 
     const result: OmniRouteHealthProbeResult = {
       configured: true,

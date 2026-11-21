@@ -421,11 +421,11 @@ describe("Full-Stack Cross-Wave Integration Certification (OpenMausBot + OpenBot
         JSON.stringify({
           object: "list",
           data: [
-            { id: "combo/rakazo-fast" },
-            { id: "combo/rakazo-coding" },
-            { id: "combo/rakazo-reasoning" },
-            { id: "combo/rakazo-writing" },
-            { id: "combo/rakazo-analysis" },
+            { id: "rakazo-fast", owned_by: "combo" },
+            { id: "rakazo-coding", owned_by: "combo" },
+            { id: "combo/rakazo-reasoning", owned_by: "combo" },
+            { id: "rakazo-writing", owned_by: "combo" },
+            { id: "rakazo-analysis", owned_by: "combo" },
             { id: "gemini/gemini-3.5-flash-lite" },
           ],
         }),
