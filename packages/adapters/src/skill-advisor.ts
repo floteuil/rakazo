@@ -15,10 +15,10 @@ import {
   type UnifiedCatalogIndexEntry,
 } from "./sovereign-skills-store.js";
 
-const MAX_ADVISOR_TOKENS = 2200;
-const ADVISOR_TIMEOUT_MS = 22_000;
-const CANDIDATE_POOL_LIMIT = 90;
-const MAX_CANDIDATES_PER_CATEGORY = 28;
+const MAX_ADVISOR_TOKENS = 4096;
+const ADVISOR_TIMEOUT_MS = 25_000;
+const CANDIDATE_POOL_LIMIT = 80;
+const MAX_CANDIDATES_PER_CATEGORY = 26;
 
 const STOPWORDS = new Set([
   "le",
@@ -995,7 +995,7 @@ async function runOmniRouteCompletion(
   systemPrompt: string,
   userPrompt: string,
 ): Promise<LlmAdvisorCallResult> {
-  const modelsToTry = ["combo/rakazo-reasoning", "combo/rakazo-fast"];
+  const modelsToTry = ["combo/rakazo-fast", "combo/rakazo-reasoning"];
   let lastError: unknown;
 
   for (const comboModel of modelsToTry) {
@@ -1026,13 +1026,15 @@ async function runOmniRouteCompletion(
         }
       }
 
-      if (content.trim().length > 10) {
+      const parsedCheck = extractAdvisorJson(content);
+      if (parsedCheck?.selections && parsedCheck.selections.length > 0) {
         return {
           rawContent: content,
           engineUsed: "omniroute",
           resolvedModel,
         };
       }
+      lastError = new Error(`Unparseable JSON from ${comboModel}`);
     } catch (err) {
       lastError = err;
     }
