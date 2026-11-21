@@ -240,14 +240,19 @@ curl -s -o /dev/null -w "%{http_code}" -H "Authorization: Bearer <OMNIROUTE_API_
 
 ---
 
-## 11. Live Combos & Related Architectural References
+## 11. Live Combos, Streaming Keepalive Handling & Sentinel Gateway Probe
 
-OmniRoute supports specialized high-availability combo routes for Rakazo autonomous agents:
-- `combo/rakazo-coding` (Qwen 2.5 Coder 32B / Codestral Free)
-- `combo/rakazo-reasoning` (DeepSeek R1 Free)
-- `combo/rakazo-fast` (LLaMA 3.2 3B Free)
-- `combo/rakazo-writing` (Mistral Small 24B Free)
-- `combo/rakazo-analysis` (Qwen 2.5 72B Free)
+OmniRoute v3.8.51 serves 5 specialized high-availability combo routes for Rakazo autonomous agents:
+- `combo/rakazo-coding` (Codestral / Qwen Coder / Gemini Free)
+- `combo/rakazo-reasoning` (DeepSeek R1 / Gemini Reasoning Free)
+- `combo/rakazo-fast` (Gemini Flash-Lite / LLaMA Fast Free)
+- `combo/rakazo-writing` (Mistral / Gemini Editorial Prose Free)
+- `combo/rakazo-analysis` (Qwen / Gemini Deep Analysis Free)
+
+### Streaming Keepalive & Provider Inference (`OmniRouteInferenceTransport`)
+- **Keepalive Frame Filtering**: When `stream: true` is active, OmniRoute flushes an immediate SSE keepalive frame (`{"id":"chatcmpl-keepalive","model":"keepalive"}`) before upstream provider selection completes. Both `OmniRouteInferenceTransport` and `FreeOmniRouteAdapter` filter out `keepalive` frames so they never pollute content deltas or overwrite `resolvedModel`.
+- **Automatic Provider Inference (`inferFreeProviderFromModel`)**: When early header flushing omits `x-omniroute-provider`, Rakazo deterministically infers the approved sovereign provider (`gemini`, `mistralai`, `deepseek`, `qwen`, `meta-llama`, `nvidia`, `omniroute`) from the final SSE chunk's `model` identifier while preserving fail-closed zero-cost enforcement (`$0.0000`) and blocking unapproved commercial providers.
+- **Zero-Token Live Gateway Probe (`probeOmniRouteHealth`)**: `sentinel.report` executes a 30-second cached `GET /v1/models` probe (4s timeout, zero LLM tokens, zero URL/secret exposure) surfacing live latency (`ms`), active `combo/rakazo-*` routes, total available models, and boolean readiness across all 18 MCP connectors inside `SovereignCockpitOverlay`.
 
 Requests carry the `x-session-id` header (32-bit FNV-1a session hash) to maximize upstream KV prefix cache hits across multi-turn agent turns.
 

@@ -1,6 +1,7 @@
 import { sanitizeToolJsonSchemaDraft2020 } from "@rakazo/contracts";
 import {
   FREE_INFERENCE_UNAVAILABLE_MESSAGE,
+  inferFreeProviderFromModel,
   RakazoFreePolicyEngine,
 } from "./free-policy-engine.js";
 import type {
@@ -160,6 +161,9 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
 
           if (trimmed === "data: [DONE]") {
             if (!emittedUsage && (providerHeader || modelHeader || lastChunkModel)) {
+              const resolvedModel = modelHeader ?? lastChunkModel;
+              const resolvedProvider =
+                providerHeader ?? inferFreeProviderFromModel(resolvedModel) ?? "omniroute";
               emittedUsage = true;
               yield {
                 type: "usage",
@@ -168,8 +172,8 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
                   outputTokens: 0,
                   cachedTokens: 0,
                   totalTokens: 0,
-                  resolvedProvider: providerHeader,
-                  resolvedModel: modelHeader ?? lastChunkModel,
+                  resolvedProvider,
+                  resolvedModel,
                 },
               };
             }
@@ -180,6 +184,9 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
             const dataStr = trimmed.slice(6);
             try {
               const parsed = JSON.parse(dataStr);
+              if (parsed?.id === "chatcmpl-keepalive" || parsed?.model === "keepalive") {
+                continue;
+              }
               if (typeof parsed?.model === "string" && parsed.model.trim()) {
                 lastChunkModel = parsed.model.trim();
               }
@@ -230,6 +237,9 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
                   parsed.usage.cached_tokens ??
                   0;
                 const totalTokens = parsed.usage.total_tokens ?? promptTokens + completionTokens;
+                const resolvedModel = modelHeader ?? lastChunkModel;
+                const resolvedProvider =
+                  providerHeader ?? inferFreeProviderFromModel(resolvedModel) ?? "omniroute";
                 emittedUsage = true;
 
                 yield {
@@ -239,8 +249,8 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
                     outputTokens: completionTokens,
                     cachedTokens,
                     totalTokens,
-                    resolvedProvider: providerHeader,
-                    resolvedModel: modelHeader ?? lastChunkModel,
+                    resolvedProvider,
+                    resolvedModel,
                   },
                 };
               }
@@ -265,4 +275,144 @@ export class OmniRouteInferenceTransport implements InferenceTransport {
       clearTimeout(timeoutId);
     }
   }
+}
+
+export interface OmniRouteHealthProbeResult {
+  configured: boolean;
+  ok: boolean;
+  latencyMs: number | null;
+  rakazoCombos: string[];
+  totalModels: number;
+}
+
+interface CachedOmniRouteProbe {
+  key: string;
+  expiresAt: number;
+  value: OmniRouteHealthProbeResult;
+}
+
+let cachedOmniRouteProbe: CachedOmniRouteProbe | null = null;
+
+/**
+ * Performs a zero-token, non-secret-exposing live readiness check against OmniRoute `/models`
+ * with a 30-second in-memory cache so UI refreshes never overload the gateway.
+ */
+export async function probeOmniRouteHealth(options?: {
+  baseUrl?: string;
+  apiKey?: string;
+  forceRefresh?: boolean;
+  timeoutMs?: number;
+}): Promise<OmniRouteHealthProbeResult> {
+  const envUrl = options?.baseUrl ?? process.env.OMNIROUTE_BASE_URL ?? "";
+  const configured = Boolean(envUrl.trim());
+  if (!configured) {
+    return {
+      configured: false,
+      ok: false,
+      latencyMs: null,
+      rakazoCombos: [],
+      totalModels: 0,
+    };
+  }
+
+  const baseUrl = envUrl.trim().replace(/\/+$/, "");
+  const apiKey = (options?.apiKey ?? process.env.OMNIROUTE_API_KEY ?? "").trim();
+  const cacheKey = `${baseUrl}:${apiKey.length}`;
+  const now = Date.now();
+
+  if (!options?.forceRefresh && cachedOmniRouteProbe && cachedOmniRouteProbe.key === cacheKey) {
+    if (now < cachedOmniRouteProbe.expiresAt) {
+      return cachedOmniRouteProbe.value;
+    }
+  }
+
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), options?.timeoutMs ?? 4000);
+  const startedAt = performance.now();
+
+  try {
+    const headers: Record<string, string> = { Accept: "application/json" };
+    if (apiKey) {
+      headers.Authorization = `Bearer ${apiKey}`;
+    }
+
+    const response = await fetch(`${baseUrl}/models`, {
+      method: "GET",
+      headers,
+      signal: controller.signal,
+    });
+
+    const latencyMs = Math.max(1, Math.round(performance.now() - startedAt));
+    if (!response.ok) {
+      const failed: OmniRouteHealthProbeResult = {
+        configured: true,
+        ok: false,
+        latencyMs,
+        rakazoCombos: [],
+        totalModels: 0,
+      };
+      cachedOmniRouteProbe = { key: cacheKey, expiresAt: now + 10_000, value: failed };
+      return failed;
+    }
+
+    const payload = (await response.json()) as { data?: Array<{ id?: string }> };
+    const models = Array.isArray(payload?.data) ? payload.data : [];
+    const rakazoCombos = models
+      .map((m) => (typeof m?.id === "string" ? m.id.trim() : ""))
+      .filter((id) => id.startsWith("combo/rakazo-"))
+      .sort();
+
+    const result: OmniRouteHealthProbeResult = {
+      configured: true,
+      ok: true,
+      latencyMs,
+      rakazoCombos,
+      totalModels: models.length,
+    };
+    cachedOmniRouteProbe = { key: cacheKey, expiresAt: now + 30_000, value: result };
+    return result;
+  } catch {
+    const failed: OmniRouteHealthProbeResult = {
+      configured: true,
+      ok: false,
+      latencyMs: null,
+      rakazoCombos: [],
+      totalModels: 0,
+    };
+    cachedOmniRouteProbe = { key: cacheKey, expiresAt: now + 10_000, value: failed };
+    return failed;
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+/**
+ * Computes a strictly boolean per-connector configuration map without exposing
+ * any secret values, URLs, or credentials.
+ */
+export function getConnectorReadinessMap(
+  env: NodeJS.ProcessEnv = process.env,
+): Record<string, boolean> {
+  const has = (key: string) => Boolean(env[key]?.trim());
+  return {
+    searxng_scraperr: has("SEARXNG_URL") || has("SCRAPERR_URL"),
+    github: has("GITHUB_TOKEN"),
+    notion: has("NOTION_API_KEY"),
+    postiz: has("POSTIZ_API_KEY"),
+    wordpress_novamira:
+      (has("WORDPRESS_URL") && has("WORDPRESS_APP_PASSWORD")) || has("NOVAMIRA_API_KEY"),
+    n8n: has("N8N_API_KEY"),
+    cloudflare: has("CLOUDFLARE_API_TOKEN"),
+    twenty_crm: has("TWENTY_API_URL") && has("TWENTY_API_KEY"),
+    affine: has("AFFINE_BASE_URL"),
+    context7: true, // Context7 works out-of-the-box with public endpoint + optional API key
+    open_design: has("OPEN_DESIGN_DAEMON_URL"),
+    image_optimizer: true, // In-process Sharp/Canvas media compressor
+    qdrant: has("QDRANT_URL"),
+    coolify: has("COOLIFY_API_URL") && has("COOLIFY_API_TOKEN"),
+    flowise: has("FLOWISE_API_ENDPOINT"),
+    pocketbase: has("POCKETBASE_URL"),
+    ubersuggest: true, // Strictly hors-projet consultation engine
+    system_platform: true, // Sandbox in-process runtime
+  };
 }

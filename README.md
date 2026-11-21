@@ -15,10 +15,10 @@ Rakazo is in beta. Learn more at [rakazo.com](https://rakazo.com).
 
 - **Dual-Track Inference Gateway**:
   - **Premium Track**: `gpt-oss-120b` via OpenRouter with 4-block KV prefix caching optimization.
-  - **Free Track (OmniRoute Gateway)**: Strict-free inference with dynamic model selection by usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`), fail-closed safety, and zero-cost guarantee.
+  - **Free Track (OmniRoute Gateway v3.8.51)**: Strict-free inference with dynamic model selection by usage tags (`coding`, `writing`, `reasoning`, `fast`, `analysis`), early-flush SSE `keepalive` frame filtering, automatic resolved-provider inference (`gemini`, `mistralai`, `deepseek`, `qwen`, `meta-llama`, `nvidia`), 30s cached `/v1/models` live telemetry probe, fail-closed safety, and zero-cost guarantee (`$0.0000`).
 - **Prompt Compiler (« Rendre professionnelles »)**: Two-level prompt optimization (deterministic Level 1 + LLM Level 2) with instant rollback and strict MCP immutability.
 - **Persistent Sovereign Bots**: Bots with their own conversations, memory, routines, and history.
-- **Sovereign In-Cluster MCP Adapters**: First-party isolated connectors for GitHub, Notion, WordPress, Postiz, Novamira, SearXNG, and Cloudflare.
+- **Sovereign In-Cluster MCP Adapters (18 Connectors · 87 Tools)**: First-party isolated connectors for SearXNG/Scraperr, GitHub, Notion, Postiz, WordPress/Novamira, n8n, Cloudflare, Twenty CRM, AFFiNE, Context7, Open Design, Image Optimizer, Qdrant, Coolify, Flowise, PocketBase, Ubersuggest (strictly ad-hoc *hors-projet*), and System Sandbox, monitored by a zero-token **Sentinel Diagnostics Cockpit** with live OmniRoute latency & per-connector readiness badges.
 - **Bounded Autonomous Subagents**: Isolated execution with Level 1 compilation, depth = 1 strict ceiling, 8,192 token budgets, and anti-loop circuit breakers.
 - **Hardened Untrusted Boundaries & Cache-Aware Context (`n8n-io/nod` Innovations)**:
   - `<untrusted_tool_result>` anti-prompt-injection envelopes with closing-tag neutralization, `Europe/Paris` deterministic timestamp conversion, and Luhn/API-key/source-quote memory guards.
@@ -27,7 +27,7 @@ Rakazo is in beta. Learn more at [rakazo.com](https://rakazo.com).
   - Interactive SVG **n8n Workflow Canvas** (`N8nWorkflowCanvas`) and zero-network CSP **Sandboxed Artifact Preview** (`SandboxedArtifactModal` without `allow-same-origin`).
 - **Voice Mode**: Speak replies, dictate, and call a bot (ElevenLabs, OpenAI, Cartesia).
 - **Shared Team Computers & Private Sandboxes**: Browser, terminal, file, and desktop access (Docker, E2B, Daytona).
-- **Full-Stack Multi-Device WebUI**: Responsive mobile-first design (320px to 1440px+), safe area support, and touch-first interactions.
+- **Full-Stack Multi-Device WebUI**: Responsive mobile-first design (320px to 1440px+), safe area support, touch-first interactions, calibrated Zinc/Emerald/Sky telemetry cockpit, and multi-chunk Rollup bundle splitting (`vendor-react`, `vendor-icons`, `vendor-markdown`, `rakazo-catalogs`) keeping every chunk under `500 kB`.
 
 ## Demo
 

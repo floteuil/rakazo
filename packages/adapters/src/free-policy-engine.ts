@@ -7,12 +7,58 @@ export const APPROVED_FREE_PROVIDERS = [
   "combo",
   "meta-llama",
   "mistralai",
+  "mistral",
   "qwen",
   "deepseek",
   "google",
+  "gemini",
+  "gemma",
+  "nvidia",
+  "opencode",
+  "agnes",
+  "uncloseai",
+  "aihorde",
+  "openrouter",
+  "duckduckgo-web",
+  "veoaifree-web",
 ] as const;
 
 export type ApprovedFreeProvider = (typeof APPROVED_FREE_PROVIDERS)[number];
+
+/**
+ * Infers an approved sovereign free provider identifier from a resolved model ID
+ * when OmniRoute flushes early keepalive headers before upstream provider selection.
+ */
+export function inferFreeProviderFromModel(modelId?: string): ApprovedFreeProvider | undefined {
+  if (typeof modelId !== "string") return undefined;
+  const trimmed = modelId.trim();
+  if (!trimmed || trimmed === "keepalive") return undefined;
+  const lower = trimmed.toLowerCase();
+
+  if (lower.includes("gemini") || lower.includes("gemma")) return "gemini";
+  if (
+    lower.includes("mistral") ||
+    lower.includes("codestral") ||
+    lower.includes("ministral") ||
+    lower.includes("pixtral")
+  ) {
+    return "mistralai";
+  }
+  if (lower.includes("deepseek")) return "deepseek";
+  if (lower.includes("qwen")) return "qwen";
+  if (lower.includes("llama")) return "meta-llama";
+  if (lower.includes("nemotron") || lower.includes("nvidia")) return "nvidia";
+  if (lower.startsWith("combo/") || lower === "combo") return "omniroute";
+
+  const slashIdx = lower.indexOf("/");
+  if (slashIdx > 0) {
+    const prefix = lower.slice(0, slashIdx) as ApprovedFreeProvider;
+    if ((APPROVED_FREE_PROVIDERS as readonly string[]).includes(prefix)) {
+      return prefix;
+    }
+  }
+  return "omniroute";
+}
 
 export const AVOIDED_PROVIDERS = [
   "unapproved_commercial_proxy",

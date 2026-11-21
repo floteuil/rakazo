@@ -498,5 +498,23 @@ describe("CHALLENGER 1 ADVERSARIAL VERIFICATION: Mobile-First & MCP UI", () => {
       expect(cockpitHtml).toContain("Standing Rules");
       expect(cockpitHtml).toContain("Bouclier Secrets");
     });
+
+    it("5.8 validates OmniRoute Live Telemetry Banner & 5 Sovereign Combos in Cockpit", () => {
+      const connectorsHtml = renderToStaticMarkup(
+        <SovereignCockpitOverlay
+          bots={[]}
+          initialUsage={{ inputTokens: 800, outputTokens: 400, runs: 3 }}
+          initialTab="connectors"
+          onClose={() => {}}
+        />,
+      );
+
+      expect(connectorsHtml).toContain("cockpit-omniroute-live-banner");
+      expect(connectorsHtml).toContain("combo/rakazo-fast");
+      expect(connectorsHtml).toContain("combo/rakazo-coding");
+      expect(connectorsHtml).toContain("combo/rakazo-reasoning");
+      expect(connectorsHtml).toContain("combo/rakazo-writing");
+      expect(connectorsHtml).toContain("combo/rakazo-analysis");
+    });
   });
 });

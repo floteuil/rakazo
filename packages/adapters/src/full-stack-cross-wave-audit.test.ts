@@ -2,12 +2,17 @@ import type { AdapterContext, MemorySnapshot, MemoryStore } from "@rakazo/adapte
 import { describe, expect, it, vi } from "vitest";
 import { collectDeploymentSecretValues } from "./enterprise-tools.js";
 import { isReadOnlyAgentToolCall } from "./executor.js";
+import { inferFreeProviderFromModel, RakazoFreePolicyEngine } from "./free-policy-engine.js";
 import {
   appendBoundedMemoryArchive,
   isInternalRuntimeMemoryPath,
   loadAgentMemoryContext,
 } from "./memory-context.js";
-import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
+import {
+  getConnectorReadinessMap,
+  OmniRouteInferenceTransport,
+  probeOmniRouteHealth,
+} from "./omniroute-transport.js";
 import { PiAiInferenceTransport } from "./pi-ai-transport.js";
 import {
   CanonicalAgentRuntime,
@@ -333,5 +338,128 @@ describe("Full-Stack Cross-Wave Integration Certification (OpenMausBot + OpenBot
     expect(secrets).toContain("coolify_token_example");
     expect(secrets).toContain("uber_secret_token_example");
     expect(secrets).not.toContain("abc");
+  });
+
+  it("7. accepts live OmniRoute v3.8.51 'gemini' / 'nvidia' / 'mistral' free providers while blocking unapproved commercial ones", () => {
+    const engine = new RakazoFreePolicyEngine();
+    expect(() => engine.assertZeroCostAndAllowed("gemini", 0.0)).not.toThrow();
+    expect(() => engine.assertZeroCostAndAllowed("mistral", 0.0)).not.toThrow();
+    expect(() => engine.assertZeroCostAndAllowed("nvidia", 0.0)).not.toThrow();
+    expect(() => engine.assertZeroCostAndAllowed("opencode", 0.0)).not.toThrow();
+    expect(() => engine.assertZeroCostAndAllowed("gemini", 0.0001)).toThrow();
+    for (const blocked of ["openai", "anthropic", "cohere", "groq", "together", "novamira"]) {
+      expect(() => engine.assertZeroCostAndAllowed(blocked, 0.0)).toThrow();
+    }
+
+    expect(inferFreeProviderFromModel("gemini-3.5-flash-lite")).toBe("gemini");
+    expect(inferFreeProviderFromModel("codestral-2508")).toBe("mistralai");
+    expect(inferFreeProviderFromModel("deepseek-r1:free")).toBe("deepseek");
+    expect(inferFreeProviderFromModel("keepalive")).toBeUndefined();
+  });
+
+  it("8. ignores OmniRoute SSE keepalive frames and infers resolvedProvider when x-omniroute-provider is omitted", async () => {
+    const ssePayload = [
+      'data: {"id":"chatcmpl-keepalive","object":"chat.completion.chunk","model":"keepalive","choices":[{"index":0,"delta":{"role":"assistant","content":""},"finish_reason":null}]}',
+      "",
+      'data: {"id":"chatcmpl-real","object":"chat.completion.chunk","model":"gemini-3.5-flash-lite","choices":[{"index":0,"delta":{"content":"Connexion OmniRoute validée !"},"finish_reason":null}]}',
+      "",
+      'data: {"id":"chatcmpl-real","object":"chat.completion.chunk","model":"gemini-3.5-flash-lite","choices":[{"index":0,"delta":{},"finish_reason":"stop"}],"usage":{"prompt_tokens":24,"completion_tokens":8,"total_tokens":32}}',
+      "",
+      "data: [DONE]",
+      "",
+    ].join("\n");
+
+    const encoder = new TextEncoder();
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        new ReadableStream({
+          start(controller) {
+            controller.enqueue(encoder.encode(ssePayload));
+            controller.close();
+          },
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "text/event-stream",
+            "x-omniroute-response-cost": "0.0000000000",
+          },
+        },
+      ),
+    );
+
+    try {
+      const transport = new OmniRouteInferenceTransport({
+        baseUrl: "http://omniroute.local/v1",
+        apiKey: "test_key",
+      });
+      const chunks = [];
+      for await (const ch of transport.stream({
+        model: "combo/rakazo-fast",
+        messages: [{ role: "user", content: "Ping" }],
+      })) {
+        chunks.push(ch);
+      }
+
+      const textOut = chunks
+        .filter((c) => c.type === "text")
+        .map((c) => c.text)
+        .join("");
+      expect(textOut).toBe("Connexion OmniRoute validée !");
+
+      const usageChunk = chunks.find((c) => c.type === "usage");
+      expect(usageChunk?.usage?.resolvedModel).toBe("gemini-3.5-flash-lite");
+      expect(usageChunk?.usage?.resolvedProvider).toBe("gemini");
+    } finally {
+      fetchSpy.mockRestore();
+    }
+  });
+
+  it("9. probes OmniRoute /models without leaking secrets and builds boolean readiness map for all 18 MCPs", async () => {
+    const fetchSpy = vi.spyOn(globalThis, "fetch").mockResolvedValueOnce(
+      new Response(
+        JSON.stringify({
+          object: "list",
+          data: [
+            { id: "combo/rakazo-fast" },
+            { id: "combo/rakazo-coding" },
+            { id: "combo/rakazo-reasoning" },
+            { id: "combo/rakazo-writing" },
+            { id: "combo/rakazo-analysis" },
+            { id: "gemini/gemini-3.5-flash-lite" },
+          ],
+        }),
+        { status: 200, headers: { "content-type": "application/json" } },
+      ),
+    );
+
+    try {
+      const probe = await probeOmniRouteHealth({
+        baseUrl: "http://omniroute-probe-test.local/v1",
+        apiKey: "secret_should_never_leak",
+        forceRefresh: true,
+      });
+      expect(probe.configured).toBe(true);
+      expect(probe.ok).toBe(true);
+      expect(probe.totalModels).toBe(6);
+      expect(probe.rakazoCombos).toHaveLength(5);
+      expect(JSON.stringify(probe)).not.toContain("secret_should_never_leak");
+      expect(JSON.stringify(probe)).not.toContain("omniroute-probe-test.local");
+
+      const map = getConnectorReadinessMap({
+        SEARXNG_URL: "http://searxng:8080",
+        POSTIZ_API_KEY: "pk_test",
+        TWENTY_API_URL: "http://twenty:3000",
+        TWENTY_API_KEY: "",
+      } as any);
+      expect(map.searxng_scraperr).toBe(true);
+      expect(map.postiz).toBe(true);
+      expect(map.twenty_crm).toBe(false);
+      expect(map.system_platform).toBe(true);
+      expect(map.image_optimizer).toBe(true);
+      expect(Object.keys(map)).toHaveLength(18);
+    } finally {
+      fetchSpy.mockRestore();
+    }
   });
 });

@@ -147,6 +147,46 @@ export default defineConfig(({ mode }) => {
         configurePreviewServer: (server) => attachNovncProxy(server, getScreenProxySecret()),
       },
     ],
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (
+              id.includes("node_modules/react/") ||
+              id.includes("node_modules/react-dom/") ||
+              id.includes("node_modules/react-router") ||
+              id.includes("node_modules/scheduler/")
+            ) {
+              return "vendor-react";
+            }
+            if (id.includes("node_modules/lucide-react/")) {
+              return "vendor-icons";
+            }
+            if (
+              id.includes("node_modules/react-markdown") ||
+              id.includes("node_modules/remark-") ||
+              id.includes("node_modules/rehype-") ||
+              id.includes("node_modules/unified") ||
+              id.includes("node_modules/micromark") ||
+              id.includes("node_modules/mdast") ||
+              id.includes("node_modules/hast") ||
+              id.includes("node_modules/vfile") ||
+              id.includes("node_modules/unist")
+            ) {
+              return "vendor-markdown";
+            }
+            if (
+              id.includes("packages/contracts/src/sovereign-skills-catalog") ||
+              id.includes("packages/contracts/src/mcp-catalog") ||
+              id.includes("packages/contracts/src/agent-blueprints")
+            ) {
+              return "rakazo-catalogs";
+            }
+            return undefined;
+          },
+        },
+      },
+    },
     server: {
       host: "127.0.0.1",
       port: webPort,

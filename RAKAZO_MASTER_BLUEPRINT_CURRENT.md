@@ -1,11 +1,11 @@
 # RAKAZO MASTER BLUEPRINT — CURRENT ARCHITECTURE & PLATFORM SPECIFICATION
 
-**Version**: 2.7.0-ui-excellence-and-robustness-certified  
+**Version**: 2.9.0-full-stack-omniroute-sentinel-and-bundle-certified  
 **Repository**: [https://github.com/floteuil/rakazo](https://github.com/floteuil/rakazo) (Turborepo 2 + pnpm Monorepo)  
-**Branch**: `main`  
-**Consolidation**: UI/UX Excellence Integration (`ToolActivityAccordion`, `ChoiceChipsCard`, `TimestampBadge`, `MessageActionBar`, `MentionPopover`, Unified Red Error Design Tokens `--rk-error`), Robustness Hotfixes (MCP Complex TypeBox Schemas, SSE UTF-16 Surrogate Sanitization, Terminal Run Snapshot Reduction), Free Intelligence Gateway (OmniRoute), 3-Tier Decoupling, Triple Coherence Observability, Pluggable Transports, Shared Canonical MCP Runtime & Full-Chain Persistence  
-**Verification Date**: 2026-09-02  
-**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 100% Vitest Pass Rate across Monorepo Test Suites, 0 Plaintext Secrets, 10/10 Invariants Sanctuarized)
+**Branch**: `main` & `clean-release` (Zero-Secret Public Release Ready)  
+**Consolidation**: Cross-Wave Sovereign Consolidation (OpenMausBot Sentinel + Same-Request Deduplicator + Dynamic Memory Profiles, CopilotKit/OpenBot Anti-Dangles + Routine Checklists + Standing Rules + Secret Shield, NousResearch/Hermes Fuzzy Tool Repair + Denial Breaker + Asymmetric User Prompt Sanctuary, `n8n-io/nod` Untrusted Envelopes + 5-Min Cold-Cache Pruning + `.rakazo/outputs/` Offloading + Learned Procedural Skills + Routine Delta Watches + `N8nWorkflowCanvas` + `SandboxedArtifactModal`, OmniRoute v3.8.51 Live SSE Keepalive & Provider Inference + Zero-Token `/models` Telemetry Probe, Multi-Chunk Vite Bundle Splitting `< 500 kB`)  
+**Verification Date**: 2026-11-21  
+**Global Status**: Production Certified (0 TypeScript Errors across 19 packages, 100% Vitest Pass Rate across Monorepo Test Suites, 0 Plaintext Secrets, Live OmniRoute 5/5 Combos Verified)
 
 ---
 

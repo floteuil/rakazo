@@ -338,6 +338,9 @@ export class FreeOmniRouteAdapter implements AgentRuntime {
             const dataStr = trimmed.slice(6);
             try {
               const parsed = JSON.parse(dataStr);
+              if (parsed?.id === "chatcmpl-keepalive" || parsed?.model === "keepalive") {
+                continue;
+              }
               const chunkCost =
                 parsed?.pricing?.total_cost ??
                 parsed?.pricing?.cost ??

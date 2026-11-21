@@ -39,6 +39,19 @@ export interface SentinelConnectorHealth {
   lastError?: string;
 }
 
+export interface SentinelGatewayStatus {
+  omniroute: {
+    configured: boolean;
+    ok: boolean;
+    latencyMs: number | null;
+    rakazoCombos: string[];
+    totalModels: number;
+  };
+  openrouter: {
+    configured: boolean;
+  };
+}
+
 export interface SentinelReport {
   timestamp: string;
   totalScanned: number;
@@ -48,6 +61,8 @@ export interface SentinelReport {
   issues: SentinelIssue[];
   healthyCount: number;
   degradedCount: number;
+  gateways?: SentinelGatewayStatus;
+  configuredConnectors?: Record<string, boolean>;
 }
 
 /**

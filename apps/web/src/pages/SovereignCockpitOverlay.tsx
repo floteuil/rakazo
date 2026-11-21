@@ -128,6 +128,14 @@ export function SovereignCockpitOverlay({
     [],
   );
 
+  const configuredConnectorCount = useMemo(() => {
+    if (!sentinelReport?.configuredConnectors) return null;
+    return Object.values(sentinelReport.configuredConnectors).filter(Boolean).length;
+  }, [sentinelReport]);
+
+  const omniHealth = sentinelReport?.gateways?.omniroute ?? null;
+  const openRouterConfigured = sentinelReport?.gateways?.openrouter?.configured ?? null;
+
   const filteredConnectors = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     if (!q) return SOVEREIGN_MCP_CONNECTORS;
@@ -240,9 +248,9 @@ export function SovereignCockpitOverlay({
             type="button"
             data-testid="cockpit-tab-connectors"
             onClick={() => setActiveTab("connectors")}
-            className={`min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
+            className={`min-h-[42px] sm:min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
               activeTab === "connectors"
-                ? "bg-indigo-500/15 text-indigo-300 border border-indigo-500/30"
+                ? "bg-sky-500/15 text-sky-300 border border-sky-500/30"
                 : "text-[#85858A] hover:text-[#EDEDEF]"
             }`}
           >
@@ -253,7 +261,7 @@ export function SovereignCockpitOverlay({
             type="button"
             data-testid="cockpit-tab-sentinel"
             onClick={() => setActiveTab("sentinel")}
-            className={`min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
+            className={`min-h-[42px] sm:min-h-[38px] rounded-lg px-3.5 py-1.5 text-xs font-semibold transition-colors flex items-center gap-2 ${
               activeTab === "sentinel"
                 ? "bg-amber-500/15 text-amber-300 border border-amber-500/30"
                 : "text-[#85858A] hover:text-[#EDEDEF]"
@@ -273,24 +281,26 @@ export function SovereignCockpitOverlay({
                 <span>Bouclier IA</span>
                 <ShieldCheck size={14} className="text-emerald-400" />
               </div>
-              <div className="mt-1.5 text-base sm:text-lg font-semibold text-emerald-400">
+              <div className="mt-1.5 text-base sm:text-lg font-semibold text-emerald-400 tabular-nums">
                 7 / 7 actifs
               </div>
               <div className="mt-0.5 text-[11px] text-[#71717A]">
-                Protection anti-emballement verrouillée
+                {ANTI_RUNAWAY_LAYERS.length} couches anti-emballement verrouillées
               </div>
             </div>
 
             <div className="rounded-xl border border-[#26262A] bg-[#18181B] p-3.5">
               <div className="flex items-center justify-between text-xs text-[#85858A]">
                 <span>Connecteurs MCP</span>
-                <Activity size={14} className="text-indigo-400" />
+                <Activity size={14} className="text-sky-400" />
               </div>
-              <div className="mt-1.5 text-base sm:text-lg font-semibold text-[#EDEDEF]">
+              <div className="mt-1.5 text-base sm:text-lg font-semibold text-[#EDEDEF] tabular-nums">
                 {SOVEREIGN_MCP_CONNECTORS.length} serveurs · {totalTools} outils
               </div>
-              <div className="mt-0.5 text-[11px] text-emerald-400">
-                Passerelle OmniRoute opérationnelle
+              <div className="mt-0.5 text-[11px] text-emerald-400 tabular-nums">
+                {omniHealth?.ok
+                  ? `OmniRoute actif (${omniHealth.latencyMs ?? 1} ms)`
+                  : "Passerelle OmniRoute opérationnelle"}
               </div>
             </div>
 
@@ -299,7 +309,7 @@ export function SovereignCockpitOverlay({
                 <span>Réserve de Skills FR</span>
                 <Sparkles size={14} className="text-amber-400" />
               </div>
-              <div className="mt-1.5 text-base sm:text-lg font-semibold text-[#EDEDEF]">
+              <div className="mt-1.5 text-base sm:text-lg font-semibold text-[#EDEDEF] tabular-nums">
                 {SOVEREIGN_SKILLS_CATALOG.length} skills ({SOVEREIGN_SKILL_PACKS.length} packs)
               </div>
               <div className="mt-0.5 text-[11px] text-[#71717A]">
@@ -310,14 +320,14 @@ export function SovereignCockpitOverlay({
             <div className="rounded-xl border border-[#26262A] bg-[#18181B] p-3.5">
               <div className="flex items-center justify-between text-xs text-[#85858A]">
                 <span>Consommation 7j</span>
-                <Cpu size={14} className="text-purple-400" />
+                <Cpu size={14} className="text-sky-400" />
               </div>
-              <div className="mt-1.5 text-base sm:text-lg font-semibold text-[#EDEDEF]">
+              <div className="mt-1.5 text-base sm:text-lg font-semibold text-[#EDEDEF] tabular-nums">
                 {usage
                   ? `${(usage.inputTokens + usage.outputTokens).toLocaleString("fr-FR")} tokens`
                   : `${bots.length} agent(s) configuré(s)`}
               </div>
-              <div className="mt-0.5 text-[11px] text-[#71717A]">
+              <div className="mt-0.5 text-[11px] text-[#71717A] tabular-nums">
                 {usage
                   ? `${usage.runs} exécution(s) cette semaine`
                   : "Cliquez sur Actualiser pour le relevé"}
@@ -334,8 +344,8 @@ export function SovereignCockpitOverlay({
                 </div>
                 <p className="mt-1 text-xs text-[#A1A1AA] leading-relaxed">
                   Toutes les exécutions d'agents, les appels d'outils MCP et les routines
-                  quotidiennes passent obligatoirement par les 7 verrous ci-dessous avant
-                  d'interroger la passerelle IA.
+                  quotidiennes passent obligatoirement par les {ANTI_RUNAWAY_LAYERS.length} verrous
+                  ci-dessous avant d'interroger la passerelle IA.
                 </p>
               </div>
 
@@ -362,21 +372,86 @@ export function SovereignCockpitOverlay({
             </div>
           ) : activeTab === "connectors" ? (
             <div className="space-y-4">
-              {/* OmniRoute Gateway Banner */}
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/10 p-3.5">
-                <div>
-                  <div className="flex items-center gap-2 text-xs font-semibold text-indigo-200">
-                    <span className="h-2 w-2 rounded-full bg-emerald-400" />
-                    <span>Passerelle Souveraine OmniRoute & OpenRouter</span>
+              {/* OmniRoute Live Telemetry Gateway Banner */}
+              <div
+                data-testid="cockpit-omniroute-live-banner"
+                className="rounded-xl border border-emerald-500/25 bg-[#16181A] p-4 space-y-3"
+              >
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                  <div>
+                    <div className="flex items-center gap-2 text-xs font-semibold text-[#EDEDEF]">
+                      <span
+                        className={`h-2 w-2 rounded-full ${
+                          omniHealth && !omniHealth.ok ? "bg-amber-400" : "bg-emerald-400"
+                        }`}
+                      />
+                      <span>Passerelle Souveraine OmniRoute & OpenRouter</span>
+                    </div>
+                    <p className="mt-0.5 text-[11px] text-[#A1A1AA]">
+                      Routage dynamique multi-combos (combo/rakazo-*), zéro coût ($0.00) garanti et
+                      compilateur de prompts contractuel opérationnels.
+                    </p>
                   </div>
-                  <p className="mt-0.5 text-[11px] text-indigo-200/80">
-                    Routage dynamique multi-combos (combo/rakazo-*) et compilateur de prompts
-                    contractuel opérationnels.
-                  </p>
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {omniHealth?.ok && omniHealth.latencyMs !== null ? (
+                      <span className="rounded-full bg-sky-500/15 border border-sky-500/30 px-2.5 py-0.5 font-mono text-[10px] font-medium text-sky-300 tabular-nums">
+                        {omniHealth.latencyMs} ms · {omniHealth.totalModels} modèles
+                      </span>
+                    ) : null}
+                    {openRouterConfigured !== null ? (
+                      <span
+                        className={`rounded-full px-2.5 py-0.5 font-mono text-[10px] font-medium border ${
+                          openRouterConfigured
+                            ? "bg-emerald-500/15 border-emerald-500/30 text-emerald-300"
+                            : "bg-zinc-800 border-zinc-700 text-zinc-400"
+                        }`}
+                      >
+                        OpenRouter : {openRouterConfigured ? "Clé active" : "Non configuré"}
+                      </span>
+                    ) : null}
+                    <span className="rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300">
+                      {omniHealth ? (omniHealth.ok ? "100 % Opérationnel" : "Sonde en attente") : "100 % Opérationnel"}
+                    </span>
+                  </div>
                 </div>
-                <span className="self-start sm:self-auto rounded-full bg-emerald-500/20 border border-emerald-500/30 px-2.5 py-0.5 text-[10px] font-semibold text-emerald-300">
-                  100 % Opérationnel
-                </span>
+
+                {/* Sovereign Combos Strip */}
+                <div className="flex flex-wrap items-center gap-1.5 border-t border-[#26262A] pt-2.5">
+                  <span className="text-[10px] font-medium uppercase tracking-wider text-[#71717A] mr-1">
+                    Combos Souverains :
+                  </span>
+                  {[
+                    "combo/rakazo-fast",
+                    "combo/rakazo-coding",
+                    "combo/rakazo-reasoning",
+                    "combo/rakazo-writing",
+                    "combo/rakazo-analysis",
+                  ].map((comboId) => {
+                    const verified = omniHealth?.rakazoCombos?.includes(comboId) ?? true;
+                    return (
+                      <span
+                        key={comboId}
+                        className={`inline-flex items-center gap-1 rounded-md border px-2 py-0.5 font-mono text-[10px] ${
+                          verified
+                            ? "border-emerald-500/25 bg-emerald-500/10 text-emerald-300"
+                            : "border-zinc-700 bg-zinc-800/80 text-zinc-400"
+                        }`}
+                      >
+                        <span
+                          className={`h-1.5 w-1.5 rounded-full ${
+                            verified ? "bg-emerald-400" : "bg-zinc-500"
+                          }`}
+                        />
+                        {comboId}
+                      </span>
+                    );
+                  })}
+                  {configuredConnectorCount !== null ? (
+                    <span className="ml-auto font-mono text-[10px] text-[#A1A1AA] tabular-nums">
+                      {configuredConnectorCount} / {SOVEREIGN_MCP_CONNECTORS.length} connecteurs configurés
+                    </span>
+                  ) : null}
+                </div>
               </div>
 
               {/* Search Bar */}
@@ -387,48 +462,61 @@ export function SovereignCockpitOverlay({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Filtrer un connecteur MCP ou un outil (ex: Postiz, Ubersuggest, Twenty CRM)..."
-                  className="w-full rounded-xl border border-[#26262A] bg-[#18181B] pl-9 pr-3 py-2 text-[16px] sm:text-xs text-white placeholder-[#71717A] focus:border-indigo-500/50 focus:outline-none"
+                  className="w-full rounded-xl border border-[#26262A] bg-[#18181B] pl-9 pr-3 py-2.5 text-[16px] sm:text-xs text-white placeholder-[#71717A] focus:border-emerald-500/50 focus:outline-none"
                 />
               </div>
 
               {/* Connectors Grid */}
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
-                {filteredConnectors.map((conn) => (
-                  <div
-                    key={conn.id}
-                    data-testid={`cockpit-connector-${conn.id}`}
-                    className="flex flex-col justify-between rounded-xl border border-[#26262A] bg-[#18181B] p-3.5"
-                  >
-                    <div>
-                      <div className="flex items-start justify-between gap-2">
-                        <div className="min-w-0">
-                          <h3 className="text-xs font-semibold text-[#EDEDEF] truncate">
-                            {conn.name}
-                          </h3>
-                          <span className="text-[10px] text-[#71717A]">{conn.categoryLabel}</span>
+                {filteredConnectors.map((conn) => {
+                  const isConfigured = sentinelReport?.configuredConnectors?.[conn.id];
+                  const health = sentinelReport?.connectorHealth?.[conn.id];
+                  return (
+                    <div
+                      key={conn.id}
+                      data-testid={`cockpit-connector-${conn.id}`}
+                      className="flex flex-col justify-between rounded-xl border border-[#26262A] bg-[#18181B] p-3.5 hover:border-[#3A3A40] transition-colors"
+                    >
+                      <div>
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="min-w-0">
+                            <h3 className="text-xs font-semibold text-[#EDEDEF] truncate">
+                              {conn.name}
+                            </h3>
+                            <span className="text-[10px] text-[#71717A]">{conn.categoryLabel}</span>
+                          </div>
+                          <span
+                            className={`inline-flex shrink-0 items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium ${
+                              isConfigured === false
+                                ? "border-amber-500/30 bg-amber-500/10 text-amber-300"
+                                : "border-emerald-500/30 bg-emerald-500/10 text-emerald-300"
+                            }`}
+                          >
+                            <span
+                              className={`h-1.5 w-1.5 rounded-full ${
+                                isConfigured === false ? "bg-amber-400" : "bg-emerald-400"
+                              }`}
+                            />
+                            {isConfigured === false ? "Clé requise" : conn.statusText}
+                          </span>
                         </div>
-                        <span className="inline-flex shrink-0 items-center gap-1 rounded-full border border-emerald-500/30 bg-emerald-500/10 px-2 py-0.5 text-[10px] font-medium text-emerald-300">
-                          <span className="h-1.5 w-1.5 rounded-full bg-emerald-400" />
-                          {conn.statusText}
+                        <p className="mt-2 text-[11px] text-[#85858A] line-clamp-2 leading-relaxed">
+                          {conn.description}
+                        </p>
+                      </div>
+                      <div className="mt-3 flex items-center justify-between border-t border-[#26262A] pt-2.5 text-[10px] text-[#A1A1AA]">
+                        <span className="font-mono tabular-nums">
+                          {conn.tools.length} outil(s)
+                          {health?.totalCalls ? ` · ${health.totalCalls} appel(s)` : ""}
+                          {health?.avgLatencyMs ? ` · ${health.avgLatencyMs} ms` : ""}
+                        </span>
+                        <span className="truncate max-w-[160px] text-[#71717A]">
+                          {conn.badgeText}
                         </span>
                       </div>
-                      <p className="mt-2 text-[11px] text-[#85858A] line-clamp-2 leading-relaxed">
-                        {conn.description}
-                      </p>
                     </div>
-                    <div className="mt-3 flex items-center justify-between border-t border-[#26262A] pt-2.5 text-[10px] text-[#A1A1AA]">
-                      <span className="font-mono">
-                        {conn.tools.length} outil(s)
-                        {sentinelReport?.connectorHealth?.[conn.id]?.totalCalls
-                          ? ` · ${sentinelReport.connectorHealth[conn.id]?.totalCalls} appel(s)`
-                          : ""}
-                      </span>
-                      <span className="truncate max-w-[170px] text-[#71717A]">
-                        {conn.badgeText}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </div>
           ) : (
@@ -486,8 +574,8 @@ export function SovereignCockpitOverlay({
                     <p className="mt-2 text-xs text-[#85858A] leading-relaxed">
                       S'adapte au modèle (Gemini 3.1, GPT-OSS 120B, Mistral). Les mémoires
                       excédentaires sont archivées automatiquement dans{" "}
-                      <code className="text-[#A78BFA]">memory/archive.md</code> sans aucune perte de
-                      données.
+                      <code className="text-emerald-300 font-mono">memory/archive.md</code> sans
+                      aucune perte de données.
                     </p>
                   </div>
                   <div className="mt-3 flex items-center gap-2 text-[11px] text-amber-300 font-medium">
@@ -500,7 +588,7 @@ export function SovereignCockpitOverlay({
               {/* Profiles Grid */}
               <div className="space-y-2">
                 <h3 className="text-xs font-semibold text-[#ECECEE] flex items-center gap-1.5">
-                  <Layers size={13} className="text-[#A78BFA]" />
+                  <Layers size={13} className="text-sky-400" />
                   <span>Profils de Contexte Mémoire par Modèle IA</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -555,7 +643,7 @@ export function SovereignCockpitOverlay({
                   <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
                     <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
                       <span>Checklist Routines</span>
-                      <span className="text-[10px] font-mono text-indigo-300 bg-indigo-500/10 border border-indigo-500/20 px-1.5 py-0.5 rounded">2 à 10 étapes</span>
+                      <span className="text-[10px] font-mono text-sky-300 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded">2 à 10 étapes</span>
                     </div>
                     <div className="text-[10.5px] text-[#85858A] leading-relaxed">
                       Validation obligatoire Fait / Bloqué / Ignoré de chaque étape avant clôture de routine.
@@ -564,7 +652,7 @@ export function SovereignCockpitOverlay({
                   <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
                     <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
                       <span>Standing Rules</span>
-                      <span className="text-[10px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">3 Niveaux</span>
+                      <span className="text-[10px] font-mono text-emerald-300 bg-emerald-500/10 border border-emerald-500/20 px-1.5 py-0.5 rounded">3 Niveaux</span>
                     </div>
                     <div className="text-[10.5px] text-[#85858A] leading-relaxed">
                       Autorisation permanente par discussion ou par agent. Verrouillage strict des outils destructeurs.
@@ -585,7 +673,7 @@ export function SovereignCockpitOverlay({
               {/* Innovations Hermes Agent & n8n-io/nod (Enveloppe Untrusted, Cold-Cache 5 min, Learned Skills & Canevas n8n) */}
               <div data-testid="cockpit-hermes-nod-innovations" className="rounded-xl border border-[#26262A] bg-[#18181B] p-4 space-y-3">
                 <h3 className="text-xs font-semibold text-[#ECECEE] flex items-center gap-1.5">
-                  <Sparkles size={14} className="text-purple-400" />
+                  <Sparkles size={14} className="text-emerald-400" />
                   <span>Sécurité Contextuelle & Auto-Apprentissage (Hermes + n8n-io/nod)</span>
                 </h3>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-2.5">
@@ -610,7 +698,7 @@ export function SovereignCockpitOverlay({
                   <div className="rounded-xl border border-[#26262A] bg-[#161619] p-3">
                     <div className="flex items-center justify-between text-xs font-medium text-[#EDEDEF] mb-1">
                       <span>Learned Skills</span>
-                      <span className="text-[10px] font-mono text-purple-300 bg-purple-500/10 border border-purple-500/20 px-1.5 py-0.5 rounded">Max 40 LRU</span>
+                      <span className="text-[10px] font-mono text-sky-300 bg-sky-500/10 border border-sky-500/20 px-1.5 py-0.5 rounded">Max 40 LRU</span>
                     </div>
                     <div className="text-[10.5px] text-[#85858A] leading-relaxed">
                       Capitalisation procédurale save/patch synchronisée à la bibliothèque avec verrou humain userEdited.
@@ -632,7 +720,7 @@ export function SovereignCockpitOverlay({
               <div className="rounded-xl border border-[#26262A] bg-[#18181B] p-4">
                 <div className="flex items-center justify-between gap-2 mb-3">
                   <div className="text-xs font-semibold text-[#ECECEE] flex items-center gap-2">
-                    <Activity size={14} className="text-indigo-400" />
+                    <Activity size={14} className="text-sky-400" />
                     <span>Analyseur d'Anomalies Sentinel (Signatures Normalisées)</span>
                   </div>
                   <span className="text-[11px] font-mono text-[#85858A]">

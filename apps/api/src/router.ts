@@ -28,10 +28,12 @@ import {
   displayBotWorkspacePath,
   type EncryptedSecretStore,
   expireComputerControl,
+  getConnectorReadinessMap,
   hasActiveComputerControl,
   isSupermemoryEnabled,
   listPiCatalog,
   type PiOAuthLogins,
+  probeOmniRouteHealth,
   provisionComputer,
   releaseComputerExecutionLease,
   resolveBotWorkspacePath,
@@ -1684,7 +1686,23 @@ export function createRouter(deps: RouterDeps) {
             timestamp: r.createdAt,
           }));
 
-        return analyzeSentinelTelemetry([...effectLogs, ...readOnlyToolLogs, ...runLogs]);
+        const [baseReport, omnirouteHealth] = await Promise.all([
+          Promise.resolve(
+            analyzeSentinelTelemetry([...effectLogs, ...readOnlyToolLogs, ...runLogs]),
+          ),
+          probeOmniRouteHealth(),
+        ]);
+
+        return {
+          ...baseReport,
+          gateways: {
+            omniroute: omnirouteHealth,
+            openrouter: {
+              configured: Boolean(deps.env.openRouterKey?.trim() || process.env.OPENROUTER_API_KEY?.trim()),
+            },
+          },
+          configuredConnectors: getConnectorReadinessMap(process.env),
+        };
       }),
     },
     export: {

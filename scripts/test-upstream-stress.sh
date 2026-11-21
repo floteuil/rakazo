@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
 set -e
 
+REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
 echo "=== STARTING M2 EMPIRICAL BASH STRESS TEST SUITE ==="
 
 WORK_DIR=$(mktemp -d /tmp/rakazo-m2-test-XXXXXX)
@@ -223,7 +225,7 @@ echo "✓ TEST 4 PASSED: Lockfile tampering detected."
 # -------------------------------------------------------------
 echo ""
 echo "[TEST 5] Checking sync-upstream.yml security invariants..."
-WF_PATH="/Users/floteuilteletravail/.gemini/antigravity/scratch/rakazo_app/.github/workflows/sync-upstream.yml"
+WF_PATH="$REPO_ROOT/.github/workflows/sync-upstream.yml"
 
 grep -q 'cron: "0 4 \* \* \*"' "$WF_PATH" || (echo "FAIL: Missing cron schedule"; exit 1)
 grep -q 'workflow_dispatch:' "$WF_PATH" || (echo "FAIL: Missing workflow_dispatch"; exit 1)
