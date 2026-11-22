@@ -1,0 +1,494 @@
+import * as z from "zod";
+import { ThreadMessageSchema } from "./events.js";
+import { Id, MemoryScope, RunStatus, SandboxKind } from "./ids.js";
+
+export type { BotMcpConfig } from "./mcp-catalog.js";
+
+export const ComputerModeSchema = z.enum(["team", "dedicated"]);
+export type ComputerMode = z.infer<typeof ComputerModeSchema>;
+
+export const InferenceModeSchema = z.enum(["premium", "free"]);
+export type InferenceMode = z.infer<typeof InferenceModeSchema>;
+
+export const InferenceUsageTagSchema = z.enum([
+  "coding",
+  "writing",
+  "reasoning",
+  "fast",
+  "analysis",
+]);
+export type InferenceUsageTag = z.infer<typeof InferenceUsageTagSchema>;
+
+export const BotInferenceConfigSchema = z.object({
+  mode: InferenceModeSchema.default("premium"),
+  tags: z.array(InferenceUsageTagSchema).max(3, "Maximum 3 usage tags allowed").default([]),
+});
+export type BotInferenceConfig = z.infer<typeof BotInferenceConfigSchema>;
+
+export const FREE_INFERENCE_UNAVAILABLE_MESSAGE = "Capacité gratuite temporairement indisponible";
+
+export const FREE_INFERENCE_ERROR_CODES = {
+  CAPACITY_UNAVAILABLE: "FREE_CAPACITY_UNAVAILABLE",
+  POLICY_VIOLATION: "FREE_POLICY_VIOLATION",
+  TIMEOUT: "FREE_TIMEOUT",
+} as const;
+export type FreeInferenceErrorCode =
+  (typeof FREE_INFERENCE_ERROR_CODES)[keyof typeof FREE_INFERENCE_ERROR_CODES];
+
+export const BotSchema = z.object({
+  id: Id,
+  workspaceId: Id,
+  name: z.string(),
+  title: z.string(),
+  description: z.string(),
+  instructions: z.string(),
+  color: z.string(),
+  notifyOnFinish: z.boolean(),
+  pinned: z.boolean(),
+  archivedAt: z.string().nullable(),
+  unread: z.boolean(),
+  parentBotId: Id.nullable(),
+  threadId: Id,
+  preview: z.string(),
+  status: z.string(),
+  computerMode: ComputerModeSchema,
+  updatedAt: z.string(),
+  createdAt: z.string(),
+  voiceId: z.string().nullable(),
+  autoSpeak: z.boolean(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  inference: BotInferenceConfigSchema.optional(),
+});
+export type Bot = z.infer<typeof BotSchema>;
+
+export const CreateBotInput = z.object({
+  name: z.string().min(1).max(80),
+  title: z.string().max(160).default(""),
+  description: z.string().max(4000).default(""),
+  instructions: z.string().max(20000).default(""),
+  notifyOnFinish: z.boolean().default(true),
+  color: z.string().optional(),
+  computerMode: ComputerModeSchema.default("team"),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  inference: BotInferenceConfigSchema.optional(),
+});
+export type CreateBotInput = z.infer<typeof CreateBotInput>;
+
+export const UpdateBotInput = z.object({
+  botId: Id,
+  name: z.string().min(1).max(80).optional(),
+  title: z.string().max(160).optional(),
+  description: z.string().max(4000).optional(),
+  instructions: z.string().max(20000).optional(),
+  notifyOnFinish: z.boolean().optional(),
+  color: z.string().optional(),
+  pinned: z.boolean().optional(),
+  voiceId: z.string().max(120).nullable().optional(),
+  autoSpeak: z.boolean().optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+  inference: BotInferenceConfigSchema.optional(),
+});
+export type UpdateBotInput = z.infer<typeof UpdateBotInput>;
+
+export const RoutineSchema = z.object({
+  id: Id,
+  botId: Id,
+  name: z.string(),
+  prompt: z.string(),
+  cron: z.string(),
+  timezone: z.string(),
+  active: z.boolean(),
+  notify: z.boolean(),
+  lastRunAt: z.string().nullable(),
+  nextRunAt: z.string().nullable(),
+  createdAt: z.string(),
+});
+export type Routine = z.infer<typeof RoutineSchema>;
+
+export const CreateRoutineInput = z.object({
+  botId: Id,
+  name: z.string().min(1).max(80),
+  prompt: z.string().min(1),
+  cron: z.string().min(1),
+  timezone: z.string().default("Europe/Paris"),
+  notify: z.boolean().default(true),
+  active: z.boolean().default(false),
+});
+
+export const TaughtSkillStatusSchema = z.enum(["recording", "drafting", "draft", "saved"]);
+export type TaughtSkillStatus = z.infer<typeof TaughtSkillStatusSchema>;
+
+export const SkillPlaybookSchema = z.object({
+  whenToUse: z.string(),
+  inputs: z.array(z.string()),
+  steps: z.array(z.string()),
+  howToCheck: z.string(),
+  whatToReturn: z.string(),
+  approvalBoundaries: z.string(),
+  failureHandling: z.string(),
+});
+export type SkillPlaybook = z.infer<typeof SkillPlaybookSchema>;
+
+export const TeachRecordingEventSchema = z.object({
+  at: z.string(),
+  kind: z.enum(["pointer", "key", "clipboard", "snapshot", "scroll"]),
+  x: z.number().optional(),
+  y: z.number().optional(),
+  button: z.string().optional(),
+  type: z.string().optional(),
+  key: z.string().optional(),
+  text: z.string().optional(),
+  summary: z.string().optional(),
+});
+export type TeachRecordingEvent = z.infer<typeof TeachRecordingEventSchema>;
+
+export const TeachSnapshotSchema = z.object({
+  at: z.string(),
+  summary: z.string(),
+  hash: z.string().optional(),
+});
+export type TeachSnapshot = z.infer<typeof TeachSnapshotSchema>;
+
+export const TeachRecordingSchema = z.object({
+  events: z.array(TeachRecordingEventSchema),
+  snapshots: z.array(TeachSnapshotSchema),
+  controlLeaseId: z.string().optional(),
+});
+export type TeachRecording = z.infer<typeof TeachRecordingSchema>;
+
+export const TaughtSkillSchema = z.object({
+  id: Id,
+  botId: Id,
+  name: z.string(),
+  goal: z.string(),
+  status: TaughtSkillStatusSchema,
+  playbook: SkillPlaybookSchema,
+  recording: TeachRecordingSchema,
+  startedAt: z.string().nullable(),
+  expiresAt: z.string().nullable(),
+  stoppedAt: z.string().nullable(),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type TaughtSkill = z.infer<typeof TaughtSkillSchema>;
+
+export const SkillSchema = z.object({
+  id: Id,
+  workspaceId: Id,
+  userId: z.string(),
+  name: z.string().min(1).max(120),
+  slug: z.string().min(1).max(120),
+  description: z.string().max(2000),
+  content: z.string().max(2_000_000), // 2MB limit
+  tags: z.array(z.string().min(1).max(50)).max(20),
+  metadata: z.record(z.string(), z.unknown()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
+});
+export type Skill = z.infer<typeof SkillSchema>;
+
+export const SkillSummarySchema = SkillSchema.omit({ content: true });
+export type SkillSummary = z.infer<typeof SkillSummarySchema>;
+
+export const BotSkillAssignmentSchema = z.object({
+  id: Id,
+  workspaceId: Id,
+  botId: Id,
+  skillId: Id,
+  enabled: z.boolean(),
+  createdAt: z.string(),
+});
+export type BotSkillAssignment = z.infer<typeof BotSkillAssignmentSchema>;
+
+export const ListSkillsInput = z.object({
+  search: z.string().max(100).optional(),
+  tag: z.string().max(50).optional(),
+  limit: z.number().int().min(1).max(100).default(50).optional(),
+  offset: z.number().int().min(0).default(0).optional(),
+});
+export type ListSkillsInput = z.infer<typeof ListSkillsInput>;
+
+export const GetSkillInput = z
+  .object({
+    skillId: Id.optional(),
+    slug: z.string().min(1).max(120).optional(),
+  })
+  .refine((data) => data.skillId || data.slug, {
+    message: "Either skillId or slug must be provided",
+  });
+export type GetSkillInput = z.infer<typeof GetSkillInput>;
+
+export const CreateSkillInput = z.object({
+  name: z.string().trim().min(1, "Name is required").max(120),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens")
+    .optional(),
+  description: z.string().trim().max(2000).default(""),
+  content: z.string().min(1, "Content cannot be empty").max(2_000_000, "Content cannot exceed 2MB"),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).default([]),
+  metadata: z.record(z.string(), z.unknown()).default({}),
+});
+export type CreateSkillInput = z.infer<typeof CreateSkillInput>;
+
+export const UpdateSkillInput = z.object({
+  skillId: Id,
+  name: z.string().trim().min(1).max(120).optional(),
+  slug: z
+    .string()
+    .trim()
+    .min(1)
+    .max(120)
+    .regex(/^[a-z0-9-]+$/, "Slug must be lowercase alphanumeric with hyphens")
+    .optional(),
+  description: z.string().trim().max(2000).optional(),
+  content: z.string().min(1).max(2_000_000).optional(),
+  tags: z.array(z.string().trim().min(1).max(50)).max(20).optional(),
+  metadata: z.record(z.string(), z.unknown()).optional(),
+});
+export type UpdateSkillInput = z.infer<typeof UpdateSkillInput>;
+
+export const DeleteSkillInput = z.object({
+  skillId: Id,
+});
+export type DeleteSkillInput = z.infer<typeof DeleteSkillInput>;
+
+export const UploadSkillMarkdownInput = z.object({
+  filename: z.string().max(255).optional(),
+  content: z.string().min(1, "File content is empty").max(2_000_000, "File exceeds 2MB limit"),
+  overwrite: z.boolean().default(false).optional(),
+});
+export type UploadSkillMarkdownInput = z.infer<typeof UploadSkillMarkdownInput>;
+
+export const AssignSkillsToBotInput = z.object({
+  botId: Id,
+  skillIds: z.array(Id).max(100),
+});
+export type AssignSkillsToBotInput = z.infer<typeof AssignSkillsToBotInput>;
+
+export const GetBotSkillsInput = z.object({
+  botId: Id,
+});
+export type GetBotSkillsInput = z.infer<typeof GetBotSkillsInput>;
+
+export const MemoryDocumentSchema = z.object({
+  id: Id,
+  scope: MemoryScope,
+  botId: Id.nullable(),
+  path: z.string(),
+  content: z.string(),
+  revision: z.number().int(),
+  updatedAt: z.string(),
+});
+export type MemoryDocument = z.infer<typeof MemoryDocumentSchema>;
+
+export const ConnectionSchema = z.object({
+  id: Id,
+  provider: z.string(),
+  displayName: z.string(),
+  status: z.enum(["pending", "connected", "revoked", "error"]),
+  capabilities: z.array(z.string()),
+  createdAt: z.string(),
+});
+export type Connection = z.infer<typeof ConnectionSchema>;
+
+export const ConnectionCatalogItemSchema = z.object({
+  slug: z.string(),
+  name: z.string(),
+  logo: z.string().nullable(),
+  connected: z.boolean(),
+  noAuth: z.boolean(),
+});
+export type ConnectionCatalogItem = z.infer<typeof ConnectionCatalogItemSchema>;
+
+export const CapabilityInstallSchema = z.object({
+  id: Id,
+  kind: z.enum(["skill", "plugin", "mcp", "connection"]),
+  name: z.string(),
+  source: z.string(),
+  version: z.string().nullable(),
+  digest: z.string().nullable(),
+  config: z.record(z.string(), z.unknown()),
+  createdAt: z.string(),
+});
+export type CapabilityInstall = z.infer<typeof CapabilityInstallSchema>;
+
+export const ArtifactSchema = z.object({
+  id: Id,
+  botId: Id,
+  runId: Id.nullable(),
+  name: z.string(),
+  mimeType: z.string(),
+  size: z.number().int(),
+  createdAt: z.string(),
+});
+
+export const ArtifactWithContentSchema = ArtifactSchema.extend({
+  contentBase64: z.string(),
+});
+export type ArtifactWithContent = z.infer<typeof ArtifactWithContentSchema>;
+
+export const UsageRecordSchema = z.object({
+  id: Id,
+  botId: Id.nullable(),
+  runId: Id.nullable(),
+  provider: z.string(),
+  model: z.string(),
+  inputTokens: z.number().int(),
+  outputTokens: z.number().int(),
+  createdAt: z.string(),
+});
+
+export const ComputerStatusSchema = z.object({
+  botId: Id,
+  mode: ComputerModeSchema,
+  kind: SandboxKind,
+  state: z.enum(["stopped", "booting", "running", "suspended", "error"]),
+  controlHolder: z.enum(["bot", "user", "none"]),
+  controlBotId: Id.nullable(),
+  screenAvailable: z.boolean(),
+  screenWidth: z.number().int().positive(),
+  screenHeight: z.number().int().positive(),
+  homeRevision: z.string().nullable(),
+  busyBotName: z.string().nullable(),
+});
+export type ComputerStatus = z.infer<typeof ComputerStatusSchema>;
+
+export const RunSchema = z.object({
+  id: Id,
+  botId: Id,
+  threadId: Id,
+  taskId: Id,
+  status: RunStatus,
+  trigger: z.enum(["user", "routine", "resume", "follow_up", "spawn", "skill"]),
+  modelProvider: z.string().nullable(),
+  modelId: z.string().nullable(),
+  error: z.string().nullable(),
+  startedAt: z.string().nullable(),
+  completedAt: z.string().nullable(),
+});
+export type Run = z.infer<typeof RunSchema>;
+
+export const ThreadMessagePageSchema = z.object({
+  threadId: Id,
+  messages: z.array(ThreadMessageSchema),
+  olderCursor: z.number().int().nonnegative().nullable(),
+});
+export type ThreadMessagePage = z.infer<typeof ThreadMessagePageSchema>;
+
+export const ThreadSnapshotSchema = z.object({
+  botId: Id,
+  threadId: Id,
+  cursor: z.number().int().min(-1),
+  messages: z.array(ThreadMessageSchema),
+  olderCursor: z.number().int().nonnegative().nullable(),
+  run: RunSchema.nullable(),
+  computer: ComputerStatusSchema,
+});
+export type ThreadSnapshot = z.infer<typeof ThreadSnapshotSchema>;
+
+export const ModelCredentialSchema = z.object({
+  id: Id,
+  provider: z.string(),
+  label: z.string(),
+  hasKey: z.boolean(),
+  isDefault: z.boolean(),
+});
+export type ModelCredential = z.infer<typeof ModelCredentialSchema>;
+
+export const ModelCatalogEntrySchema = z.object({
+  provider: z.string(),
+  providerName: z.string().optional(),
+  id: z.string(),
+  label: z.string(),
+  billing: z.string(),
+  auth: z.enum(["api-key", "oauth", "both"]).optional(),
+  oauthLabel: z.string().optional(),
+  subscription: z.boolean().optional(),
+  signIn: z.enum(["device-code"]).optional(),
+  /** True when the model accepts image inputs; false for text-only models. */
+  images: z.boolean().optional(),
+});
+export type ModelCatalogEntry = z.infer<typeof ModelCatalogEntrySchema>;
+
+export const VoiceCatalogEntrySchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  description: z.string(),
+  transcribe: z.boolean(),
+});
+export type VoiceCatalogEntry = z.infer<typeof VoiceCatalogEntrySchema>;
+
+export const VoiceInfoSchema = z.object({
+  id: z.string(),
+  label: z.string(),
+  description: z.string().optional(),
+});
+export type VoiceInfo = z.infer<typeof VoiceInfoSchema>;
+
+export const VoiceCredentialSchema = z.object({
+  id: Id,
+  provider: z.string(),
+  hasKey: z.boolean(),
+  isDefault: z.boolean(),
+  voiceId: z.string(),
+  transcribe: z.boolean(),
+});
+export type VoiceCredential = z.infer<typeof VoiceCredentialSchema>;
+
+export const VoiceStatusSchema = z.object({
+  configured: z.boolean(),
+  ready: z.boolean(),
+  transcribe: z.boolean(),
+  provider: z.string().nullable(),
+  voiceId: z.string(),
+});
+export type VoiceStatus = z.infer<typeof VoiceStatusSchema>;
+
+export const DeploymentSettingsSchema = z.object({
+  ownerUserId: Id.nullable(),
+  signupsEnabled: z.boolean(),
+  signupAllowlist: z.array(z.string()),
+  hasDeploymentModelCredential: z.boolean(),
+  defaultProvider: z.string().nullable(),
+  defaultModel: z.string().nullable(),
+  computerHost: z.enum(["docker", "this-mac"]).nullable(),
+  canChooseHostComputer: z.boolean(),
+});
+
+export const MeSchema = z.object({
+  userId: Id,
+  email: z.string().email(),
+  name: z.string(),
+  workspaceId: Id,
+  isDeploymentOwner: z.boolean(),
+  needsModel: z.boolean(),
+  defaultProvider: z.string().nullable(),
+  defaultModel: z.string().nullable(),
+  computerHost: z.enum(["docker", "this-mac"]).nullable(),
+  canChooseHostComputer: z.boolean(),
+});
+export type Me = z.infer<typeof MeSchema>;
+
+export const AppBootstrapSchema = z.object({
+  me: MeSchema,
+  bots: z.array(BotSchema),
+  archivedBots: z.array(BotSchema),
+  thread: ThreadSnapshotSchema.nullable(),
+  routines: z.array(RoutineSchema),
+});
+export type AppBootstrap = z.infer<typeof AppBootstrapSchema>;
+
+export const ExportManifestSchema = z.object({
+  version: z.literal(1),
+  exportedAt: z.string(),
+  bot: BotSchema.pick({ name: true, title: true, description: true, instructions: true }),
+  memory: z.array(z.object({ path: z.string(), content: z.string() })),
+  routines: z.array(RoutineSchema.pick({ name: true, prompt: true, cron: true, timezone: true })),
+  files: z.array(z.object({ path: z.string(), content: z.string() })),
+  history: z.array(ThreadMessageSchema),
+});
+export type ExportManifest = z.infer<typeof ExportManifestSchema>;

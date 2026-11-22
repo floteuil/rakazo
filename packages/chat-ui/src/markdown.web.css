@@ -1,0 +1,507 @@
+.rk-chat-markdown {
+  min-width: 0;
+  max-width: 100%;
+  box-sizing: border-box;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.rk-chat-markdown *,
+.rk-chat-markdown *::before,
+.rk-chat-markdown *::after {
+  box-sizing: border-box;
+}
+
+.rk-chat-markdown > :first-child,
+.rk-chat-markdown > :first-child > :first-child {
+  margin-top: 0;
+}
+
+.rk-chat-markdown > :last-child,
+.rk-chat-markdown > :last-child > :last-child {
+  margin-bottom: 0;
+}
+
+.rk-chat-markdown p,
+.rk-chat-markdown blockquote,
+.rk-chat-markdown pre,
+.rk-chat-markdown table,
+.rk-chat-markdown ul,
+.rk-chat-markdown ol {
+  margin: 0.65em 0;
+}
+
+.rk-chat-markdown h1,
+.rk-chat-markdown h2,
+.rk-chat-markdown h3,
+.rk-chat-markdown h4,
+.rk-chat-markdown h5,
+.rk-chat-markdown h6 {
+  margin: 0.9em 0 0.35em;
+  color: #f3f3f4;
+  font-weight: 650;
+  line-height: 1.25;
+}
+
+.rk-chat-markdown h1 {
+  font-size: 1.35em;
+}
+
+.rk-chat-markdown h2 {
+  font-size: 1.2em;
+}
+
+.rk-chat-markdown h3,
+.rk-chat-markdown h4,
+.rk-chat-markdown h5,
+.rk-chat-markdown h6 {
+  font-size: 1.05em;
+}
+
+.rk-chat-markdown ul,
+.rk-chat-markdown ol {
+  padding-left: 1.45em;
+}
+
+.rk-chat-markdown ul {
+  list-style: disc;
+}
+
+.rk-chat-markdown ol {
+  list-style: decimal;
+}
+
+.rk-chat-markdown li + li {
+  margin-top: 0.25em;
+}
+
+.rk-chat-markdown li > p {
+  margin: 0.2em 0;
+}
+
+.rk-chat-markdown .contains-task-list {
+  padding-left: 0;
+  list-style: none;
+}
+
+.rk-chat-markdown .task-list-item {
+  list-style: none;
+  display: flex;
+  align-items: flex-start;
+  position: relative;
+  min-height: 28px;
+  line-height: 1.5;
+  margin: 0.3em 0;
+}
+
+.rk-chat-markdown a {
+  color: #86b7ff;
+  text-decoration: underline;
+  text-decoration-color: rgba(134, 183, 255, 0.55);
+  text-underline-offset: 0.15em;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    color 0.15s ease,
+    text-decoration-color 0.15s ease;
+}
+
+.rk-chat-markdown a:hover {
+  color: #a8cdff;
+  text-decoration-color: rgba(168, 205, 255, 0.8);
+}
+
+.rk-chat-markdown code {
+  border: 1px solid #34343a;
+  border-radius: 0.35em;
+  background: #101012;
+  padding: 0.08em 0.32em;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  font-size: 0.88em;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.rk-chat-markdown pre {
+  max-width: 100%;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  touch-action: pan-x pan-y;
+  border: 1px solid #2d2d32;
+  border-radius: 0.75em;
+  background: #0e0e10;
+  padding: 0.8em 0.9em;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2e transparent;
+}
+
+.rk-chat-markdown pre code {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  font-size: 0.84em;
+  white-space: pre;
+  word-break: normal;
+  overflow-wrap: normal;
+}
+
+.rk-chat-markdown blockquote {
+  border-left: 3px solid #55555c;
+  padding-left: 0.85em;
+  color: #aaaab0;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+.rk-chat-markdown table {
+  display: block;
+  max-width: 100%;
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border-collapse: collapse;
+  font-size: 0.92em;
+  scrollbar-width: thin;
+  scrollbar-color: #2a2a2e transparent;
+}
+
+.rk-chat-markdown th,
+.rk-chat-markdown td {
+  border: 1px solid #34343a;
+  padding: 0.4em 0.6em;
+  text-align: left;
+}
+
+.rk-chat-markdown th {
+  background: #232327;
+  color: #f3f3f4;
+  font-weight: 600;
+}
+
+.rk-chat-markdown hr {
+  margin: 0.9em 0;
+  border: 0;
+  border-top: 1px solid #34343a;
+}
+
+.rk-chat-markdown img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  margin: 0.65em 0;
+  border-radius: 0.65em;
+  object-fit: contain;
+}
+
+.rk-chat-markdown-diagram {
+  margin: 0.65em 0;
+  max-width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-x: contain;
+  border: 1px solid #2d2d32;
+  border-radius: 0.75em;
+  background: #0e0e10;
+  padding: 0.8em 0.9em;
+  direction: ltr;
+  unicode-bidi: isolate;
+}
+
+.rk-chat-markdown .rk-chat-markdown-diagram img {
+  display: block;
+  max-width: max(100%, calc(var(--rk-diagram-width, 320px) * 0.8));
+  height: auto;
+  margin: 0 auto;
+  border-radius: 0;
+}
+
+.rk-chat-markdown input[type="checkbox"] {
+  position: relative;
+  margin: 0.25em 0.6em 0.25em 0;
+  width: 18px;
+  height: 18px;
+  min-width: 18px;
+  min-height: 18px;
+  flex-shrink: 0;
+  accent-color: #6ea8fe;
+  cursor: pointer;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Touch hit target expansion to >= 44px on touch devices */
+@media (pointer: coarse) {
+  .rk-chat-markdown input[type="checkbox"] {
+    margin: 0.2em 0.65em 0.2em 0;
+  }
+
+  .rk-chat-markdown input[type="checkbox"]::after {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    min-width: 44px;
+    min-height: 44px;
+    pointer-events: auto;
+  }
+}
+
+.rk-chat-markdown-streaming {
+  position: relative;
+  padding-right: 0.8em;
+}
+
+.rk-chat-markdown-cursor {
+  position: absolute;
+  right: 0;
+  bottom: 0.24em;
+  width: 0.16em;
+  height: 1em;
+  border-radius: 999px;
+  background: #85858a;
+  animation: rkMarkdownCursor 1s steps(2, jump-none) infinite;
+}
+
+@keyframes rkMarkdownCursor {
+  50% {
+    opacity: 0;
+  }
+}
+
+/* Responsive viewports (320px, 360px, 640px) */
+@media (max-width: 640px) {
+  .rk-chat-markdown {
+    font-size: 15px;
+    line-height: 1.55;
+  }
+
+  .rk-chat-markdown pre {
+    padding: 0.65em 0.75em;
+    border-radius: 0.5em;
+  }
+
+  .rk-chat-markdown table {
+    font-size: 0.88em;
+  }
+
+  .rk-chat-markdown th,
+  .rk-chat-markdown td {
+    padding: 0.35em 0.5em;
+  }
+
+  .rk-chat-markdown ul,
+  .rk-chat-markdown ol {
+    padding-left: 1.25em;
+  }
+}
+
+@media (max-width: 360px) {
+  .rk-chat-markdown {
+    font-size: 14px;
+  }
+
+  .rk-chat-markdown pre {
+    padding: 0.5em 0.6em;
+  }
+
+  .rk-chat-markdown h1 {
+    font-size: 1.2em;
+  }
+
+  .rk-chat-markdown h2 {
+    font-size: 1.1em;
+  }
+
+  .rk-chat-markdown ul,
+  .rk-chat-markdown ol {
+    padding-left: 1.1em;
+  }
+}
+
+/* ============================================================================
+ * Visualiseur Interactif de Workflows n8n (Desktop & Mobile Android Responsive)
+ * ============================================================================ */
+.rk-n8n-canvas-card {
+  margin: 0.75em 0;
+  width: 100%;
+  max-width: 100%;
+  border: 1px solid #2b2b33;
+  border-radius: 14px;
+  background: #111115;
+  overflow: hidden;
+  direction: ltr;
+}
+
+.rk-n8n-canvas-header {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px 12px;
+  padding: 10px 13px;
+  background: #17171c;
+  border-bottom: 1px solid #26262e;
+}
+
+.rk-n8n-canvas-title-group {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.rk-n8n-badge-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: rgba(255, 109, 90, 0.16);
+  border: 1px solid rgba(255, 109, 90, 0.35);
+  color: #ff8f7d;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+}
+
+.rk-n8n-workflow-title {
+  color: #f4f4f6;
+  font-size: 13.5px;
+  font-weight: 600;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.rk-n8n-meta {
+  color: #8b8b95;
+  font-size: 12px;
+}
+
+.rk-n8n-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.rk-n8n-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 32px;
+  min-width: 32px;
+  padding: 4px 10px;
+  border-radius: 8px;
+  border: 1px solid #2f2f38;
+  background: #202027;
+  color: #e4e4e7;
+  font-size: 12px;
+  font-weight: 500;
+  text-decoration: none !important;
+  cursor: pointer;
+  touch-action: manipulation;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.rk-n8n-btn:hover {
+  background: #292933;
+  border-color: #3f3f4a;
+}
+
+.rk-n8n-btn-accent {
+  background: rgba(255, 109, 90, 0.14);
+  border-color: rgba(255, 109, 90, 0.36);
+  color: #ff9d8e !important;
+}
+
+.rk-n8n-viewport {
+  width: 100%;
+  max-height: 400px;
+  overflow: auto;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
+  touch-action: pan-x pan-y;
+  background: #0d0d10;
+  padding: 6px;
+}
+
+.rk-n8n-svg {
+  display: block;
+  min-width: 280px;
+  margin: 0 auto;
+  user-select: none;
+}
+
+.rk-n8n-json-view {
+  margin: 0 !important;
+  border: 0 !important;
+  border-radius: 0 !important;
+  max-height: 360px;
+  overflow: auto;
+}
+
+.rk-n8n-inspector {
+  border-top: 1px solid #26262e;
+  background: #15151a;
+  padding: 10px 13px;
+}
+
+.rk-n8n-inspector-head {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.rk-n8n-inspector-type {
+  margin-left: 8px;
+  color: #8b8b95;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 11.5px;
+}
+
+.rk-n8n-inspector-notes {
+  margin: 4px 0 8px !important;
+  color: #d4d4d8;
+  font-size: 12.5px;
+}
+
+.rk-n8n-inspector-params {
+  margin: 4px 0 0 !important;
+  max-height: 180px;
+  overflow: auto;
+  font-size: 12px;
+}
+
+.rk-n8n-inspector-empty {
+  margin: 2px 0 0 !important;
+  color: #85858f;
+  font-size: 12px;
+}
+
+.rk-n8n-footer-hint {
+  padding: 7px 13px;
+  border-top: 1px solid #222229;
+  background: #141418;
+  color: #85858f;
+  font-size: 11.5px;
+}
+
+/* Cibles tactiles >= 44px sur smartphone Android / iOS */
+@media (pointer: coarse) {
+  .rk-n8n-btn {
+    min-height: 44px;
+    min-width: 44px;
+    padding: 6px 12px;
+    font-size: 13px;
+  }
+}
+

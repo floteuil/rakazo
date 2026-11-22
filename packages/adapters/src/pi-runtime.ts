@@ -1,0 +1,2277 @@
+import { Agent, type AgentMessage, type AgentTool } from "@earendil-works/pi-agent-core";
+import { type Api, type Model, type Models, Type } from "@earendil-works/pi-ai";
+import { builtinModels } from "@earendil-works/pi-ai/providers/all";
+import type {
+  AdapterContext,
+  AdapterDescriptor,
+  AgentRunRequest,
+  AgentRuntime,
+  AgentRuntimeCapabilities,
+  AgentRuntimeEvent,
+  AgentToolExecutionResult,
+  ConnectorTool,
+} from "@rakazo/adapter-kit";
+import { builtinAgentTools, DELEGATION_TOOL_NAMES } from "./builtin-tools.js";
+import { sanitizeToolError } from "./enterprise-tools.js";
+import type {
+  InferenceTransport,
+  InferenceTransportChunk,
+  InferenceTransportMessage,
+  InferenceTransportRequest,
+} from "./inference-transport.js";
+import {
+  createToolCallTracker,
+  evaluateToolCallGuard,
+  recordToolSecurityDenial,
+  type ToolCallTracker,
+} from "./loop-guards.js";
+import { OmniRouteInferenceTransport } from "./omniroute-transport.js";
+import { PiAiInferenceTransport } from "./pi-ai-transport.js";
+import { PiRuntimeCredentialStore, toOAuthCredential } from "./pi-credentials.js";
+import { computeSessionAffinityKey } from "./prefix-caching.js";
+import { compilePromptLevel1Deterministic } from "./prompt-compiler.js";
+import {
+  DELEGATION_NAMES_SET,
+  SUBAGENT_MAX_DEPTH,
+  SUBAGENT_TOKEN_BUDGET_CEILING,
+} from "./subagent-inheritance.js";
+import { compactToolResult } from "./tool-compacting.js";
+import {
+  sanitizeSeededHistory,
+  closeInterruptedToolSequence,
+  asymmetricCompactHistory,
+  repairToolCallName,
+  repairToolCallArguments,
+  partitionMixedBatch,
+  applyColdCacheToolPruning,
+  ColdCacheTracker,
+  isExternalUntrustedTool,
+  isErrorLikeToolOutput,
+  wrapUntrustedToolResult,
+  annotateLocalTimestamps,
+  classifyProviderErrorForCompaction,
+  sanitizeToolJsonSchemaDraft2020,
+  searchLazyMcpTools,
+} from "@rakazo/contracts";
+
+export const globalColdCacheTracker = new ColdCacheTracker();
+
+/**
+ * Encapsule les résultats d'outils externes non fiables (Web, Scraping, MCP, Compétences apprises)
+ * dans l'enveloppe anti-prompt-injection `<untrusted_tool_result>` avec conversion automatique
+ * déterministe des horodatages UTC vers `Europe/Paris`.
+ */
+export function formatRuntimeToolOutput(
+  toolName: string,
+  compactedText: string,
+  rawResult?: unknown,
+  timeZone = "Europe/Paris",
+): string {
+  if (isErrorLikeToolOutput(rawResult, compactedText)) {
+    return compactedText;
+  }
+  const explicitSource =
+    rawResult &&
+    typeof rawResult === "object" &&
+    !Array.isArray(rawResult) &&
+    typeof (rawResult as Record<string, unknown>).__untrustedSource === "string"
+      ? String((rawResult as Record<string, unknown>).__untrustedSource)
+      : undefined;
+
+  if (!explicitSource && !isExternalUntrustedTool(toolName)) {
+    return compactedText;
+  }
+
+  const localTimeAnnotation = annotateLocalTimestamps(rawResult ?? compactedText, timeZone);
+  return wrapUntrustedToolResult(explicitSource ?? toolName, compactedText, {
+    localTimeAnnotation,
+  });
+}
+
+const running = new Map<string, AbortController>();
+const catalogModels = builtinModels();
+const MAX_PARALLEL_SUBAGENTS = 4;
+// Pi forwards these names to OpenAI Responses, whose function-name contract is
+// ^[a-zA-Z0-9_-]+$ with a maximum length of 64 characters.
+const AGENT_TOOL_NAME_PATTERN = /^[a-zA-Z0-9_-]+$/;
+const MAX_AGENT_TOOL_NAME_LENGTH = 64;
+const FALLBACK_AGENT_TOOL_NAME = "connector_tool";
+
+export interface CanonicalAgentRuntimeOptions {
+  transport?: InferenceTransport;
+}
+
+export class CanonicalAgentRuntime implements AgentRuntime {
+  private transport?: InferenceTransport;
+
+  constructor(options: CanonicalAgentRuntimeOptions = {}) {
+    this.transport = options.transport;
+  }
+
+  describe(): AdapterDescriptor<AgentRuntimeCapabilities> {
+    return {
+      id: "canonical",
+      contractVersion: "1",
+      adapterVersion: "0.1.0",
+      capabilities: { streaming: true, compaction: true, tools: true, scripted: false },
+    };
+  }
+
+  async abort(runId: string): Promise<void> {
+    running.get(runId)?.abort();
+  }
+
+  async *run(request: AgentRunRequest, context: AdapterContext): AsyncIterable<AgentRuntimeEvent> {
+    const controller = new AbortController();
+    running.set(request.runId, controller);
+    const signal = context.signal ?? controller.signal;
+
+    let transport = this.transport;
+    if (!transport) {
+      if (
+        request.model.provider === "omniroute" ||
+        request.model.provider === "combo" ||
+        request.model.id.startsWith("combo/")
+      ) {
+        transport = new OmniRouteInferenceTransport({
+          defaultModel: request.model.id,
+          apiKey: request.model.apiKey,
+        });
+      } else {
+        transport = new PiAiInferenceTransport({
+          defaultModel: request.model.id,
+          apiKey: request.model.apiKey,
+        });
+      }
+    }
+
+    const queue = createQueue();
+    const nestedAgents = new Set<Agent>();
+    const tracker = createToolCallTracker();
+    const host: ToolHost = {
+      queue,
+      request,
+      models: catalogModels,
+      model: { provider: request.model.provider, id: request.model.id } as any,
+      apiKey: request.model.apiKey,
+      nestedAgents,
+      subagentGate: createGate(MAX_PARALLEL_SUBAGENTS),
+      signal,
+      depth: 0,
+      tracker,
+    };
+
+    const toolDefs = Array.isArray(request.tools) ? request.tools : builtinAgentTools;
+    const normalizedNames = normalizeAgentToolNames(toolDefs);
+    const normalizedToolDefs: ConnectorTool[] = toolDefs.map((tool, index) => ({
+      ...tool,
+      name: normalizedNames[index]!,
+    }));
+    const toolByName = new Map<string, ConnectorTool>();
+    toolDefs.forEach((tool, index) => {
+      const norm = normalizedNames[index]!;
+      toolByName.set(norm, tool);
+      toolByName.set(tool.name, tool);
+    });
+
+    const messages: InferenceTransportMessage[] = [];
+    const instructions =
+      request.instructions ||
+      (toolDefs.some((tool) => tool.name === "computer_observe")
+        ? "You are a Rakazo bot with a real computer. Use computer_observe and computer_act to operate its visible desktop, including browsers and installed applications. Use shell and the file tools for precise terminal and filesystem work. The user may interact with the same desktop while you run, so re-observe when the screen may have changed. Be concise."
+        : "You are a Rakazo bot with a persistent sandbox filesystem and shell. Be concise.");
+
+    if (instructions && instructions.trim().length > 0) {
+      messages.push({ role: "system", content: instructions });
+    }
+
+    if (request.history && request.history.length > 0) {
+      for (const msg of request.history) {
+        messages.push({
+          role: msg.role === "system" ? "system" : msg.role === "assistant" ? "assistant" : "user",
+          content: msg.content,
+        });
+      }
+    }
+
+    if (request.prompt && request.prompt.trim().length > 0) {
+      messages.push({ role: "user", content: request.prompt });
+    }
+
+    const work = (async () => {
+      try {
+        if (signal.aborted) {
+          queue.push({ type: "done", text: "stopped" });
+          return;
+        }
+
+        queue.push({
+          type: "progress",
+          text: transport.isFree ? "En cours d'inférence gratuite…" : "working…",
+        });
+
+        const MAX_TOOL_ITERATIONS_PER_TURN = 25;
+        let iteration = 0;
+        let streamed = "";
+
+        while (iteration < MAX_TOOL_ITERATIONS_PER_TURN) {
+          if (signal.aborted) {
+            queue.push({ type: "done", text: "stopped" });
+            return;
+          }
+
+          let turnStreamed = "";
+          const pendingToolCalls: Array<{
+            id: string;
+            name: string;
+            arguments: string;
+          }> = [];
+
+          const sessionKey = computeSessionAffinityKey({
+            workspaceId: context.workspaceId || "default-ws",
+            botId: request.botId || "default-bot",
+            threadId: request.threadId || "default-thread",
+          });
+
+          const sanitizedMessages = sanitizeSeededHistory(messages);
+          const coldPruned = applyColdCacheToolPruning(sanitizedMessages, {
+            tracker: globalColdCacheTracker,
+            sessionKey,
+            provider: request.model.provider,
+            model: request.model.id,
+          });
+          const effectiveMessages = asymmetricCompactHistory(coldPruned.messages, {
+            maxMessages: 50,
+            protectTailCount: 10,
+          }).compactedMessages;
+
+          for await (const chunk of transport.stream({
+            model: request.model.id,
+            provider: request.model.provider,
+            messages: effectiveMessages,
+            tools: normalizedToolDefs,
+            signal,
+            sessionId: sessionKey,
+          })) {
+            if (signal.aborted) {
+              queue.push({ type: "done", text: "stopped" });
+              return;
+            }
+
+            if (chunk.type === "text" && chunk.text) {
+              turnStreamed += chunk.text;
+              streamed += chunk.text;
+              queue.push({ type: "text", text: chunk.text });
+            } else if (chunk.type === "tool_call" && chunk.toolCall) {
+              const tc = chunk.toolCall;
+              const existingIdx = tc.id ? pendingToolCalls.findIndex((p) => p && p.id === tc.id) : -1;
+              const index =
+                existingIdx >= 0 ? existingIdx : (tc.index ?? pendingToolCalls.length);
+              if (!pendingToolCalls[index]) {
+                pendingToolCalls[index] = {
+                  id: tc.id || `${request.runId}:tool_${index}`,
+                  name: tc.name || "",
+                  arguments: tc.arguments || "",
+                };
+              } else {
+                if (tc.id) pendingToolCalls[index].id = tc.id;
+                if (tc.name && pendingToolCalls[index].name !== tc.name) {
+                  pendingToolCalls[index].name += tc.name;
+                }
+                if (tc.arguments) pendingToolCalls[index].arguments += tc.arguments;
+              }
+            } else if (chunk.type === "usage" && chunk.usage) {
+              const totalPromptTokens = (chunk.usage.cachedTokens ?? 0) + chunk.usage.inputTokens;
+              const cacheHitRatio =
+                totalPromptTokens > 0 ? (chunk.usage.cachedTokens ?? 0) / totalPromptTokens : 0;
+
+              queue.push({
+                type: "usage",
+                inputTokens: chunk.usage.inputTokens,
+                outputTokens: chunk.usage.outputTokens,
+                cachedTokens: chunk.usage.cachedTokens,
+                cacheHitRatio: Math.min(1.0, Math.max(0.0, cacheHitRatio)),
+                provider: request.model.provider,
+                model: request.model.id,
+                resolvedProvider: chunk.usage.resolvedProvider,
+                resolvedModel: chunk.usage.resolvedModel,
+              });
+            }
+          }
+
+          if (signal.aborted) {
+            queue.push({ type: "done", text: "stopped" });
+            return;
+          }
+
+          const availableToolNames = Array.from(toolByName.keys());
+          const validToolCalls: Array<{ id: string; name: string; arguments: string }> = [];
+          const invalidToolCalls: Array<{ id: string; name: string; errorReason: string }> = [];
+
+          for (const rawCall of pendingToolCalls) {
+            if (!rawCall || !rawCall.name) continue;
+            const repairResult = availableToolNames.length > 0
+              ? repairToolCallName(rawCall.name, availableToolNames)
+              : { name: rawCall.name, repaired: false, original: rawCall.name };
+
+            const resolvedName = repairResult.name;
+            const isExecutable = Boolean(
+              request.executeTool ||
+              toolByName.has(resolvedName) ||
+              resolvedName === "request_takeover" ||
+              resolvedName === "run_subagent" ||
+              resolvedName === "tool_search" ||
+              resolvedName === "nod_tool_search",
+            );
+
+            if (isExecutable) {
+              validToolCalls.push({
+                ...rawCall,
+                name: resolvedName,
+              });
+            } else {
+              invalidToolCalls.push({
+                id: rawCall.id,
+                name: rawCall.name,
+                errorReason: `Outil inconnu '${rawCall.name}'. Veuillez utiliser un outil déclaré dans le catalogue souverain.`,
+              });
+            }
+          }
+
+          const allEmittedCalls = [
+            ...validToolCalls,
+            ...invalidToolCalls.map((inv) => ({
+              id: inv.id,
+              name: inv.name,
+              arguments: "{}",
+            })),
+          ];
+
+          if (allEmittedCalls.length === 0) {
+            if (!streamed) {
+              const fallback = "I finished the work.";
+              queue.push({ type: "text", text: fallback });
+              streamed = fallback;
+            }
+            queue.push({ type: "done", text: streamed });
+            return;
+          }
+
+          messages.push({
+            role: "assistant",
+            content: turnStreamed || null,
+            tool_calls: allEmittedCalls.map((tc) => ({
+              id: tc.id,
+              type: "function",
+              function: {
+                name: tc.name,
+                arguments: tc.arguments,
+              },
+            })),
+          });
+
+          iteration++;
+
+          if (iteration >= MAX_TOOL_ITERATIONS_PER_TURN) {
+            const limitMsg = "Tool iteration limit reached (25 steps). Stopping turn.";
+            queue.push({ type: "text", text: limitMsg });
+            queue.push({ type: "done", text: limitMsg });
+            return;
+          }
+
+          // Traitement immédiat des erreurs pour les outils non reconnus (survie de lot mixte)
+          for (const inv of invalidToolCalls) {
+            messages.push({
+              role: "tool",
+              tool_call_id: inv.id,
+              name: inv.name,
+              content: inv.errorReason,
+            });
+          }
+
+          for (const tc of validToolCalls) {
+            if (signal.aborted) {
+              queue.push({ type: "done", text: "stopped" });
+              return;
+            }
+
+            const argRepair = repairToolCallArguments(tc.arguments || "{}", tc.name);
+            const parsedArgs = argRepair.parsed;
+
+            if (argRepair.isTruncated) {
+              const truncReason = `Sécurité : Appel d'outil '${tc.name}' tronqué en cours de transmission. Exécution annulée pour prévenir des effets de bord.`;
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: truncReason,
+              });
+              continue;
+            }
+
+            const originalTool = toolByName.get(tc.name);
+            const toolName = originalTool ? originalTool.name : tc.name;
+
+            const guard = evaluateToolCallGuard(host.tracker, toolName, parsedArgs);
+            if (!guard.allow) {
+              const denial = recordToolSecurityDenial(host.tracker, sessionKey, guard.reason);
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: denial.reason,
+              });
+              if (guard.terminate || denial.terminate) {
+                queue.push({ type: "text", text: denial.reason });
+                queue.push({ type: "done", text: denial.reason });
+                return;
+              }
+              continue;
+            }
+
+            // Exécution autorisée : réinitialise le compteur de refus consécutifs
+            host.tracker.denialBreaker.recordApproval(sessionKey);
+
+            queue.push({
+              type: "tool",
+              name: toolName,
+              args: parsedArgs,
+              executionId: tc.id,
+            });
+
+            if (toolName === "request_takeover") {
+              const reason = String(parsedArgs.reason ?? "I need you on the screen.");
+              queue.push({ type: "takeover", reason });
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: "Takeover requested.",
+              });
+              queue.push({ type: "done", text: "Takeover requested." });
+              return;
+            }
+
+            if (toolName === "run_subagent") {
+              const subResult = await executeSubagent(host, tc.id, parsedArgs);
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: subResult,
+              });
+              continue;
+            }
+
+            if (toolName === "tool_search" || toolName === "nod_tool_search") {
+              const query = String(parsedArgs.query ?? parsedArgs.q ?? parsedArgs.name ?? "");
+              const found = searchLazyMcpTools(toolDefs, query, 3);
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: JSON.stringify(found),
+              });
+              continue;
+            }
+
+            if (request.executeTool) {
+              try {
+                const rawResult = await request.executeTool(toolName, parsedArgs, tc.id);
+                const baseText = isAgentToolExecutionResult(rawResult)
+                  ? rawResult.content.map((c) => (c.type === "text" ? c.text : "")).join("")
+                  : compactToolResult(toolName, rawResult);
+                const resultString = isAgentToolExecutionResult(rawResult)
+                  ? baseText
+                  : formatRuntimeToolOutput(toolName, baseText, rawResult);
+
+                messages.push({
+                  role: "tool",
+                  tool_call_id: tc.id,
+                  name: tc.name,
+                  content: resultString,
+                });
+              } catch (toolErr: any) {
+                const sanitizedErr = sanitizeToolError(
+                  toolErr instanceof Error ? toolErr.message : String(toolErr),
+                );
+                messages.push({
+                  role: "tool",
+                  tool_call_id: tc.id,
+                  name: tc.name,
+                  content: `Tool error: ${sanitizedErr}`,
+                });
+              }
+            } else {
+              messages.push({
+                role: "tool",
+                tool_call_id: tc.id,
+                name: tc.name,
+                content: `${toolName} is unavailable without an executor.`,
+              });
+            }
+          }
+        }
+      } catch (error) {
+        const errAnalysis = classifyProviderErrorForCompaction(error);
+        const rawMsg = error instanceof Error ? error.message : String(error);
+        const message = sanitizeToolError(rawMsg);
+        const prefix =
+          errAnalysis.classification === "context_overflow"
+            ? "Context window full (compaction recommended): "
+            : "I hit a problem: ";
+        queue.push({ type: "text", text: `${prefix}${message}` });
+        queue.push({ type: "done", text: message });
+      } finally {
+        queue.close();
+      }
+    })();
+
+    try {
+      yield* queue.iterate();
+      await work;
+    } finally {
+      running.delete(request.runId);
+    }
+  }
+}
+
+export interface PiAgentRuntimeOptions {
+  transport?: InferenceTransport;
+}
+
+export class PiAgentRuntime implements AgentRuntime {
+  private transport?: InferenceTransport;
+
+  constructor(options: PiAgentRuntimeOptions = {}) {
+    this.transport = options.transport;
+  }
+  describe() {
+    return {
+      id: "pi",
+      contractVersion: "1",
+      adapterVersion: "0.1.0",
+      capabilities: { streaming: true, compaction: true, tools: true, scripted: false },
+    };
+  }
+
+  async abort(runId: string): Promise<void> {
+    running.get(runId)?.abort();
+  }
+
+  async *run(request: AgentRunRequest, context: AdapterContext): AsyncIterable<AgentRuntimeEvent> {
+    if (
+      this.transport ||
+      request.model.provider === "omniroute" ||
+      request.model.provider === "combo" ||
+      request.model.id.startsWith("combo/")
+    ) {
+      const canonicalRuntime = new CanonicalAgentRuntime({ transport: this.transport });
+      yield* canonicalRuntime.run(request, context);
+      return;
+    }
+
+    const controller = new AbortController();
+    running.set(request.runId, controller);
+    const signal = context.signal ?? controller.signal;
+    const queue = createQueue();
+
+    const work = (async () => {
+      try {
+        const provider =
+          request.model.provider === "scripted" ? "openrouter" : request.model.provider;
+        const modelId =
+          request.model.id === "scripted"
+            ? (process.env.PI_DEFAULT_MODEL ?? "deepseek/deepseek-v4-flash-0731")
+            : request.model.id;
+        const models = modelsForRequest(request, provider);
+        const model = models.getModel(provider, modelId) ?? models.getModel("openrouter", modelId);
+        if (!model) {
+          queue.push({ type: "text", text: `Unknown model ${provider}/${modelId}` });
+          queue.push({ type: "done" });
+          return;
+        }
+
+        const apiKey = request.model.oauth
+          ? undefined
+          : (request.model.apiKey ?? process.env.OPENROUTER_API_KEY);
+        const toolDefs = Array.isArray(request.tools) ? request.tools : builtinAgentTools;
+        const nestedAgents = new Set<Agent>();
+        const host: ToolHost = {
+          queue,
+          request,
+          models,
+          model,
+          apiKey,
+          nestedAgents,
+          subagentGate: createGate(MAX_PARALLEL_SUBAGENTS),
+          signal,
+          depth: 0,
+          tracker: createToolCallTracker(),
+        };
+        const tools = toAgentTools(toolDefs, host);
+        const history = toHistory(request.history, request.prompt);
+
+        const piSessionKey = computeSessionAffinityKey({
+          workspaceId: context.workspaceId || "default-ws",
+          botId: request.botId || "default-bot",
+          threadId: request.threadId || "default-thread",
+        });
+
+        const agent = new Agent({
+          streamFn: (m, ctx, options) =>
+            models.streamSimple(m, ctx, {
+              ...options,
+              maxTokens: Math.max(options?.maxTokens ?? 0, 16384),
+              reasoning: options?.reasoning ?? "low",
+              onPayload: (payload: unknown) => {
+                if (
+                  payload &&
+                  typeof payload === "object" &&
+                  "reasoning" in payload &&
+                  (payload as { reasoning?: { effort?: unknown } }).reasoning?.effort === "none"
+                ) {
+                  delete (payload as { reasoning?: unknown }).reasoning;
+                }
+                return payload;
+              },
+            }),
+          getApiKey: async () => apiKey,
+          transformContext: async (messages) =>
+            delimitUntrustedAgentMessages(
+              pruneColdCacheAgentMessages(pruneComputerScreenshotContext(messages), {
+                sessionKey: piSessionKey,
+                provider: model.provider,
+                model: model.id,
+              }),
+            ),
+          initialState: {
+            systemPrompt:
+              request.instructions ||
+              (toolDefs.some((tool) => tool.name === "computer_observe")
+                ? "You are a Rakazo bot with a real computer. Use computer_observe and computer_act to operate its visible desktop, including browsers and installed applications. Use shell and the file tools for precise terminal and filesystem work. The user may interact with the same desktop while you run, so re-observe when the screen may have changed. Be concise."
+                : "You are a Rakazo bot with a persistent sandbox filesystem and shell. Be concise."),
+            model,
+            thinkingLevel: "low",
+            tools,
+            messages: history,
+          },
+        });
+
+        if (signal.aborted) {
+          queue.push({ type: "done", text: "stopped" });
+          return;
+        }
+        const onAbort = () => {
+          agent.abort();
+          for (const nested of nestedAgents) nested.abort();
+        };
+        signal.addEventListener("abort", onAbort);
+
+        let streamed = "";
+        agent.subscribe((event) => {
+          if (
+            event.type === "message_update" &&
+            event.assistantMessageEvent.type === "text_delta"
+          ) {
+            const delta = event.assistantMessageEvent.delta;
+            if (delta) {
+              streamed += delta;
+              queue.push({ type: "text", text: delta });
+            }
+          }
+          if (event.type === "message_end" && event.message.role === "assistant") {
+            const text = assistantText(event.message);
+            if (text && !streamed) {
+              streamed = text;
+              queue.push({ type: "text", text });
+            }
+            if ("usage" in event.message && event.message.usage) {
+              const usage = event.message.usage as unknown as Record<string, unknown>;
+              const inputTokens = (usage.input ?? usage.prompt_tokens ?? 0) as number;
+              const outputTokens = (usage.output ?? usage.completion_tokens ?? 0) as number;
+              const cachedTokens = ((
+                usage.prompt_tokens_details as Record<string, unknown> | undefined
+              )?.cached_tokens ??
+                usage.cached_tokens ??
+                (usage as Record<string, unknown>).cache_read_input_tokens ??
+                0) as number;
+              const totalPromptTokens = cachedTokens + inputTokens;
+              const cacheHitRatio = totalPromptTokens > 0 ? cachedTokens / totalPromptTokens : 0;
+              queue.push({
+                type: "usage",
+                inputTokens,
+                outputTokens,
+                cachedTokens,
+                cacheHitRatio: Math.min(1.0, Math.max(0.0, cacheHitRatio)),
+                provider: model.provider,
+                model: model.id,
+              });
+            }
+          }
+        });
+
+        queue.push({ type: "progress", text: "working…" });
+        const images = request.currentTurnImages?.map((image) => ({
+          type: "image" as const,
+          data: Buffer.from(image.data).toString("base64"),
+          mimeType: image.mimeType,
+        }));
+        await agent.prompt(request.prompt, images?.length ? images : undefined);
+        await agent.waitForIdle();
+        signal.removeEventListener("abort", onAbort);
+
+        const error = agent.state.errorMessage;
+        if (error) {
+          const errAnalysis = classifyProviderErrorForCompaction(error);
+          const sanitized = sanitizeToolError(error);
+          const prefix =
+            errAnalysis.classification === "context_overflow"
+              ? "Context window full (compaction recommended): "
+              : "I hit a problem: ";
+          queue.push({ type: "text", text: `${prefix}${sanitized}` });
+          queue.push({ type: "done", text: sanitized });
+          return;
+        }
+        if (!streamed) {
+          const fallback = assistantText(agent.state.messages.at(-1)) || "I finished the work.";
+          queue.push({ type: "text", text: fallback });
+          streamed = fallback;
+        }
+        queue.push({ type: "done", text: streamed });
+      } catch (error) {
+        const errAnalysis = classifyProviderErrorForCompaction(error);
+        const rawMsg = error instanceof Error ? error.message : String(error);
+        const message = sanitizeToolError(rawMsg);
+        const prefix =
+          errAnalysis.classification === "context_overflow"
+            ? "Context window full (compaction recommended): "
+            : "I hit a problem: ";
+        queue.push({ type: "text", text: `${prefix}${message}` });
+        queue.push({ type: "done", text: message });
+      } finally {
+        queue.close();
+      }
+    })();
+
+    try {
+      yield* queue.iterate();
+      await work;
+    } finally {
+      running.delete(request.runId);
+    }
+  }
+}
+
+function modelsForRequest(request: AgentRunRequest, provider: string): Models {
+  const oauth = request.model.oauth;
+  if (!oauth) return catalogModels;
+
+  const persist = oauth.persist;
+  return builtinModels({
+    credentials: new PiRuntimeCredentialStore(
+      provider,
+      toOAuthCredential(oauth.credential),
+      persist ? (next) => persist(next) : undefined,
+    ),
+  });
+}
+
+export function toAgentTools(toolDefs: readonly ConnectorTool[], host: ToolHost): AgentTool[] {
+  const names = normalizeAgentToolNames(toolDefs);
+  return toolDefs.map((tool, index) => toAgentTool(tool, host, names[index]!));
+}
+
+/**
+ * Normalize connector names only at the boundary where they are exposed to Pi.
+ * Connector execution continues to use the original name captured by toAgentTool.
+ */
+export function normalizeAgentToolName(name: string): string {
+  if (isProviderSafeAgentToolName(name)) return name;
+  const normalized = name
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
+  return (normalized || FALLBACK_AGENT_TOOL_NAME).slice(0, MAX_AGENT_TOOL_NAME_LENGTH);
+}
+
+/**
+ * Return one valid, unique model-facing name per connector tool.
+ * Existing valid names are reserved first so sanitizing a connector cannot
+ * rename or shadow a builtin tool with the same valid name.
+ */
+export function normalizeAgentToolNames(tools: readonly ConnectorTool[]): string[] {
+  const reservedValidNames = new Set(
+    tools.filter((tool) => isProviderSafeAgentToolName(tool.name)).map((tool) => tool.name),
+  );
+  const usedNames = new Set<string>();
+
+  return tools.map((tool) => {
+    const base = normalizeAgentToolName(tool.name);
+    const originalIsValid = isProviderSafeAgentToolName(tool.name);
+    let candidate = base;
+
+    if (usedNames.has(candidate) || (!originalIsValid && reservedValidNames.has(candidate))) {
+      candidate = withToolNameSuffix(base, stableToolNameHash(tool.name));
+    }
+
+    let suffix = 2;
+    while (usedNames.has(candidate) || (!originalIsValid && reservedValidNames.has(candidate))) {
+      candidate = withToolNameSuffix(base, `${stableToolNameHash(tool.name)}_${suffix}`);
+      suffix += 1;
+    }
+
+    usedNames.add(candidate);
+    return candidate;
+  });
+}
+
+function isProviderSafeAgentToolName(name: string): boolean {
+  return AGENT_TOOL_NAME_PATTERN.test(name) && name.length <= MAX_AGENT_TOOL_NAME_LENGTH;
+}
+
+function withToolNameSuffix(base: string, suffix: string): string {
+  const suffixWithSeparator = `_${suffix}`;
+  const prefixLength = Math.max(1, MAX_AGENT_TOOL_NAME_LENGTH - suffixWithSeparator.length);
+  return `${base.slice(0, prefixLength)}${suffixWithSeparator}`;
+}
+
+function stableToolNameHash(name: string): string {
+  let hash = 2166136261;
+  for (const character of name) {
+    hash ^= character.codePointAt(0) ?? 0;
+    hash = Math.imul(hash, 16777619);
+  }
+  return (hash >>> 0).toString(36);
+}
+
+function toHistory(history: AgentRunRequest["history"], prompt: string) {
+  const last = history.at(-1);
+  const prior = last?.role === "user" && last.content === prompt ? history.slice(0, -1) : history;
+  return prior
+    .filter((m) => m.role === "user" || m.role === "assistant")
+    .map((m) =>
+      m.role === "assistant"
+        ? { role: "user" as const, content: `Assistant: ${m.content}`, timestamp: Date.now() }
+        : { role: "user" as const, content: m.content, timestamp: Date.now() },
+    );
+}
+
+function toAgentTool(tool: ConnectorTool, host: ToolHost, exposedName: string): AgentTool {
+  return {
+    name: exposedName,
+    label: tool.name,
+    description: tool.description,
+    parameters: parametersFor(tool),
+    prepareArguments: (args: unknown) => {
+      const raw = args && typeof args === "object" ? (args as Record<string, unknown>) : {};
+      if (tool.name === "destination.write") {
+        return {
+          collection: String(raw.collection ?? "notes"),
+          title: String(raw.title ?? "Rakazo result"),
+          body: String(raw.body ?? ""),
+        };
+      }
+      if (tool.name === "remember") {
+        return { content: String(raw.content ?? ""), path: String(raw.path ?? "MEMORY.md") };
+      }
+      if (tool.name === "request_takeover") {
+        return { reason: String(raw.reason ?? "I need you on the screen.") };
+      }
+      if (tool.name === "write_file") {
+        return { path: String(raw.path ?? "notes/result.txt"), content: String(raw.content ?? "") };
+      }
+      if (tool.name === "computer_act") {
+        return {
+          actions: Array.isArray(raw.actions) ? raw.actions : [],
+          observe: raw.observe === undefined ? true : Boolean(raw.observe),
+          settle_ms: Number(raw.settle_ms ?? 350),
+        };
+      }
+      if (tool.name === "list_files") return { path: String(raw.path ?? "") };
+      if (tool.name === "read_file" || tool.name === "open_path") {
+        return { path: String(raw.path ?? "") };
+      }
+      if (tool.name === "launch_app") {
+        return {
+          application: String(raw.application ?? ""),
+          uri: raw.uri ? String(raw.uri) : "",
+        };
+      }
+      if (tool.name === "shell") {
+        return {
+          command: String(raw.command ?? ""),
+          cwd: raw.cwd ? String(raw.cwd) : "/home/rakazo",
+        };
+      }
+      if (tool.name === "run_subagent") {
+        return {
+          name: String(raw.name ?? "helper"),
+          task: String(raw.task ?? ""),
+          instructions: raw.instructions ? String(raw.instructions) : "",
+        };
+      }
+      if (tool.name === "spawn_bot") {
+        return {
+          name: String(raw.name ?? ""),
+          title: raw.title ? String(raw.title) : "",
+          description: raw.description ? String(raw.description) : "",
+          instructions: raw.instructions ? String(raw.instructions) : "",
+          prompt: raw.prompt ? String(raw.prompt) : "",
+        };
+      }
+      if (tool.name === "archive_bot" || tool.name === "delete_bot") {
+        return {
+          confirm_name: String(raw.confirm_name ?? raw.confirmName ?? ""),
+          bot_id: raw.bot_id ? String(raw.bot_id) : raw.botId ? String(raw.botId) : "",
+        };
+      }
+      if (tool.name === "web_search") {
+        return {
+          query: String(raw.query ?? raw.q ?? ""),
+          categories: raw.categories ? String(raw.categories) : undefined,
+          language: raw.language ? String(raw.language) : undefined,
+          time_range: raw.time_range
+            ? String(raw.time_range)
+            : raw.timeRange
+              ? String(raw.timeRange)
+              : undefined,
+          max_results:
+            raw.max_results !== undefined
+              ? Number(raw.max_results)
+              : raw.maxResults !== undefined
+                ? Number(raw.maxResults)
+                : undefined,
+        };
+      }
+      if (tool.name === "web_scrape") {
+        return {
+          url: String(raw.url ?? ""),
+          selector: raw.selector ? String(raw.selector) : undefined,
+          maxLength:
+            raw.maxLength !== undefined
+              ? Number(raw.maxLength)
+              : raw.max_length !== undefined
+                ? Number(raw.max_length)
+                : undefined,
+        };
+      }
+      if (tool.name === "read_skill") {
+        return {
+          name: String(raw.name ?? raw.skill ?? raw.target ?? "").trim(),
+        };
+      }
+      // GitHub
+      if (tool.name === "github_search_repos") {
+        return {
+          q: String(raw.q ?? raw.query ?? ""),
+          sort: raw.sort ? String(raw.sort) : undefined,
+          order: raw.order ? String(raw.order) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+        };
+      }
+      if (tool.name === "github_get_file_contents") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          path: String(raw.path ?? ""),
+          ref: raw.ref ? String(raw.ref) : undefined,
+        };
+      }
+      if (tool.name === "github_list_issues") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          state: raw.state ? String(raw.state) : undefined,
+          labels: raw.labels ? String(raw.labels) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          sort: raw.sort ? String(raw.sort) : undefined,
+          direction: raw.direction ? String(raw.direction) : undefined,
+        };
+      }
+      if (tool.name === "github_create_issue") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          title: String(raw.title ?? ""),
+          body: raw.body ? String(raw.body) : undefined,
+          labels: Array.isArray(raw.labels) ? raw.labels.map(String) : undefined,
+          assignees: Array.isArray(raw.assignees) ? raw.assignees.map(String) : undefined,
+        };
+      }
+      if (tool.name === "github_get_pull_request") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          pull_number: Number(raw.pull_number ?? raw.pullNumber ?? 0),
+        };
+      }
+      if (tool.name === "github_create_issue_comment") {
+        return {
+          owner: String(raw.owner ?? ""),
+          repo: String(raw.repo ?? ""),
+          issue_number: Number(raw.issue_number ?? raw.issueNumber ?? 0),
+          body: String(raw.body ?? ""),
+        };
+      }
+      // Notion
+      if (tool.name === "notion_search") {
+        return {
+          query: raw.query ? String(raw.query) : undefined,
+          filter: raw.filter,
+          sort: raw.sort,
+          page_size:
+            raw.page_size !== undefined
+              ? Number(raw.page_size)
+              : raw.pageSize !== undefined
+                ? Number(raw.pageSize)
+                : undefined,
+        };
+      }
+      if (tool.name === "notion_get_page") {
+        return { page_id: String(raw.page_id ?? raw.pageId ?? "") };
+      }
+      if (tool.name === "notion_query_database") {
+        return {
+          database_id: String(raw.database_id ?? raw.databaseId ?? ""),
+          filter: raw.filter,
+          sorts: raw.sorts,
+          page_size:
+            raw.page_size !== undefined
+              ? Number(raw.page_size)
+              : raw.pageSize !== undefined
+                ? Number(raw.pageSize)
+                : undefined,
+        };
+      }
+      if (tool.name === "notion_create_page") {
+        return {
+          parent: raw.parent ?? {},
+          properties: raw.properties ?? {},
+          children: raw.children,
+        };
+      }
+      if (tool.name === "notion_update_page") {
+        return {
+          page_id: String(raw.page_id ?? raw.pageId ?? ""),
+          properties: raw.properties,
+          archived: raw.archived !== undefined ? Boolean(raw.archived) : undefined,
+          icon: raw.icon,
+          cover: raw.cover,
+        };
+      }
+      // Postiz
+      if (tool.name === "postiz_list_integrations") {
+        return {};
+      }
+      if (tool.name === "postiz_create_post") {
+        return {
+          content: String(raw.content ?? ""),
+          integrationIds: Array.isArray(raw.integrationIds)
+            ? raw.integrationIds.map(String)
+            : Array.isArray(raw.integration_ids)
+              ? raw.integration_ids.map(String)
+              : undefined,
+          scheduledAt: raw.scheduledAt
+            ? String(raw.scheduledAt)
+            : raw.scheduled_at
+              ? String(raw.scheduled_at)
+              : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : undefined,
+          media: Array.isArray(raw.media) ? raw.media.map(String) : undefined,
+        };
+      }
+      if (tool.name === "postiz_list_posts") {
+        return {
+          status: raw.status ? String(raw.status) : undefined,
+          limit: raw.limit !== undefined ? Number(raw.limit) : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+        };
+      }
+      // WordPress / Novamira
+      if (tool.name === "wordpress_list_posts") {
+        return {
+          status: raw.status ? String(raw.status) : undefined,
+          search: raw.search ? String(raw.search) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          categories: Array.isArray(raw.categories) ? raw.categories.map(Number) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(Number) : undefined,
+        };
+      }
+      if (tool.name === "wordpress_get_post") {
+        return { id: Number(raw.id ?? 0) };
+      }
+      if (tool.name === "wordpress_create_post") {
+        return {
+          title: String(raw.title ?? ""),
+          content: String(raw.content ?? ""),
+          status: raw.status ? String(raw.status) : undefined,
+          categories: Array.isArray(raw.categories) ? raw.categories.map(Number) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(Number) : undefined,
+          slug: raw.slug ? String(raw.slug) : undefined,
+          excerpt: raw.excerpt ? String(raw.excerpt) : undefined,
+        };
+      }
+      if (tool.name === "wordpress_update_post") {
+        return {
+          id: Number(raw.id ?? 0),
+          title: raw.title ? String(raw.title) : undefined,
+          content: raw.content ? String(raw.content) : undefined,
+          status: raw.status ? String(raw.status) : undefined,
+          categories: Array.isArray(raw.categories) ? raw.categories.map(Number) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(Number) : undefined,
+          slug: raw.slug ? String(raw.slug) : undefined,
+          excerpt: raw.excerpt ? String(raw.excerpt) : undefined,
+        };
+      }
+      if (tool.name === "novamira_execute_ability") {
+        return {
+          site: String(raw.site ?? ""),
+          ability: String(raw.ability ?? ""),
+          params: raw.params,
+        };
+      }
+      // Windmill RGPD (AutoLite & Proxy)
+      if (/^windmill_(?:autolite|proxy)_(?:run_script|run_flow)$/.test(tool.name)) {
+        return {
+          path: String(raw.path ?? ""),
+          args: raw.args && typeof raw.args === "object" ? raw.args : undefined,
+          wait: raw.wait !== undefined ? Boolean(raw.wait) : true,
+        };
+      }
+      if (/^windmill_(?:autolite|proxy)_get_job$/.test(tool.name)) {
+        return {
+          job_id: String(raw.job_id ?? raw.id ?? ""),
+          include_logs: raw.include_logs !== undefined ? Boolean(raw.include_logs) : true,
+        };
+      }
+      // Cloudflare
+      if (tool.name === "cloudflare_list_zones") {
+        return {
+          name: raw.name ? String(raw.name) : undefined,
+          status: raw.status ? String(raw.status) : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+        };
+      }
+      if (tool.name === "cloudflare_list_dns_records") {
+        return {
+          zone_id: String(raw.zone_id ?? raw.zoneId ?? ""),
+          name: raw.name ? String(raw.name) : undefined,
+          type: raw.type ? String(raw.type) : undefined,
+          page: raw.page ? Number(raw.page) : undefined,
+          per_page:
+            raw.per_page !== undefined
+              ? Number(raw.per_page)
+              : raw.perPage !== undefined
+                ? Number(raw.perPage)
+                : undefined,
+        };
+      }
+      if (tool.name === "cloudflare_create_dns_record") {
+        return {
+          zone_id: String(raw.zone_id ?? raw.zoneId ?? ""),
+          type: String(raw.type ?? ""),
+          name: String(raw.name ?? ""),
+          content: String(raw.content ?? ""),
+          ttl: raw.ttl ? Number(raw.ttl) : undefined,
+          proxied: raw.proxied !== undefined ? Boolean(raw.proxied) : undefined,
+          priority: raw.priority ? Number(raw.priority) : undefined,
+          comment: raw.comment ? String(raw.comment) : undefined,
+        };
+      }
+      if (tool.name === "cloudflare_purge_cache") {
+        return {
+          zone_id: String(raw.zone_id ?? raw.zoneId ?? ""),
+          purge_everything:
+            raw.purge_everything !== undefined
+              ? Boolean(raw.purge_everything)
+              : raw.purgeEverything !== undefined
+                ? Boolean(raw.purgeEverything)
+                : undefined,
+          files: Array.isArray(raw.files) ? raw.files.map(String) : undefined,
+          tags: Array.isArray(raw.tags) ? raw.tags.map(String) : undefined,
+          hosts: Array.isArray(raw.hosts) ? raw.hosts.map(String) : undefined,
+        };
+      }
+      return raw as never;
+    },
+    execute: async (toolCallId, params) => {
+      const sessionKey = `${host.request.botId}:${host.request.threadId}`;
+      const guard = evaluateToolCallGuard(host.tracker, tool.name, params);
+      if (!guard.allow) {
+        const denial = recordToolSecurityDenial(host.tracker, sessionKey, guard.reason);
+        return {
+          content: [{ type: "text", text: denial.reason }],
+          details: { error: denial.reason },
+          terminate: guard.terminate || denial.terminate,
+        };
+      }
+      host.tracker.denialBreaker.recordApproval(sessionKey);
+      const args = (params ?? {}) as Record<string, unknown>;
+      const executionId = toolCallId || `${host.request.runId}:${tool.name}`;
+      host.queue.push({ type: "tool", name: tool.name, args, executionId });
+      if (tool.name === "request_takeover") {
+        host.queue.push({
+          type: "takeover",
+          reason: String(args.reason ?? "I need you on the screen."),
+        });
+        return {
+          content: [{ type: "text", text: "Takeover requested." }],
+          details: args,
+          terminate: true,
+        };
+      }
+      if (tool.name === "run_subagent") {
+        const result = await executeSubagent(host, executionId, args);
+        return {
+          content: [{ type: "text", text: result }],
+          details: { result },
+        };
+      }
+      if (tool.name === "tool_search" || tool.name === "nod_tool_search") {
+        const query = String(args.query ?? args.q ?? args.name ?? "");
+        const catalog = Array.isArray(host.request.tools) ? host.request.tools : builtinAgentTools;
+        const found = searchLazyMcpTools(catalog, query, 3);
+        return {
+          content: [{ type: "text", text: JSON.stringify(found) }],
+          details: found,
+        };
+      }
+      if (host.request.executeTool) {
+        const result = await host.request.executeTool(tool.name, args, executionId);
+        if (isAgentToolExecutionResult(result)) return result;
+        const compacted = compactToolResult(tool.name, result);
+        return {
+          content: [{ type: "text", text: compacted }],
+          details: result,
+        };
+      }
+      return {
+        content: [{ type: "text", text: `${tool.name} is unavailable without an executor.` }],
+        details: { error: "no executor" },
+      };
+    },
+  };
+}
+
+export function buildSubagentPrompt(name: string, task?: string, extra?: string) {
+  const rawInstruction = [
+    `You are a Rakazo subagent named "${name}".`,
+    "You run inside the parent bot's turn — you are not a separate bot chat.",
+    "Complete the delegated task and return a concise, fully synthesized result.",
+    "Execute only the specific objective assigned: do not perform unrelated actions, exploratory browsing, or speculative tool calls.",
+    "Invoke only the strictly necessary tools required for this specific subtask.",
+    "Do not attempt to spawn bots or further subagents (subagent depth is strictly 1).",
+    task ? `Task objective: ${task}` : "",
+    extra,
+  ]
+    .filter(Boolean)
+    .join("\n");
+
+  return compilePromptLevel1Deterministic({
+    rawInstruction,
+    botName: name,
+    botTitle: `Rakazo Subagent (${name})`,
+    level: "level1_deterministic",
+  });
+}
+
+export async function executeSubagent(
+  host: ToolHost,
+  executionId: string,
+  args: Record<string, unknown>,
+) {
+  if (host.depth >= SUBAGENT_MAX_DEPTH) return "Subagents cannot nest further.";
+  await host.subagentGate.acquire();
+  const agentId = executionId;
+  const name =
+    String(args.name ?? "helper")
+      .trim()
+      .slice(0, 80) || "helper";
+  const task = String(args.task ?? "").trim();
+  const extra = args.instructions ? String(args.instructions).trim() : "";
+  host.queue.push({
+    type: "subagent",
+    agentId,
+    name,
+    task,
+    status: "running",
+    progress: "starting…",
+  });
+
+  const availableTools = Array.isArray(host.request.tools) ? host.request.tools : builtinAgentTools;
+  const childDefs = availableTools.filter(
+    (tool) => !DELEGATION_TOOL_NAMES.has(tool.name) && !DELEGATION_NAMES_SET.has(tool.name),
+  );
+  const nestedHost: ToolHost = {
+    ...host,
+    depth: (host.depth ?? 0) + 1,
+    tracker: createToolCallTracker(),
+    request: {
+      ...host.request,
+      tools: childDefs,
+    },
+  };
+  const compiledPrompt = buildSubagentPrompt(name, task, extra);
+
+  const isParentFree = Boolean(
+    host.transport?.isFree ||
+      host.request.model.provider === "omniroute" ||
+      host.request.model.provider === "combo" ||
+      host.request.model.id.startsWith("combo/") ||
+      (host.request as any).inferenceMode === "free",
+  );
+
+  if (isParentFree || host.transport) {
+    const subTransport = isParentFree
+      ? host.transport?.isFree
+        ? host.transport
+        : new OmniRouteInferenceTransport({
+            defaultModel: host.request.model.id?.startsWith("combo/")
+              ? host.request.model.id
+              : "combo/rakazo-fast",
+            apiKey: host.apiKey,
+          })
+      : host.transport!;
+
+    const subRuntime = new CanonicalAgentRuntime({ transport: subTransport });
+    const subRequest: AgentRunRequest = {
+      botId: host.request.botId,
+      threadId: host.request.threadId,
+      runId: executionId,
+      prompt: task || "Complete the delegated task.",
+      instructions: compiledPrompt.compiledInstruction,
+      history: [],
+      tools: childDefs,
+      model: isParentFree
+        ? {
+            provider: "omniroute",
+            id: host.request.model.id?.startsWith("combo/")
+              ? host.request.model.id
+              : "combo/rakazo-fast",
+            apiKey: host.apiKey,
+          }
+        : host.request.model,
+      executeTool: host.request.executeTool,
+    };
+
+    let streamed = "";
+    let lastPush = 0;
+    try {
+      if (host.signal.aborted) {
+        host.queue.push({
+          type: "subagent",
+          agentId,
+          name,
+          task,
+          status: "failed",
+          result: "stopped",
+        });
+        return "stopped";
+      }
+
+      for await (const event of subRuntime.run(subRequest, {
+        operationId: `subagent-op-${executionId}`,
+        traceId: `subagent-tr-${executionId}`,
+        workspaceId: "workspace-subagent",
+        userId: "user-subagent",
+        signal: host.signal,
+      })) {
+        if (event.type === "text" && event.text) {
+          streamed += event.text;
+          const now = Date.now();
+          if (now - lastPush >= 80) {
+            lastPush = now;
+            host.queue.push({
+              type: "subagent",
+              agentId,
+              name,
+              task,
+              status: "running",
+              progress: streamed.slice(-800),
+            });
+          }
+        } else if (event.type === "tool") {
+          host.queue.push({
+            type: "subagent",
+            agentId,
+            name,
+            task,
+            status: "running",
+            progress: `using ${event.name}…`,
+          });
+        } else if (event.type === "usage") {
+          host.queue.push(event);
+        }
+      }
+
+      const result = streamed || "done.";
+      const clipped = result.length > 12_000 ? `${result.slice(0, 12_000)}…` : result;
+      host.queue.push({
+        type: "subagent",
+        agentId,
+        name,
+        task,
+        status: "completed",
+        result: clipped,
+      });
+      return clipped;
+    } catch (error) {
+      const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
+      host.queue.push({
+        type: "subagent",
+        agentId,
+        name,
+        task,
+        status: "failed",
+        result: message,
+      });
+      return `Subagent failed: ${message}`;
+    } finally {
+      host.subagentGate.release();
+    }
+  }
+
+  const nested = new Agent({
+    streamFn: (m, ctx, options) =>
+      host.models.streamSimple(m, ctx, {
+        ...options,
+        maxTokens: Math.min(
+          Math.max(options?.maxTokens ?? SUBAGENT_TOKEN_BUDGET_CEILING, 1),
+          SUBAGENT_TOKEN_BUDGET_CEILING,
+        ),
+        reasoning: options?.reasoning ?? "low",
+        onPayload: (payload: unknown) => {
+          if (
+            payload &&
+            typeof payload === "object" &&
+            "reasoning" in payload &&
+            (payload as { reasoning?: { effort?: unknown } }).reasoning?.effort === "none"
+          ) {
+            delete (payload as { reasoning?: unknown }).reasoning;
+          }
+          return payload;
+        },
+      }),
+    getApiKey: async () => host.apiKey,
+    transformContext: async (messages) =>
+      delimitUntrustedAgentMessages(pruneComputerScreenshotContext(messages)),
+    initialState: {
+      systemPrompt: compiledPrompt.compiledInstruction,
+      model: host.model,
+      thinkingLevel: "low",
+      tools: toAgentTools(childDefs, nestedHost),
+      messages: [],
+    },
+  });
+  host.nestedAgents.add(nested);
+
+  let streamed = "";
+  let lastPush = 0;
+  nested.subscribe((event) => {
+    if (event.type === "tool_execution_start") {
+      const toolName = "toolName" in event && event.toolName ? String(event.toolName) : "a tool";
+      host.queue.push({
+        type: "subagent",
+        agentId,
+        name,
+        task,
+        status: "running",
+        progress: `using ${toolName}…`,
+      });
+    }
+    if (event.type === "message_update" && event.assistantMessageEvent.type === "text_delta") {
+      const delta = event.assistantMessageEvent.delta;
+      if (delta) {
+        streamed += delta;
+        const now = Date.now();
+        if (now - lastPush >= 80) {
+          lastPush = now;
+          host.queue.push({
+            type: "subagent",
+            agentId,
+            name,
+            task,
+            status: "running",
+            progress: streamed.slice(-800),
+          });
+        }
+      }
+    }
+    if (event.type === "message_end" && event.message.role === "assistant") {
+      const text = assistantText(event.message);
+      if (text && !streamed) streamed = text;
+      if ("usage" in event.message && event.message.usage) {
+        host.queue.push({
+          type: "usage",
+          inputTokens: event.message.usage.input ?? 0,
+          outputTokens: event.message.usage.output ?? 0,
+          provider: host.model.provider,
+          model: host.model.id,
+        });
+      }
+    }
+  });
+
+  try {
+    if (host.signal.aborted) {
+      host.queue.push({
+        type: "subagent",
+        agentId,
+        name,
+        task,
+        status: "failed",
+        result: "stopped",
+      });
+      return "stopped";
+    }
+    const onAbort = () => nested.abort();
+    host.signal.addEventListener("abort", onAbort);
+    await nested.prompt(task || "Complete the delegated task.");
+    await nested.waitForIdle();
+    host.signal.removeEventListener("abort", onAbort);
+    const error = nested.state.errorMessage;
+    if (error) {
+      const message = sanitizeToolError(error);
+      host.queue.push({ type: "subagent", agentId, name, task, status: "failed", result: message });
+      return `Subagent failed: ${message}`;
+    }
+    const result = streamed || assistantText(nested.state.messages.at(-1)) || "done.";
+    const clipped = result.length > 12_000 ? `${result.slice(0, 12_000)}…` : result;
+    host.queue.push({
+      type: "subagent",
+      agentId,
+      name,
+      task,
+      status: "completed",
+      result: clipped,
+    });
+    return clipped;
+  } catch (error) {
+    const message = sanitizeToolError(error instanceof Error ? error.message : String(error));
+    host.queue.push({ type: "subagent", agentId, name, task, status: "failed", result: message });
+    return `Subagent failed: ${message}`;
+  } finally {
+    host.nestedAgents.delete(nested);
+    host.subagentGate.release();
+  }
+}
+
+function parametersFor(tool: ConnectorTool) {
+  if (tool.name === "write_file") {
+    return Type.Object({ path: Type.String(), content: Type.String() });
+  }
+  if (tool.name === "destination.write") {
+    return Type.Object({
+      collection: Type.String(),
+      title: Type.String(),
+      body: Type.String(),
+    });
+  }
+  if (tool.name === "request_takeover") {
+    return Type.Object({ reason: Type.String() });
+  }
+  if (tool.name === "remember") {
+    return Type.Object({
+      content: Type.String(),
+      path: Type.Optional(Type.String()),
+      quote: Type.Optional(Type.String()),
+      action: Type.Optional(Type.String()),
+      watchKey: Type.Optional(Type.String()),
+      status: Type.Optional(Type.String()),
+      sourceUrl: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "shell") {
+    return Type.Object({
+      command: Type.String(),
+      cwd: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "run_subagent") {
+    return Type.Object({
+      name: Type.String(),
+      task: Type.String(),
+      instructions: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "spawn_bot") {
+    return Type.Object({
+      name: Type.String(),
+      title: Type.Optional(Type.String()),
+      description: Type.Optional(Type.String()),
+      instructions: Type.Optional(Type.String()),
+      prompt: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "archive_bot" || tool.name === "delete_bot") {
+    return Type.Object({
+      confirm_name: Type.String(),
+      bot_id: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "web_search") {
+    return Type.Object({
+      query: Type.String(),
+      categories: Type.Optional(Type.String()),
+      language: Type.Optional(Type.String()),
+      time_range: Type.Optional(Type.String()),
+      max_results: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "web_scrape") {
+    return Type.Object({
+      url: Type.String(),
+      selector: Type.Optional(Type.String()),
+      maxLength: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "read_skill") {
+    return Type.Object({
+      name: Type.String(),
+      action: Type.Optional(Type.String()),
+      description: Type.Optional(Type.String()),
+      content: Type.Optional(Type.String()),
+      old: Type.Optional(Type.String()),
+      new: Type.Optional(Type.String()),
+    });
+  }
+  // GitHub
+  if (tool.name === "github_search_repos") {
+    return Type.Object({
+      q: Type.String(),
+      sort: Type.Optional(Type.String()),
+      order: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "github_get_file_contents") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      path: Type.String(),
+      ref: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "github_list_issues") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      state: Type.Optional(Type.String()),
+      labels: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+      sort: Type.Optional(Type.String()),
+      direction: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "github_create_issue") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      title: Type.String(),
+      body: Type.Optional(Type.String()),
+      labels: Type.Optional(Type.Array(Type.String())),
+      assignees: Type.Optional(Type.Array(Type.String())),
+    });
+  }
+  if (tool.name === "github_get_pull_request") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      pull_number: Type.Number(),
+    });
+  }
+  if (tool.name === "github_create_issue_comment") {
+    return Type.Object({
+      owner: Type.String(),
+      repo: Type.String(),
+      issue_number: Type.Number(),
+      body: Type.String(),
+    });
+  }
+  // Notion
+  if (tool.name === "notion_search") {
+    return Type.Object({
+      query: Type.Optional(Type.String()),
+      filter: Type.Optional(
+        Type.Object({
+          property: Type.Optional(Type.String()),
+          value: Type.Optional(Type.String()),
+        }),
+      ),
+      page_size: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "notion_get_page") {
+    return Type.Object({ page_id: Type.String() });
+  }
+  if (tool.name === "notion_query_database") {
+    return Type.Object({
+      database_id: Type.String(),
+      filter: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      sorts: Type.Optional(Type.Array(Type.Record(Type.String(), Type.Unknown()))),
+      page_size: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "notion_create_page") {
+    return Type.Object({
+      parent: Type.Object({
+        database_id: Type.Optional(Type.String()),
+        page_id: Type.Optional(Type.String()),
+      }),
+      properties: Type.Record(Type.String(), Type.Unknown()),
+      children: Type.Optional(Type.Array(Type.Record(Type.String(), Type.Unknown()))),
+    });
+  }
+  if (tool.name === "notion_update_page") {
+    return Type.Object({
+      page_id: Type.String(),
+      properties: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      archived: Type.Optional(Type.Boolean()),
+    });
+  }
+  // Postiz
+  if (tool.name === "postiz_list_integrations") {
+    return Type.Object({});
+  }
+  if (tool.name === "postiz_create_post") {
+    return Type.Object({
+      content: Type.String(),
+      integrationIds: Type.Optional(Type.Array(Type.String())),
+      scheduledAt: Type.Optional(Type.String()),
+      tags: Type.Optional(Type.Array(Type.String())),
+      media: Type.Optional(Type.Array(Type.String())),
+    });
+  }
+  if (tool.name === "postiz_list_posts") {
+    return Type.Object({
+      status: Type.Optional(Type.String()),
+      limit: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+    });
+  }
+  // WordPress / Novamira
+  if (tool.name === "wordpress_list_posts") {
+    return Type.Object({
+      status: Type.Optional(Type.String()),
+      search: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
+      page: Type.Optional(Type.Number()),
+      categories: Type.Optional(Type.Array(Type.Number())),
+      tags: Type.Optional(Type.Array(Type.Number())),
+    });
+  }
+  if (tool.name === "wordpress_get_post") {
+    return Type.Object({ id: Type.Number() });
+  }
+  if (tool.name === "wordpress_create_post") {
+    return Type.Object({
+      title: Type.String(),
+      content: Type.String(),
+      status: Type.Optional(Type.String()),
+      categories: Type.Optional(Type.Array(Type.Number())),
+      tags: Type.Optional(Type.Array(Type.Number())),
+      slug: Type.Optional(Type.String()),
+      excerpt: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "wordpress_update_post") {
+    return Type.Object({
+      id: Type.Number(),
+      title: Type.Optional(Type.String()),
+      content: Type.Optional(Type.String()),
+      status: Type.Optional(Type.String()),
+      categories: Type.Optional(Type.Array(Type.Number())),
+      tags: Type.Optional(Type.Array(Type.Number())),
+      slug: Type.Optional(Type.String()),
+      excerpt: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "novamira_execute_ability") {
+    return Type.Object({
+      site: Type.String(),
+      ability: Type.String(),
+      params: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+    });
+  }
+  // Windmill RGPD (AutoLite & Proxy)
+  if (/^windmill_(?:autolite|proxy)_whoami$/.test(tool.name)) {
+    return Type.Object({});
+  }
+  if (/^windmill_(?:autolite|proxy)_list_scripts$/.test(tool.name)) {
+    return Type.Object({
+      path_start: Type.Optional(Type.String()),
+      per_page: Type.Optional(Type.Number()),
+    });
+  }
+  if (/^windmill_(?:autolite|proxy)_list_flows$/.test(tool.name)) {
+    return Type.Object({
+      per_page: Type.Optional(Type.Number()),
+    });
+  }
+  if (/^windmill_(?:autolite|proxy)_(?:run_script|run_flow)$/.test(tool.name)) {
+    return Type.Object({
+      path: Type.String(),
+      args: Type.Optional(Type.Record(Type.String(), Type.Unknown())),
+      wait: Type.Optional(Type.Boolean()),
+    });
+  }
+  if (/^windmill_(?:autolite|proxy)_get_job$/.test(tool.name)) {
+    return Type.Object({
+      job_id: Type.String(),
+      include_logs: Type.Optional(Type.Boolean()),
+    });
+  }
+  // Cloudflare
+  if (tool.name === "cloudflare_list_zones") {
+    return Type.Object({
+      name: Type.Optional(Type.String()),
+      status: Type.Optional(Type.String()),
+      page: Type.Optional(Type.Number()),
+      per_page: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "cloudflare_list_dns_records") {
+    return Type.Object({
+      zone_id: Type.String(),
+      name: Type.Optional(Type.String()),
+      type: Type.Optional(Type.String()),
+      page: Type.Optional(Type.Number()),
+      per_page: Type.Optional(Type.Number()),
+    });
+  }
+  if (tool.name === "cloudflare_create_dns_record") {
+    return Type.Object({
+      zone_id: Type.String(),
+      type: Type.String(),
+      name: Type.String(),
+      content: Type.String(),
+      ttl: Type.Optional(Type.Number()),
+      proxied: Type.Optional(Type.Boolean()),
+      priority: Type.Optional(Type.Number()),
+      comment: Type.Optional(Type.String()),
+    });
+  }
+  if (tool.name === "cloudflare_purge_cache") {
+    return Type.Object({
+      zone_id: Type.String(),
+      purge_everything: Type.Optional(Type.Boolean()),
+      files: Type.Optional(Type.Array(Type.String())),
+      tags: Type.Optional(Type.Array(Type.String())),
+      hosts: Type.Optional(Type.Array(Type.String())),
+    });
+  }
+  return jsonSchemaParameters(sanitizeToolJsonSchemaDraft2020(tool.inputSchema));
+}
+
+/** Keep recent visual state without repeatedly resending every earlier full screenshot. */
+export function pruneComputerScreenshotContext(
+  messages: AgentMessage[],
+  screenshotsToKeep = 2,
+): AgentMessage[] {
+  let remaining = Math.max(0, screenshotsToKeep);
+  let transformed: AgentMessage[] | undefined;
+  for (let index = messages.length - 1; index >= 0; index -= 1) {
+    const message = messages[index];
+    if (!isComputerScreenshotMessage(message)) continue;
+    if (remaining > 0) {
+      remaining -= 1;
+      continue;
+    }
+    transformed ??= [...messages];
+    transformed[index] = {
+      ...message,
+      content: message.content.filter((part) => part.type !== "image"),
+    };
+  }
+  return transformed ?? messages;
+}
+
+/**
+ * Élague les résultats d'outils historiques volumineux (> 2 000 car.) dans `PiAgentRuntime`
+ * uniquement lorsque le cache KV fournisseur est devenu froid (>= 5 min d'inactivité), tout en
+ * figeant strictement le préfixe tant que le cache est chaud (< 5 min).
+ */
+export function pruneColdCacheAgentMessages(
+  messages: AgentMessage[],
+  options: {
+    sessionKey: string;
+    provider: string;
+    model: string;
+    nowMs?: number;
+  },
+): AgentMessage[] {
+  let lastUserIdx = -1;
+  for (let i = messages.length - 1; i >= 0; i -= 1) {
+    if (messages[i]?.role === "user") {
+      lastUserIdx = i;
+      break;
+    }
+  }
+  const activeBoundaryIndex = Math.max(0, lastUserIdx);
+  const evaluation = globalColdCacheTracker.evaluateAndRecord({
+    sessionKey: options.sessionKey,
+    provider: options.provider,
+    model: options.model,
+    candidatePruneBeforeIndex: activeBoundaryIndex,
+    nowMs: options.nowMs,
+  });
+
+  if (evaluation.pruneBeforeIndex <= 0) return messages;
+  const safeCutoff = Math.min(evaluation.pruneBeforeIndex, Math.max(0, messages.length - 6));
+  if (safeCutoff <= 0) return messages;
+
+  let transformed: AgentMessage[] | undefined;
+  for (let index = 0; index < safeCutoff; index += 1) {
+    const message = messages[index];
+    if (!message || message.role !== "toolResult") continue;
+    const textParts = message.content.filter((part) => part.type === "text");
+    if (textParts.length === 0) continue;
+    const combined = textParts.map((part) => part.text).join("\n");
+    if (combined.length <= 2_000) continue;
+
+    const pruned =
+      `${combined.slice(0, 700)}\n` +
+      `… [${combined.length - 1_200} caractères élagués après expiration du cache froid] …\n` +
+      combined.slice(-500);
+
+    transformed ??= [...messages];
+    const nonText = message.content.filter((part) => part.type !== "text");
+    transformed[index] = {
+      ...message,
+      content: [{ type: "text", text: pruned }, ...nonText],
+    };
+  }
+  return transformed ?? messages;
+}
+
+/**
+ * Encapsule les messages `toolResult` externes/MCP/compétences apprises dans `<untrusted_tool_result>`
+ * juste avant l'envoi au LLM par `PiAgentRuntime`, tout en préservant l'objet JSON compacté brut
+ * dans `agent.state.messages` et `tool.execute()` pour l'interface et la télémétrie.
+ */
+export function delimitUntrustedAgentMessages(
+  messages: AgentMessage[],
+  timeZone = "Europe/Paris",
+): AgentMessage[] {
+  let transformed: AgentMessage[] | undefined;
+  for (let index = 0; index < messages.length; index += 1) {
+    const message = messages[index];
+    if (!message || message.role !== "toolResult") continue;
+    if ("isError" in message && message.isError) continue;
+    const toolName = "toolName" in message && typeof message.toolName === "string" ? message.toolName : "";
+    const textParts = message.content.filter((part) => part.type === "text");
+    if (textParts.length === 0) continue;
+    const combinedText = textParts.map((part) => part.text).join("\n");
+    const wrapped = formatRuntimeToolOutput(toolName, combinedText, message.details, timeZone);
+    if (wrapped === combinedText) continue;
+
+    transformed ??= [...messages];
+    const nonTextParts = message.content.filter((part) => part.type !== "text");
+    transformed[index] = {
+      ...message,
+      content: [{ type: "text", text: wrapped }, ...nonTextParts],
+    };
+  }
+  return transformed ?? messages;
+}
+
+function isComputerScreenshotMessage(
+  message: AgentMessage | undefined,
+): message is Extract<AgentMessage, { role: "toolResult" }> {
+  if (message?.role !== "toolResult" || !message.content.some((part) => part.type === "image")) {
+    return false;
+  }
+  const details = message.details;
+  return Boolean(
+    details &&
+      typeof details === "object" &&
+      "frameId" in details &&
+      typeof (details as { frameId?: unknown }).frameId === "string",
+  );
+}
+
+function isAgentToolExecutionResult(result: unknown): result is AgentToolExecutionResult {
+  if (
+    !result ||
+    typeof result !== "object" ||
+    (result as { kind?: unknown }).kind !== "agent_tool_result" ||
+    !("content" in result)
+  ) {
+    return false;
+  }
+  const content = (result as { content?: unknown }).content;
+  return (
+    Array.isArray(content) &&
+    content.every(
+      (item) =>
+        item &&
+        typeof item === "object" &&
+        ((item as { type?: unknown }).type === "text" ||
+          (item as { type?: unknown }).type === "image"),
+    )
+  );
+}
+
+export function jsonSchemaParameters(schema: unknown) {
+  if (!schema || typeof schema !== "object") {
+    return Type.Object({});
+  }
+  const s = schema as Record<string, unknown>;
+  const properties = (
+    s.properties && typeof s.properties === "object" ? s.properties : {}
+  ) as Record<string, unknown>;
+  const required = new Set(Array.isArray(s.required) ? s.required.map(String) : []);
+  const fields: Record<string, ReturnType<typeof Type.Optional>> = {};
+  for (const [key, spec] of Object.entries(properties)) {
+    const field = jsonField(spec);
+    fields[key] = (required.has(key) ? field : Type.Optional(field)) as unknown as ReturnType<
+      typeof Type.Optional
+    >;
+  }
+  return Type.Object(fields);
+}
+
+export function jsonField(spec: unknown): ReturnType<typeof Type.String> {
+  if (!spec || typeof spec !== "object") return Type.String();
+  const definition = spec as Record<string, unknown>;
+
+  // Handle enum
+  if (Array.isArray(definition.enum) && definition.enum.length > 0) {
+    if (definition.enum.length === 1) {
+      const val = definition.enum[0];
+      return (val === null ? Type.Null() : Type.Literal(val as string | number | boolean)) as never;
+    }
+    return Type.Union(
+      definition.enum.map((value) =>
+        value === null ? Type.Null() : Type.Literal(value as string | number | boolean),
+      ),
+    ) as never;
+  }
+
+  // Handle anyOf / oneOf
+  const anyOf = Array.isArray(definition.anyOf)
+    ? definition.anyOf
+    : Array.isArray(definition.oneOf)
+      ? definition.oneOf
+      : null;
+  if (anyOf && anyOf.length > 0) {
+    if (anyOf.length === 1) return jsonField(anyOf[0]) as never;
+    return Type.Union(anyOf.map((s) => jsonField(s))) as never;
+  }
+
+  // Handle type array (e.g. ["string", "null"])
+  if (Array.isArray(definition.type) && definition.type.length > 0) {
+    const types = definition.type.map((t) => jsonField({ ...definition, type: t }));
+    return (types.length === 1 ? types[0] : Type.Union(types)) as never;
+  }
+
+  const type = "type" in definition ? String(definition.type) : "string";
+  if (type === "number" || type === "integer") return Type.Number() as never;
+  if (type === "boolean") return Type.Boolean() as never;
+  if (type === "null") return Type.Null() as never;
+  if (type === "array") return Type.Array(jsonField(definition.items)) as never;
+  if (type === "object") {
+    if (!definition.properties || typeof definition.properties !== "object") {
+      return Type.Record(Type.String(), Type.Unknown()) as never;
+    }
+    return jsonSchemaParameters(definition) as never;
+  }
+  return Type.String();
+}
+
+function assistantText(message: unknown): string {
+  if (!message || typeof message !== "object" || !("content" in message)) return "";
+  const content = (message as { content?: unknown }).content;
+  if (typeof content === "string") return content;
+  if (!Array.isArray(content)) return "";
+  return content
+    .map((part) =>
+      part && typeof part === "object" && "type" in part && part.type === "text" && "text" in part
+        ? String(part.text)
+        : "",
+    )
+    .join("");
+}
+
+export interface EventQueue {
+  push(event: AgentRuntimeEvent): void;
+  close(): void;
+  iterate(): AsyncIterable<AgentRuntimeEvent>;
+}
+
+export interface ToolHost {
+  queue: EventQueue;
+  request: AgentRunRequest;
+  models: Models;
+  model: Model<Api>;
+  apiKey: string | undefined;
+  nestedAgents: Set<Agent>;
+  subagentGate: { acquire(): Promise<void>; release(): void };
+  signal: AbortSignal;
+  depth: number;
+  tracker: ToolCallTracker;
+  transport?: InferenceTransport;
+}
+
+function createGate(max: number) {
+  let active = 0;
+  const waiters: Array<() => void> = [];
+  return {
+    async acquire() {
+      if (active >= max) {
+        await new Promise<void>((resolve) => {
+          waiters.push(resolve);
+        });
+      }
+      active += 1;
+    },
+    release() {
+      active = Math.max(0, active - 1);
+      waiters.shift()?.();
+    },
+  };
+}
+
+function createQueue(): EventQueue {
+  const items: AgentRuntimeEvent[] = [];
+  let wake: (() => void) | undefined;
+  let closed = false;
+  return {
+    push(event) {
+      items.push(event);
+      wake?.();
+    },
+    close() {
+      closed = true;
+      wake?.();
+    },
+    async *iterate() {
+      while (!closed || items.length) {
+        if (items.length) {
+          yield items.shift()!;
+          continue;
+        }
+        await new Promise<void>((resolve) => {
+          wake = resolve;
+        });
+      }
+    },
+  };
+}
+
+// ============================================================================
+// EXTENDED MODEL TIMEOUTS & CONFIGURABLE IDLE WATCHDOG (Upstream #3228 / 515ac02fa)
+// ============================================================================
+
+export const MODEL_STREAM_TIMEOUT_MS = 120_000;
+export const MODEL_CONNECT_TIMEOUT_MS = 30_000;
+export const MODEL_STREAM_IDLE_TIMEOUT_MS = 180_000;
+
+function timeoutMsFromEnv(
+  value: string | undefined,
+  fallback: number,
+  min = 1_000,
+  max = 300_000,
+): number {
+  if (value === undefined) return fallback;
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  const raw = Number(trimmed);
+  return Number.isInteger(raw) && raw >= min && raw <= max ? raw : fallback;
+}
+
+export function modelStreamTimeoutMs(fallback = MODEL_STREAM_TIMEOUT_MS): number {
+  return timeoutMsFromEnv(process.env.MODEL_STREAM_TIMEOUT_MS, fallback, 1_000, 2_147_483_647);
+}
+
+export function modelConnectTimeoutMs(fallback = MODEL_CONNECT_TIMEOUT_MS): number {
+  return timeoutMsFromEnv(process.env.MODEL_CONNECT_TIMEOUT_MS, fallback, 1_000, 300_000);
+}
+
+export function modelStreamIdleTimeoutMs(fallback = MODEL_STREAM_IDLE_TIMEOUT_MS): number {
+  return timeoutMsFromEnv(process.env.MODEL_STREAM_IDLE_TIMEOUT_MS, fallback, 0, 2_147_483_647);
+}
+
+export function modelStreamIdleWatchdog(
+  upstream?: AbortSignal,
+  idleTimeoutMs = modelStreamIdleTimeoutMs(),
+): {
+  signal: AbortSignal;
+  ping(): void;
+  dispose(): void;
+} {
+  const controller = new AbortController();
+  let timer: ReturnType<typeof setTimeout> | undefined;
+  let disposed = false;
+
+  const clear = () => {
+    if (timer !== undefined) {
+      clearTimeout(timer);
+      timer = undefined;
+    }
+  };
+
+  const onUpstreamAbort = () => {
+    clear();
+    if (!controller.signal.aborted) {
+      controller.abort(upstream?.reason ?? new Error("Model stream aborted"));
+    }
+  };
+
+  if (upstream?.aborted) {
+    onUpstreamAbort();
+  } else {
+    upstream?.addEventListener("abort", onUpstreamAbort, { once: true });
+  }
+
+  const arm = () => {
+    if (disposed || controller.signal.aborted || idleTimeoutMs === 0) return;
+    timer = setTimeout(() => {
+      timer = undefined;
+      if (controller.signal.aborted) return;
+      controller.abort(new Error(`Model stream went silent for more than ${idleTimeoutMs}ms`));
+    }, idleTimeoutMs);
+    timer.unref?.();
+  };
+
+  return {
+    signal: controller.signal,
+    ping() {
+      clear();
+      arm();
+    },
+    dispose() {
+      disposed = true;
+      clear();
+      upstream?.removeEventListener("abort", onUpstreamAbort);
+    },
+  };
+}

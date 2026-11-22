@@ -1,0 +1,14 @@
+{
+  "name": "omniroute-gateway",
+  "version": "1.0.0",
+  "description": "Sovereign Free Intelligence Gateway for Rakazo",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  },
+  "private": true
+}

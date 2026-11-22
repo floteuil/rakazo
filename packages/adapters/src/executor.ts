@@ -1,0 +1,2624 @@
+import type {
+  AdapterContext,
+  AgentHomeStore,
+  AgentModelOAuthCredential,
+  AgentRuntime,
+  ArtifactStore,
+  ComputerRef,
+  ConnectorProvider,
+  ConnectorTool,
+  JobPublisher,
+  MemoryStore,
+  NotificationMessage,
+  NotificationProvider,
+  SandboxProvider,
+} from "@rakazo/adapter-kit";
+import { historyCompactJob, routineWakeupJob, runContinueJob } from "@rakazo/adapter-kit";
+import type { MessageBlock, RunStatus } from "@rakazo/contracts";
+import {
+  ATTACHMENT_MAX_BYTES,
+  type BotInferenceConfig,
+  type BotMcpConfig,
+  buildRoutineChecklistNudgeFr,
+  buildRoutineRunTrackBannerFr,
+  DECLINED_BY_PERSON_FR,
+  enforceMemoryBudget,
+  extractRoutineParts,
+  formatLearnedSkillsIndexPrompt,
+  getConnectorForTool,
+  HANDLED_BY_PERSON_FR,
+  identifyOpenRoutineParts,
+  type InferenceMode,
+  type InferenceUsageTag,
+  isAttachmentImageMimeType,
+  isRoutineChecklistComplete,
+  isSovereignTool,
+  isWithinQuietHours,
+  maskSensitiveData,
+  OUTCOME_UNKNOWN_FR,
+  type QuietHoursPolicy,
+  resolveToolApprovalStatus,
+  SOVEREIGN_SKILLS_CATALOG,
+  type StandingRule,
+  validateMemorySaveSafety,
+} from "@rakazo/contracts";
+import {
+  assertTransition,
+  blocksToAgentHistoryText,
+  containsSecret,
+  createStreamingRedactor,
+  formatSkillRunPrompt,
+  inferAttachmentMimeType,
+  isTerminal,
+  nextCronDate,
+  nextFence,
+  promptInvokesSkill,
+  redactSecrets,
+  sandboxCommandTimeoutMs,
+  userTurnBlocksForRun,
+} from "@rakazo/core";
+import {
+  createThreadMessage,
+  findDefaultModelCredential,
+  type PrismaClient,
+  parseComputerMode,
+  recordPromptExecutionLogAsync,
+  type ThreadEvents,
+} from "@rakazo/db";
+import { builtinAgentTools } from "./builtin-tools.js";
+import { archiveSpawnedBot, spawnBot } from "./child-bots.js";
+import {
+  collectLogIds,
+  mergeConnectedPlugins,
+  needsLivePluginSync,
+  type PluginConnectionRow,
+  planLiveConnectionSync,
+} from "./composio-connector.js";
+import { scheduleComputerSleep } from "./computer-idle.js";
+import {
+  acquireComputerExecutionLease,
+  ComputerBusyError,
+  type ComputerExecutionLease,
+  holdComputerExecutionLeaseForTakeover,
+  provisionComputer,
+  releaseComputerExecutionLease,
+  renewComputerExecutionLease,
+  screenLeaseIdForRun,
+} from "./computer-lifecycle.js";
+import { withComputerScreenAvailability } from "./computer-screens.js";
+import {
+  displayBotWorkspacePath,
+  resolveBotWorkspaceCwd,
+  resolveBotWorkspacePath,
+  teamBotWorkspaceDirectory,
+} from "./computer-support.js";
+import { observationToolResult, parseComputerActions } from "./computer-tools.js";
+import { recordDiagnosticIncident } from "./flight-recorder.js";
+import { checkpointAndRecordComputerWorkspace } from "./computer-workspace.js";
+import {
+  loadBotLearnedSkillsDocument,
+  mutateBotLearnedSkill,
+  offloadLargeToolOutputIfNeeded,
+  readBotLearnedSkill,
+  recordBotRoutineObservation,
+} from "./context-output-store.js";
+import {
+  collectDeploymentSecretValues,
+  executeEnterpriseTool,
+  isEnterpriseTool,
+  sanitizeToolError,
+} from "./enterprise-tools.js";
+import { RakazoFreePolicyEngine } from "./free-policy-engine.js";
+import {
+  COMPACTION_BATCH_SIZE,
+  formatRecalledMemory,
+  HISTORY_WINDOW_SIZE,
+  historyWindowSize,
+  LEGACY_HISTORY_WINDOW_SIZE,
+  shouldEnqueueCompaction,
+} from "./history-compaction.js";
+import { appendBoundedMemoryArchive, loadAgentMemoryContext } from "./memory-context.js";
+import { FreeOmniRouteAdapter } from "./omniroute-adapter.js";
+import { toOAuthCredential } from "./pi-credentials.js";
+import {
+  parseModelSecret,
+  resolveModelAuth,
+  secretValuesToRedact,
+  serializeModelSecret,
+} from "./pi-oauth.js";
+import { inferScript } from "./scripted-runtime.js";
+import type { EncryptedSecretStore } from "./secrets.js";
+import { getSovereignSkillFull } from "./sovereign-skills-store.js";
+import {
+  isSupermemoryEnabled,
+  searchSupermemory,
+  supermemoryContainerTag,
+} from "./supermemory-client.js";
+import { getActiveTeachingSession, parsePlaybook } from "./teaching-session.js";
+import {
+  attachWorkspaceFileToThread,
+  currentTurnFilesInstruction,
+  materializeCurrentTurnFiles,
+} from "./thread-artifacts.js";
+import { executeWebScrape } from "./web-scrape.js";
+import { executeWebSearch } from "./web-search.js";
+
+const modelCredentialLocks = new Map<string, Promise<void>>();
+const READ_ONLY_AGENT_TOOLS = new Set([
+  "computer_observe",
+  "list_files",
+  "read_file",
+  "request_takeover",
+  "run_subagent",
+  "web_search",
+  "web_scrape",
+  "read_skill",
+  // Read-only enterprise tools
+  "github_search_repos",
+  "github_get_file_contents",
+  "github_list_issues",
+  "github_get_pull_request",
+  "notion_search",
+  "notion_get_page",
+  "notion_query_database",
+  "postiz_list_integrations",
+  "postiz_list_posts",
+  "wordpress_list_posts",
+  "wordpress_get_post",
+  "windmill_autolite_whoami",
+  "windmill_autolite_list_scripts",
+  "windmill_autolite_list_flows",
+  "windmill_autolite_get_job",
+  "windmill_proxy_whoami",
+  "windmill_proxy_list_scripts",
+  "windmill_proxy_list_flows",
+  "windmill_proxy_get_job",
+  "cloudflare_list_zones",
+  "cloudflare_list_dns_records",
+  "tool_search",
+  "nod_tool_search",
+]);
+
+const READ_ONLY_ANTIGRAVITY_PATTERN =
+  /^(?:twenty|affine|odoo|windmill(?:_autolite|_proxy)?|coolify|qdrant|pocketbase|open_design|flowise|veinart)_(?:list|get|search|read|find|inspect|check|whoami|system_status)|^(?:context7|ubersuggest)_/i;
+
+export function isReadOnlyAgentToolCall(name: string, args?: Record<string, unknown>): boolean {
+  if (name === "read_skill") {
+    const action = String(args?.action ?? "read")
+      .trim()
+      .toLowerCase();
+    return action !== "save" && action !== "patch";
+  }
+  if (name === "learned_skill_save" || name === "learned_skill_patch") {
+    return false;
+  }
+  if (READ_ONLY_AGENT_TOOLS.has(name)) return true;
+  return READ_ONLY_ANTIGRAVITY_PATTERN.test(name);
+}
+const MAX_MODEL_FILE_BYTES = 250_000;
+const GRAPHICAL_AGENT_TOOLS = new Set([
+  "computer_observe",
+  "computer_act",
+  "open_path",
+  "launch_app",
+]);
+
+export const DIRECT_INJECTION_MAX_BYTES = 4096; // 4 KB
+export const CUMULATIVE_DIRECT_MAX_BYTES = 32768; // 32 KB (~8,000 tokens)
+
+export function extractBotMcpConfig(bot: unknown): BotMcpConfig | undefined {
+  if (!bot || typeof bot !== "object") return undefined;
+  const b = bot as Record<string, unknown>;
+  const meta =
+    b.metadata && typeof b.metadata === "object"
+      ? (b.metadata as Record<string, unknown>)
+      : undefined;
+
+  const candidate =
+    meta?.mcp ??
+    meta?.mcpConfig ??
+    b.mcp ??
+    b.mcpConfig ??
+    (meta && (meta.connectors || meta.tools) ? meta : undefined);
+
+  if (!candidate || typeof candidate !== "object") return undefined;
+
+  const cfg = candidate as BotMcpConfig;
+  const hasConnectors =
+    cfg.connectors && typeof cfg.connectors === "object" && Object.keys(cfg.connectors).length > 0;
+  const hasTools = cfg.tools && typeof cfg.tools === "object" && Object.keys(cfg.tools).length > 0;
+
+  if (!hasConnectors && !hasTools) return undefined;
+  return cfg;
+}
+
+export function extractBotInferenceConfig(bot: unknown): BotInferenceConfig | undefined {
+  if (!bot || typeof bot !== "object") return undefined;
+  const b = bot as Record<string, unknown>;
+  const meta =
+    b.metadata && typeof b.metadata === "object"
+      ? (b.metadata as Record<string, unknown>)
+      : undefined;
+
+  const candidate = meta?.inference ?? meta?.inferenceConfig ?? b.inference ?? b.inferenceConfig;
+
+  if (!candidate || typeof candidate !== "object") return undefined;
+  const cfg = candidate as Record<string, unknown>;
+  const rawMode = cfg.mode;
+  const mode: InferenceMode = rawMode === "free" ? "free" : "premium";
+  const tags: InferenceUsageTag[] = Array.isArray(cfg.tags)
+    ? cfg.tags.filter(
+        (t): t is InferenceUsageTag =>
+          typeof t === "string" &&
+          ["coding", "writing", "reasoning", "fast", "analysis"].includes(t as any),
+      )
+    : [];
+
+  return {
+    mode,
+    tags,
+  };
+}
+
+export function isToolPermitted(toolName: string, mcpConfig?: BotMcpConfig | null): boolean {
+  if (toolName.toLowerCase().includes("stripe")) {
+    return false;
+  }
+  if (!mcpConfig) return true;
+  const hasConnectors =
+    mcpConfig.connectors &&
+    typeof mcpConfig.connectors === "object" &&
+    Object.keys(mcpConfig.connectors).length > 0;
+  const hasTools =
+    mcpConfig.tools &&
+    typeof mcpConfig.tools === "object" &&
+    Object.keys(mcpConfig.tools).length > 0;
+
+  if (!hasConnectors && !hasTools) return true;
+
+  // 1. Explicit tool override takes top priority
+  if (mcpConfig.tools) {
+    const toolOverride = mcpConfig.tools[toolName];
+    if (typeof toolOverride === "boolean") {
+      return toolOverride;
+    }
+  }
+
+  // 2. Connector toggle takes second priority
+  const connector = getConnectorForTool(toolName);
+  if (connector && mcpConfig.connectors) {
+    const idToggle = mcpConfig.connectors[connector.id];
+    if (typeof idToggle === "boolean") {
+      return idToggle;
+    }
+    const slugToggle = mcpConfig.connectors[connector.slug];
+    if (typeof slugToggle === "boolean") {
+      return slugToggle;
+    }
+  }
+
+  // 3. Unconfigured connectors/tools default to permitted
+  return true;
+}
+
+export function filterToolsForBot(
+  allTools: ConnectorTool[],
+  mcpConfig?: BotMcpConfig | null,
+  isGraphical = true,
+): ConnectorTool[] {
+  let tools = allTools;
+  if (!isGraphical) {
+    tools = tools.filter((tool) => !GRAPHICAL_AGENT_TOOLS.has(tool.name));
+  }
+  if (!mcpConfig) return tools;
+  return tools.filter((tool) => isToolPermitted(tool.name, mcpConfig));
+}
+
+export interface SkillItemLike {
+  id?: string;
+  workspaceId?: string;
+  name: string;
+  slug: string;
+  description?: string | null;
+  content: string;
+  tags?: unknown;
+  metadata?: Record<string, unknown>;
+  enabled?: boolean;
+}
+
+export function formatSkillsPrompt(activeSkills: SkillItemLike[]): string | undefined {
+  const enabledSkills = activeSkills.filter((s) => s.enabled !== false);
+  if (enabledSkills.length === 0) return undefined;
+
+  let cumulativeDirectBytes = 0;
+  const formattedSections: string[] = [];
+
+  for (const skill of enabledSkills.slice(0, 20)) {
+    const contentLength = Buffer.byteLength(skill.content || "", "utf8");
+    const isDirect =
+      contentLength < DIRECT_INJECTION_MAX_BYTES &&
+      cumulativeDirectBytes + contentLength <= CUMULATIVE_DIRECT_MAX_BYTES;
+
+    const rawTags = skill.tags;
+    const tagsStr = Array.isArray(rawTags)
+      ? rawTags.map(String).filter(Boolean).join(", ")
+      : typeof rawTags === "string"
+        ? rawTags
+        : "";
+
+    if (isDirect) {
+      cumulativeDirectBytes += contentLength;
+      formattedSections.push(
+        `### Compétence active : ${skill.name} (${skill.slug})\n${skill.description ? `${skill.description}\n` : ""}Tags: ${tagsStr}\n\n\`\`\`markdown\n${skill.content}\n\`\`\``,
+      );
+    } else {
+      formattedSections.push(
+        `### Compétence indexée : ${skill.name} (${skill.slug})\n- Description: ${skill.description || "Aucune description"}\n- Tags: ${tagsStr}\n- Taille: ${(contentLength / 1024).toFixed(1)} Ko\n- Directive: Ce skill volumineux est indexé. Pour charger ses instructions complètes, appelez l'outil \`read_skill(name: "${skill.slug}")\` lorsque pertinent.`,
+      );
+    }
+  }
+
+  if (formattedSections.length === 0) return undefined;
+  return `## Compétences & Connaissances Spécialisées de l'Agent\n\n${formattedSections.join("\n\n")}`;
+}
+
+export interface ExecutorDeps {
+  prisma: PrismaClient;
+  events: ThreadEvents;
+  runtime: AgentRuntime;
+  sandbox: SandboxProvider;
+  memory: MemoryStore;
+  home: AgentHomeStore;
+  artifacts?: ArtifactStore;
+  connector?: ConnectorProvider;
+  secrets: string[];
+  secretStore?: EncryptedSecretStore;
+  deploymentModelKey?: string;
+  dataDir?: string;
+  notifications?: NotificationProvider;
+  jobs: JobPublisher;
+  listConnectedPluginSlugs?: (userId: string) => Promise<string[]>;
+}
+
+export async function deferFutureRoutine(
+  jobs: JobPublisher,
+  routineId: string,
+  scheduledAt: Date,
+): Promise<boolean> {
+  if (scheduledAt.getTime() <= Date.now() + 1_000) return false;
+  await jobs.enqueue(routineWakeupJob(routineId, scheduledAt));
+  return true;
+}
+
+async function loadLivePluginSlugs(
+  listConnectedPluginSlugs: ExecutorDeps["listConnectedPluginSlugs"],
+  userId: string,
+): Promise<{ ok: true; slugs: string[] } | { ok: false }> {
+  if (!listConnectedPluginSlugs) return { ok: false };
+  try {
+    return { ok: true, slugs: await listConnectedPluginSlugs(userId) };
+  } catch {
+    return { ok: false };
+  }
+}
+
+async function persistLivePluginConnections(
+  prisma: PrismaClient,
+  owner: { userId: string; workspaceId: string },
+  rows: PluginConnectionRow[],
+  liveSlugs: string[],
+): Promise<void> {
+  const sync = planLiveConnectionSync(rows, liveSlugs);
+  if (sync.connectIds.length > 0) {
+    await prisma.connection.updateMany({
+      where: {
+        id: { in: sync.connectIds },
+        userId: owner.userId,
+        workspaceId: owner.workspaceId,
+      },
+      data: { status: "connected" },
+    });
+  }
+  if (sync.revokeIds.length > 0) {
+    await prisma.connection.updateMany({
+      where: {
+        id: { in: sync.revokeIds },
+        userId: owner.userId,
+        workspaceId: owner.workspaceId,
+      },
+      data: { status: "revoked" },
+    });
+  }
+}
+
+export function createRunExecutor(deps: ExecutorDeps) {
+  return {
+    async wakeRoutine(routineId: string, scheduledFor: string) {
+      const scheduledAt = new Date(scheduledFor);
+      if (!Number.isFinite(scheduledAt.getTime())) return;
+      const routine = await deps.prisma.routine.findUnique({ where: { id: routineId } });
+      if (!routine?.active || routine.nextRunAt?.getTime() !== scheduledAt.getTime()) return;
+      if (await deferFutureRoutine(deps.jobs, routineId, scheduledAt)) return;
+      const bot = await deps.prisma.bot.findUnique({
+        where: { id: routine.botId },
+        include: { thread: true },
+      });
+      if (!bot?.thread) return;
+      const nextRunAt = nextCronDate(
+        routine.cron,
+        new Date(Math.max(Date.now(), scheduledAt.getTime())),
+        routine.timezone,
+      );
+      const claimed = await deps.prisma.$transaction(async (tx) => {
+        const updated = await tx.routine.updateMany({
+          where: { id: routine.id, active: true, nextRunAt: scheduledAt },
+          data: { lastRunAt: new Date(), nextRunAt },
+        });
+        if (updated.count !== 1) return null;
+        const task = await tx.task.create({
+          data: {
+            workspaceId: routine.workspaceId,
+            botId: bot.id,
+            threadId: bot.thread!.id,
+            userId: routine.userId,
+            prompt: routine.prompt,
+            status: "queued",
+          },
+        });
+        return tx.run.create({
+          data: {
+            workspaceId: routine.workspaceId,
+            botId: bot.id,
+            threadId: bot.thread!.id,
+            taskId: task.id,
+            userId: routine.userId,
+            status: "queued",
+            trigger: "routine",
+          },
+        });
+      });
+      if (!claimed) return;
+      await deps.events.append({
+        workspaceId: routine.workspaceId,
+        threadId: bot.thread.id,
+        botId: bot.id,
+        type: "routine.fired",
+        runId: claimed.id,
+        payload: { routineId: routine.id, scheduledFor },
+      });
+      await deps.jobs.enqueue(routineWakeupJob(routine.id, nextRunAt));
+      await deps.jobs.enqueue(runContinueJob(claimed.id));
+    },
+
+    async continueRun(
+      runId: string,
+      workerId: string,
+      options?: { inferenceMode?: InferenceMode; usageTags?: InferenceUsageTag[] },
+    ) {
+      const run = await deps.prisma.run.findUnique({ where: { id: runId } });
+      if (!run) return;
+      if (isTerminal(run.status as RunStatus)) return;
+      const resumeFromTakeover = run.status === "waiting_takeover";
+
+      const fence = nextFence(run.leaseFence);
+      const now = new Date();
+      const leased = await deps.prisma.run.updateMany({
+        where: {
+          id: runId,
+          OR: [
+            { status: { in: ["queued", "waiting_input", "waiting_takeover"] } },
+            {
+              status: { in: ["leased", "running"] },
+              leaseExpiresAt: { lte: now },
+            },
+          ],
+        },
+        data: {
+          status: "leased",
+          leaseOwner: workerId,
+          leaseFence: fence,
+          leaseExpiresAt: new Date(Date.now() + 5 * 60_000),
+          error: null,
+        },
+      });
+      if (leased.count !== 1) return;
+
+      const current = await deps.prisma.run.findUniqueOrThrow({ where: { id: runId } });
+      if (
+        current.status === "queued" ||
+        current.status === "leased" ||
+        current.status === "waiting_input" ||
+        current.status === "waiting_takeover"
+      ) {
+        assertTransition(current.status as RunStatus, "running");
+      }
+      const started = await deps.prisma.run.updateMany({
+        where: { id: runId, status: "leased", leaseOwner: workerId, leaseFence: fence },
+        data: { status: "running", startedAt: current.startedAt ?? new Date() },
+      });
+      if (started.count !== 1) return;
+      const leaseTarget = await deps.prisma.bot.findUniqueOrThrow({
+        where: { id: run.botId },
+        select: { computerId: true, computerSwitching: true },
+      });
+      if (!leaseTarget.computerId) throw new Error("Bot has no computer");
+      if (leaseTarget.computerSwitching) {
+        await requeueComputerRun(deps, runId, workerId, fence);
+        return;
+      }
+      let computerLease: ComputerExecutionLease | null = null;
+      try {
+        computerLease = await acquireComputerExecutionLease(deps.prisma, {
+          computerId: leaseTarget.computerId,
+          runId,
+          botId: run.botId,
+          resumeHeldLease: resumeFromTakeover,
+        });
+      } catch (error) {
+        if (!(error instanceof ComputerBusyError)) throw error;
+        await requeueComputerRun(deps, runId, workerId, fence);
+        return;
+      }
+      const attempt = await deps.prisma.attempt
+        .create({
+          data: { runId, fence, status: "running" },
+        })
+        .catch(async (error) => {
+          await releaseComputerExecutionLease(deps.prisma, computerLease).catch(() => undefined);
+          throw error;
+        });
+
+      let leaseValid = true;
+      let lastLeaseCheckAt = 0;
+      let retainComputerLease = false;
+      let screenRelease: { computer: ComputerRef; context: AdapterContext } | undefined;
+      let runAbortController: AbortController | null = null;
+      const heartbeat = setInterval(() => {
+        void Promise.all([
+          renewRunLease(deps, runId, workerId, fence),
+          renewComputerExecutionLease(deps.prisma, computerLease),
+        ])
+          .then(([runRenewed, computerRenewed]) => {
+            if (!runRenewed || !computerRenewed) {
+              leaseValid = false;
+              runAbortController?.abort();
+              void deps.runtime.abort?.(runId).catch(() => undefined);
+            }
+          })
+          .catch(() => {
+            leaseValid = false;
+            runAbortController?.abort();
+            void deps.runtime.abort?.(runId).catch(() => undefined);
+          });
+      }, 60_000);
+      heartbeat.unref?.();
+
+      // Fast < 1s Stop watcher: detects user cancellation in DB without waiting for the 60s lease heartbeat
+      const cancelPoll = setInterval(() => {
+        if (!leaseValid) return;
+        void deps.prisma.run
+          .findUnique({
+            where: { id: runId },
+            select: { status: true, leaseOwner: true, leaseFence: true },
+          })
+          .then((still) => {
+            if (
+              !still ||
+              still.status === "cancelled" ||
+              still.leaseOwner !== workerId ||
+              still.leaseFence !== fence
+            ) {
+              leaseValid = false;
+              runAbortController?.abort();
+              void deps.runtime.abort?.(runId).catch(() => undefined);
+            }
+          })
+          .catch(() => undefined);
+      }, 1_000);
+      cancelPoll.unref?.();
+
+      const runSecrets = Array.from(
+        new Set([
+          ...deps.secrets,
+          ...collectDeploymentSecretValues(process.env),
+          ...[process.env.WORDPRESS_USERNAME, process.env.CLOUDFLARE_ACCOUNT_ID].filter(
+            (val): val is string => Boolean(val && val.length >= 6),
+          ),
+        ]),
+      );
+      try {
+        const [
+          bot,
+          thread,
+          messages,
+          task,
+          storedConnections,
+          credential,
+          settings,
+          savedSkills,
+          activeBotSkillsRaw,
+        ] = await Promise.all([
+          deps.prisma.bot.findUniqueOrThrow({
+            where: { id: run.botId },
+            include: { computer: true },
+          }),
+          deps.prisma.thread.findUniqueOrThrow({ where: { id: run.threadId } }),
+          deps.prisma.message.findMany({
+            where: { threadId: run.threadId },
+            orderBy: { seq: "desc" },
+            take: LEGACY_HISTORY_WINDOW_SIZE,
+            select: { role: true, runId: true, blocks: true },
+          }),
+          deps.prisma.task.findUniqueOrThrow({ where: { id: run.taskId } }),
+          deps.prisma.connection.findMany({
+            where: { userId: run.userId, workspaceId: run.workspaceId },
+            select: { id: true, provider: true, displayName: true, status: true },
+          }),
+          findDefaultModelCredential(deps.prisma, run),
+          deps.prisma.deploymentSettings.findUnique({ where: { id: "default" } }),
+          deps.prisma.taughtSkill.findMany({
+            where: { botId: run.botId, workspaceId: run.workspaceId, status: "saved" },
+          }),
+          deps.prisma.botSkill?.findMany
+            ? deps.prisma.botSkill.findMany({
+                where: { botId: run.botId, workspaceId: run.workspaceId, enabled: true },
+                include: { skill: true },
+                orderBy: { createdAt: "asc" },
+              })
+            : Promise.resolve([]),
+        ]);
+        runAbortController = new AbortController();
+        if (!leaseValid) runAbortController.abort();
+        let liveSlugs: string[] = [];
+        if (needsLivePluginSync(storedConnections)) {
+          const listing = await loadLivePluginSlugs(deps.listConnectedPluginSlugs, run.userId);
+          if (listing.ok) {
+            liveSlugs = listing.slugs;
+            await persistLivePluginConnections(
+              deps.prisma,
+              run,
+              storedConnections,
+              listing.slugs,
+            ).catch(() => undefined);
+          }
+        }
+        const connectedPlugins = mergeConnectedPlugins(storedConnections, liveSlugs);
+        const context = {
+          operationId: runId,
+          traceId: runId,
+          workspaceId: run.workspaceId,
+          userId: run.userId,
+          botId: bot.id,
+          runId,
+          screenLeaseId: screenLeaseIdForRun(computerLease, runId, fence),
+          signal: runAbortController.signal,
+          connectedProviders: connectedPlugins.map((row) => row.provider),
+        };
+
+        await deps.events.append({
+          workspaceId: run.workspaceId,
+          threadId: thread.id,
+          botId: bot.id,
+          type: "run.started",
+          runId,
+          payload: { trigger: run.trigger },
+        });
+
+        const discovered = deps.connector ? await deps.connector.discoverTools(context) : [];
+        let history = [...messages].reverse().map((m) => ({
+          role: (m.role === "user" ? "user" : m.role === "system" ? "system" : "assistant") as
+            | "user"
+            | "assistant"
+            | "system",
+          content: blocksToAgentHistoryText(m.blocks as MessageBlock[]),
+        }));
+        const turnBlocks = userTurnBlocksForRun(
+          run.trigger,
+          runId,
+          messages.map((message) => ({
+            role: message.role,
+            runId: message.runId,
+            blocks: message.blocks as MessageBlock[],
+          })),
+        );
+        const currentTurnImages = await loadCurrentTurnImages(deps, turnBlocks, context);
+        const botModelKey = run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
+        const memoryContext = await loadAgentMemoryContext(
+          deps.memory,
+          bot.id,
+          context,
+          botModelKey,
+        );
+        const supermemoryEnabled = isSupermemoryEnabled(process.env.SUPERMEMORY_API_KEY);
+        let recalledMemory = "";
+        let recallSucceeded = false;
+        if (supermemoryEnabled && thread.historyCompactedUpToSeq != null) {
+          const recalled = await searchSupermemory(task.prompt, supermemoryContainerTag(bot.id));
+          if (recalled.ok) {
+            recallSucceeded = true;
+            recalledMemory = formatRecalledMemory(recalled.results);
+          } else {
+            console.error("supermemory recall failed", recalled.error);
+          }
+        }
+        history = history.slice(
+          -historyWindowSize({
+            supermemoryEnabled,
+            compacted: thread.historyCompactedUpToSeq != null,
+            recallSucceeded,
+          }),
+        );
+        const resolved = await resolveModelKey(
+          deps,
+          run.userId,
+          run.workspaceId,
+          credential,
+          (values) => runSecrets.push(...values),
+        );
+        runSecrets.push(...resolved.redact);
+        if (!bot.computer) throw new Error("Bot has no computer");
+        const storedComputer = bot.computer;
+        const computerMode = parseComputerMode(storedComputer.scope);
+        const computer = await provisionComputer(deps, storedComputer.id, context, "bot");
+        screenRelease = { computer, context };
+        scheduleComputerSleep(deps.jobs, storedComputer.id);
+        const currentTurnFiles = deps.artifacts
+          ? await materializeCurrentTurnFiles(
+              { prisma: deps.prisma, artifacts: deps.artifacts, sandbox: deps.sandbox },
+              turnBlocks,
+              { context, computer, computerMode },
+            )
+          : [];
+        const attachedFilesPrompt = currentTurnFilesInstruction(currentTurnFiles);
+        const graphical =
+          computer.kind !== "desktop" && deps.sandbox.describe().capabilities.graphical;
+        const builtins = graphical
+          ? builtinAgentTools
+          : builtinAgentTools.filter((tool) => !GRAPHICAL_AGENT_TOOLS.has(tool.name));
+        const allDiscovered = [
+          ...builtins,
+          ...discovered.filter(
+            (tool) => !builtinAgentTools.some((builtin) => builtin.name === tool.name),
+          ),
+        ];
+        const mcpConfig = extractBotMcpConfig(bot);
+        const tools = filterToolsForBot(allDiscovered, mcpConfig, graphical);
+        const computerInstruction = graphical
+          ? "You have a persistent computer. Use computer_observe and computer_act for its visible desktop, including browsers and installed applications. Use open_path and launch_app to open graphical files, URLs, and applications. Use the file tools and shell for precise filesystem and terminal work. On a Team Computer you have your own screen; other Team bots may run at the same time on theirs. Another user may interact with your screen while you run, so re-observe when it may have changed."
+          : "You have a persistent sandbox filesystem and shell. This backend does not provide model-visible graphical control, so use the file tools and shell.";
+        const workspaceInstruction =
+          computerMode === "team"
+            ? `Your Team Computer home is ${teamBotWorkspaceDirectory(bot.id)}. Relative file paths and shell working directories start there. Put intentionally shared work under shared/. Other bots' folders are visible under bots/; treat them as their working areas.`
+            : "This entire computer workspace is your private home. Relative file paths and shell working directories start at its root.";
+
+        let assembled = "";
+        let pendingProgress = "";
+        let lastProgressAt = 0;
+        let lastComputerFrameId: string | undefined;
+        let terminalCheckpointComplete = false;
+        const progressRedactor = createStreamingRedactor(runSecrets);
+        const scripted = deps.runtime.describe().capabilities.scripted;
+        const script = scripted
+          ? inferScript(task.prompt, resumeFromTakeover ? "takeover" : undefined)
+          : undefined;
+        const formatObservation = (
+          observation: Awaited<ReturnType<SandboxProvider["observe"]>>,
+          note?: string,
+        ) => {
+          const result = observationToolResult(observation, note, lastComputerFrameId);
+          lastComputerFrameId = observation.frameId;
+          return result;
+        };
+
+        const botMetaObj =
+          bot.metadata && typeof bot.metadata === "object" && !Array.isArray(bot.metadata)
+            ? (bot.metadata as Record<string, unknown>)
+            : undefined;
+        const botStandingRules: StandingRule[] = Array.isArray(botMetaObj?.standingRules)
+          ? (botMetaObj.standingRules as StandingRule[])
+          : [];
+        const botRequireApprovalTools = new Set<string>(
+          Array.isArray(botMetaObj?.requireApprovalTools)
+            ? (botMetaObj.requireApprovalTools as unknown[]).map((t) => String(t).toLowerCase())
+            : [],
+        );
+        const botDeclinedTools = new Set<string>(
+          Array.isArray(botMetaObj?.declinedTools)
+            ? (botMetaObj.declinedTools as unknown[]).map((t) => String(t).toLowerCase())
+            : [],
+        );
+        const botHandledTools = new Set<string>(
+          Array.isArray(botMetaObj?.handledByPersonTools)
+            ? (botMetaObj.handledByPersonTools as unknown[]).map((t) => String(t).toLowerCase())
+            : [],
+        );
+
+        const rawApplyTool = async (
+          name: string,
+          args: Record<string, unknown>,
+          executionId: string,
+        ) => {
+          if (!isToolPermitted(name, mcpConfig)) {
+            return {
+              error: `Tool '${name}' is not permitted for this bot. Execution was blocked by security policy.`,
+            };
+          }
+          const lowerToolName = name.toLowerCase();
+          if (botDeclinedTools.has(lowerToolName)) {
+            return { error: DECLINED_BY_PERSON_FR };
+          }
+          if (botHandledTools.has(lowerToolName)) {
+            return { ok: true, handledByPerson: true, notice: HANDLED_BY_PERSON_FR };
+          }
+          if (botRequireApprovalTools.has(lowerToolName)) {
+            const approval = resolveToolApprovalStatus(botStandingRules, name, {
+              threadId: thread.id,
+              agentId: bot.id,
+            });
+            if (approval === "needs_approval") {
+              return {
+                error: `Approbation humaine requise pour '${name}'. Utilisez une demande explicite à l'utilisateur avant d'exécuter cette action.`,
+              };
+            }
+          }
+          const applied = isReadOnlyAgentToolCall(name, args)
+            ? undefined
+            : await recordEffect(deps, run, name, executionId, args);
+          if (applied?.duplicate) {
+            if (applied.effect.status === "completed") {
+              return applied.effect.result ?? { duplicate: true };
+            }
+            if (name !== "spawn_bot" && name !== "archive_bot" && name !== "delete_bot") {
+              throw new Error(
+                `tool ${name} has an earlier execution with an uncertain outcome (${OUTCOME_UNKNOWN_FR})`,
+              );
+            }
+          }
+          const finish = async (result: unknown) => {
+            const sanitized = sanitizeToolResult(result);
+            if (
+              sanitized &&
+              typeof sanitized === "object" &&
+              "error" in sanitized &&
+              typeof (sanitized as Record<string, unknown>).error === "string"
+            ) {
+              recordDiagnosticIncident({
+                severity: "warn",
+                layer: "mcp_connector",
+                code: "MCP_TOOL_EXECUTION_ERROR",
+                title: `Outil '${name}' en erreur sur l'agent ${bot.name}`,
+                message: String((sanitized as Record<string, unknown>).error),
+                dataDir: deps.dataDir,
+                context: {
+                  botId: bot.id,
+                  runId,
+                  toolName: name,
+                },
+              });
+            }
+            if (applied) await completeEffect(deps, applied.effect.id, sanitized);
+            return sanitized;
+          };
+          if (name === "computer_observe") {
+            if (await getActiveTeachingSession(deps.prisma, run.workspaceId, run.botId)) {
+              return { error: "Teaching is in progress. Stop teaching before using the computer." };
+            }
+            return computerScreenToolResult(async () =>
+              formatObservation(await deps.sandbox.observe(computer, context)),
+            );
+          }
+          if (name === "computer_act") {
+            if (await getActiveTeachingSession(deps.prisma, run.workspaceId, run.botId)) {
+              return { error: "Teaching is in progress. Stop teaching before using the computer." };
+            }
+            return computerScreenToolResult(async () => {
+              const result = await deps.sandbox.act(
+                computer,
+                {
+                  actions: parseComputerActions(args.actions),
+                  observe: args.observe !== false,
+                  settleMs: Number(args.settle_ms ?? 350),
+                },
+                context,
+              );
+              return result.observation
+                ? formatObservation(
+                    result.observation,
+                    `completed ${result.completed} computer action${result.completed === 1 ? "" : "s"}`,
+                  )
+                : { ok: true, completed: result.completed };
+            }, finish);
+          }
+          if (name === "list_files") {
+            const requestedPath = String(args.path ?? "");
+            const entries = await deps.sandbox.listFiles(
+              computer,
+              resolveBotWorkspacePath(computerMode, bot.id, requestedPath),
+              context,
+            );
+            return {
+              path: requestedPath,
+              entries: entries.map((entry) => ({
+                ...entry,
+                path: displayBotWorkspacePath(computerMode, bot.id, requestedPath, entry.path),
+              })),
+            };
+          }
+          if (name === "read_file") {
+            const filePath = String(args.path ?? "");
+            const storedPath = resolveBotWorkspacePath(computerMode, bot.id, filePath);
+            let bytes: Uint8Array;
+            try {
+              bytes = await deps.sandbox.readFile(computer, storedPath, context, {
+                maxBytes: MAX_MODEL_FILE_BYTES,
+              });
+            } catch (error) {
+              if (error instanceof Error && /exceeds \d+ bytes/.test(error.message)) {
+                return {
+                  error: "file is too large for model context",
+                  path: filePath,
+                };
+              }
+              throw error;
+            }
+            if (bytes.byteLength > MAX_MODEL_FILE_BYTES) {
+              return {
+                error: "file is too large for model context",
+                path: filePath,
+                size: bytes.byteLength,
+              };
+            }
+            try {
+              return {
+                path: filePath,
+                content: new TextDecoder("utf-8", { fatal: true }).decode(bytes),
+              };
+            } catch {
+              return {
+                error: "file is not UTF-8 text; use open_path to inspect it",
+                path: filePath,
+              };
+            }
+          }
+          if (name === "write_file") {
+            const filePath = String(args.path ?? "notes/result.txt");
+            const content = String(args.content ?? "");
+            await deps.sandbox.writeFile(
+              computer,
+              {
+                path: resolveBotWorkspacePath(computerMode, bot.id, filePath),
+                content: new TextEncoder().encode(content),
+              },
+              context,
+            );
+            return finish({ ok: true, path: filePath });
+          }
+          if (name === "attach_file") {
+            const filePath = String(args.path ?? "");
+            if (!deps.artifacts) {
+              return finish({ error: "artifact storage unavailable", path: filePath });
+            }
+            const storedPath = resolveBotWorkspacePath(computerMode, bot.id, filePath);
+            let bytes: Uint8Array;
+            try {
+              bytes = await deps.sandbox.readFile(computer, storedPath, context, {
+                maxBytes: ATTACHMENT_MAX_BYTES,
+              });
+            } catch {
+              return finish({ error: "file not found or unreadable", path: filePath });
+            }
+            const mimeType = inferAttachmentMimeType(filePath);
+            if (!mimeType) {
+              return finish({ error: "unsupported attachment type", path: filePath });
+            }
+            try {
+              const attached = await attachWorkspaceFileToThread(
+                { prisma: deps.prisma, artifacts: deps.artifacts },
+                {
+                  workspaceId: run.workspaceId,
+                  userId: run.userId,
+                  botId: bot.id,
+                  runId: run.id,
+                  filePath,
+                  bytes,
+                  operationId: executionId,
+                },
+              );
+              await publishMessage(deps, run, "bot", [attached.block]);
+              return finish({ ok: true, artifactId: attached.artifactId, path: filePath });
+            } catch (error) {
+              return finish({
+                error: error instanceof Error ? error.message : "could not attach file",
+                path: filePath,
+              });
+            }
+          }
+          if (name === "shell") {
+            const command = String(args.command ?? args.cmd ?? "");
+            const cwd = resolveBotWorkspaceCwd(
+              computerMode,
+              bot.id,
+              args.cwd ? String(args.cwd) : undefined,
+            );
+            const result = await runSandboxCommand(
+              deps.sandbox,
+              computer,
+              ["bash", "-lc", command],
+              cwd,
+              context,
+            );
+            return finish(result);
+          }
+          if (name === "open_path") {
+            const requestedPath = String(args.path ?? "");
+            return computerScreenToolResult(async () => {
+              const result = await deps.sandbox.act(
+                computer,
+                {
+                  actions: [
+                    {
+                      kind: "open",
+                      path: /^https?:\/\//i.test(requestedPath)
+                        ? requestedPath
+                        : resolveBotWorkspacePath(computerMode, bot.id, requestedPath),
+                    },
+                  ],
+                  observe: true,
+                  settleMs: 600,
+                },
+                context,
+              );
+              return result.observation
+                ? formatObservation(result.observation, `opened ${requestedPath}`)
+                : { ok: true };
+            }, finish);
+          }
+          if (name === "launch_app") {
+            const application = String(args.application ?? "");
+            return computerScreenToolResult(async () => {
+              const result = await deps.sandbox.act(
+                computer,
+                {
+                  actions: [
+                    {
+                      kind: "launch",
+                      application,
+                      uri: args.uri ? String(args.uri) : undefined,
+                    },
+                  ],
+                  observe: true,
+                  settleMs: 600,
+                },
+                context,
+              );
+              return result.observation
+                ? formatObservation(result.observation, `launched ${application}`)
+                : { ok: true };
+            }, finish);
+          }
+          if (name === "remember" || name === "schedule_record_observation") {
+            const action =
+              name === "schedule_record_observation"
+                ? "observe"
+                : String(args.action ?? "save")
+                    .trim()
+                    .toLowerCase();
+
+            if (action === "observe") {
+              const rawStatus = String(args.status ?? "verified").trim().toLowerCase();
+              const obsStatus = rawStatus === "unavailable" ? "unavailable" : "verified";
+              const watchKey = String(args.watchKey ?? args.path ?? bot.name ?? "routine-watch");
+              const rawVal =
+                obsStatus === "unavailable"
+                  ? null
+                  : String(args.value ?? args.content ?? "");
+              const summary = String(args.summary ?? args.content ?? "");
+              const decision = await recordBotRoutineObservation(
+                deps.memory,
+                {
+                  botId: bot.id,
+                  observation: {
+                    watchKey,
+                    status: obsStatus,
+                    sourceUrl: args.sourceUrl ? String(args.sourceUrl) : undefined,
+                    value: rawVal,
+                    summary,
+                  },
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              );
+              return finish({
+                ok: true,
+                mode: "observe",
+                changed: decision.changed,
+                shouldStayQuiet: decision.shouldStayQuiet,
+                reason: decision.reason,
+                previousValue: decision.previousValue,
+                currentValue: decision.currentValue,
+                directive: decision.agentDirectiveFr,
+              });
+            }
+
+            const rawContent = String(args.content ?? "");
+            const ownerMessages = [
+              ...history.filter((m) => m.role === "user").map((m) => m.content),
+              ...(run.trigger === "user" && task.prompt ? [task.prompt] : []),
+            ];
+            const safety = validateMemorySaveSafety({
+              content: rawContent,
+              quote: args.quote ? String(args.quote) : undefined,
+              ownerMessages,
+              trigger: run.trigger ?? "user",
+            });
+            if (!safety.allowed) {
+              return finish({ error: safety.reasonFr ?? "Sauvegarde mémoire refusée." });
+            }
+
+            const sanitizedContent = maskSensitiveData(rawContent);
+            const targetPath = String(args.path ?? "MEMORY.md");
+            const modelKey = run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
+            const enforcement = enforceMemoryBudget(sanitizedContent, modelKey);
+
+            await deps.memory.commit(
+              {
+                scope: "bot",
+                botId: bot.id,
+                path: targetPath,
+                content: enforcement.activeContent,
+                sourceRunId: runId,
+                sourceThreadId: thread.id,
+              },
+              context,
+            );
+
+            // Archivage LRU automatique sans écrasement des lignes excédentaires
+            if (enforcement.evictedLines.length > 0) {
+              await appendBoundedMemoryArchive(
+                deps.memory,
+                {
+                  scope: "bot",
+                  botId: bot.id,
+                  evictedLines: enforcement.evictedLines,
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              ).catch(() => undefined);
+            }
+
+            return finish({
+              ok: true,
+              capped: enforcement.stats.isTruncated,
+              lines: enforcement.stats.lineCount,
+              maxLines: enforcement.stats.maxLines,
+              status: enforcement.stats.status,
+            });
+          }
+          if (name === "request_takeover") return { ok: true };
+          if (name === "run_subagent") {
+            return {
+              ok: true,
+              result: String(args.task ?? "done."),
+            };
+          }
+          if (name === "web_search") {
+            const result = await executeWebSearch(
+              {
+                query: String(args.query ?? args.q ?? ""),
+                categories: args.categories ? String(args.categories) : undefined,
+                language: args.language ? String(args.language) : undefined,
+                time_range: args.time_range
+                  ? String(args.time_range)
+                  : args.timeRange
+                    ? String(args.timeRange)
+                    : undefined,
+                max_results:
+                  args.max_results !== undefined
+                    ? Number(args.max_results)
+                    : args.maxResults !== undefined
+                      ? Number(args.maxResults)
+                      : undefined,
+              },
+              context,
+            );
+            return finish(result);
+          }
+          if (name === "web_scrape") {
+            const result = await executeWebScrape(
+              {
+                url: String(args.url ?? ""),
+                selector: args.selector ? String(args.selector) : undefined,
+                maxLength:
+                  args.maxLength !== undefined
+                    ? Number(args.maxLength)
+                    : args.max_length !== undefined
+                      ? Number(args.max_length)
+                      : undefined,
+              },
+              context,
+            );
+            return finish(result);
+          }
+          if (
+            name === "read_skill" ||
+            name === "learned_skill_save" ||
+            name === "learned_skill_patch"
+          ) {
+            const skillAction =
+              name === "learned_skill_save"
+                ? "save"
+                : name === "learned_skill_patch"
+                  ? "patch"
+                  : String(args.action ?? "read")
+                      .trim()
+                      .toLowerCase();
+
+            const target = String(args.name ?? args.skill ?? args.target ?? "").trim();
+            if (!target) {
+              return finish({ error: "Paramètre 'name' manquant pour read_skill." });
+            }
+
+            if (skillAction === "save" || skillAction === "patch") {
+              // Vérification bidirectionnelle du verrou humain (userEdited) dans la table Prisma `skill`
+              try {
+                if (deps.prisma.skill?.findFirst) {
+                  const dbSkill = await deps.prisma.skill.findFirst({
+                    where: {
+                      workspaceId: run.workspaceId,
+                      OR: [
+                        { slug: target.toLowerCase() },
+                        { name: { equals: target, mode: "insensitive" } },
+                      ],
+                    },
+                    select: { id: true, metadata: true },
+                  });
+                  const dbMeta =
+                    dbSkill?.metadata &&
+                    typeof dbSkill.metadata === "object" &&
+                    !Array.isArray(dbSkill.metadata)
+                      ? (dbSkill.metadata as Record<string, unknown>)
+                      : undefined;
+                  if (dbMeta?.userEdited === true) {
+                    return finish({
+                      error: `Compétence '${target}' verrouillée : elle a été modifiée manuellement par l'utilisateur dans la bibliothèque et ne peut plus être écrasée automatiquement.`,
+                    });
+                  }
+                }
+              } catch {
+                // Ignore si Prisma partiel en test unitaire
+              }
+            }
+
+            const mirrorLearnedSkillToWorkspace = async (learnedEntry: {
+              slug: string;
+              name: string;
+              description: string;
+              body: string;
+              revision: number;
+            }) => {
+              try {
+                if (!deps.prisma.skill?.upsert) return;
+                await deps.prisma.skill.upsert({
+                  where: {
+                    workspaceId_slug: {
+                      workspaceId: run.workspaceId,
+                      slug: learnedEntry.slug,
+                    },
+                  },
+                  create: {
+                    workspaceId: run.workspaceId,
+                    userId: run.userId,
+                    name: learnedEntry.name,
+                    slug: learnedEntry.slug,
+                    description: learnedEntry.description,
+                    content: learnedEntry.body,
+                    tags: ["auto-appris"],
+                    metadata: {
+                      learned: true,
+                      botId: bot.id,
+                      revision: learnedEntry.revision,
+                      userEdited: false,
+                    },
+                  },
+                  update: {
+                    name: learnedEntry.name,
+                    description: learnedEntry.description,
+                    content: learnedEntry.body,
+                    metadata: {
+                      learned: true,
+                      botId: bot.id,
+                      revision: learnedEntry.revision,
+                      userEdited: false,
+                    },
+                  },
+                });
+              } catch {
+                // Non bloquant : la source primaire reste `memory/learned-skills.json`
+              }
+            };
+
+            if (skillAction === "save") {
+              const builtInCheck = getSovereignSkillFull(target);
+              const builtInSlugs = new Set<string>(
+                builtInCheck ? [builtInCheck.slug] : [],
+              );
+              for (const s of SOVEREIGN_SKILLS_CATALOG) {
+                if (s?.slug) builtInSlugs.add(s.slug);
+              }
+              const saved = await mutateBotLearnedSkill(
+                deps.memory,
+                {
+                  mode: "save",
+                  botId: bot.id,
+                  name: target,
+                  description: String(args.description ?? ""),
+                  body: String(args.content ?? args.body ?? ""),
+                  builtInSlugs,
+                  trigger: run.trigger ?? "user",
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              );
+              if (!saved.ok) {
+                return finish({ error: saved.errorFr });
+              }
+              await mirrorLearnedSkillToWorkspace(saved.skill);
+              return finish({
+                ok: true,
+                operation: saved.operation,
+                slug: saved.skill.slug,
+                revision: saved.skill.revision,
+                evictedSlugs: saved.evictedSlugs,
+              });
+            }
+
+            if (skillAction === "patch") {
+              const patched = await mutateBotLearnedSkill(
+                deps.memory,
+                {
+                  mode: "patch",
+                  botId: bot.id,
+                  name: target,
+                  oldText: String(args.old ?? args.oldText ?? ""),
+                  newText: String(args.new ?? args.newText ?? ""),
+                  trigger: run.trigger ?? "user",
+                  runId,
+                  threadId: thread.id,
+                },
+                context,
+              );
+              if (!patched.ok) {
+                return finish({ error: patched.errorFr });
+              }
+              await mirrorLearnedSkillToWorkspace(patched.skill);
+              return finish({
+                ok: true,
+                operation: patched.operation,
+                slug: patched.skill.slug,
+                revision: patched.skill.revision,
+              });
+            }
+
+            const targetLower = target.toLowerCase();
+            const skill = deps.prisma.skill?.findFirst
+              ? await deps.prisma.skill.findFirst({
+                  where: {
+                    workspaceId: run.workspaceId,
+                    OR: [
+                      { slug: targetLower },
+                      { name: { equals: target, mode: "insensitive" } },
+                      { id: target },
+                    ],
+                  },
+                })
+              : null;
+            if (!skill) {
+              const sovereign = getSovereignSkillFull(target);
+              if (sovereign) {
+                return finish({
+                  name: sovereign.name,
+                  slug: sovereign.slug,
+                  description: sovereign.description,
+                  tags: sovereign.tags,
+                  content: sovereign.content,
+                });
+              }
+              const learned = await readBotLearnedSkill(
+                deps.memory,
+                { botId: bot.id, nameOrSlug: target, runId, threadId: thread.id },
+                context,
+              );
+              if (learned) {
+                return finish({
+                  __untrustedSource: "learned_skill",
+                  learned: true,
+                  name: learned.name,
+                  slug: learned.slug,
+                  description: learned.description,
+                  tags: ["auto-appris"],
+                  content: learned.body,
+                });
+              }
+              return finish({ error: `Skill '${target}' not found in workspace.` });
+            }
+            const tags = Array.isArray(skill.tags)
+              ? (skill.tags as string[])
+              : typeof skill.tags === "string"
+                ? [skill.tags]
+                : [];
+            const isLearnedRow = Boolean(
+              skill.metadata &&
+                typeof skill.metadata === "object" &&
+                !Array.isArray(skill.metadata) &&
+                (skill.metadata as Record<string, unknown>).learned === true,
+            );
+            return finish({
+              ...(isLearnedRow ? { __untrustedSource: "learned_skill" } : {}),
+              name: skill.name,
+              slug: skill.slug,
+              description: skill.description,
+              tags,
+              content: skill.content,
+            });
+          }
+          if (name === "spawn_bot") {
+            const spawned = await spawnBot(deps, {
+              spawnedBy: {
+                id: bot.id,
+                name: bot.name,
+                workspaceId: bot.workspaceId,
+                userId: run.userId,
+              },
+              runId,
+              spawnKey: executionId,
+              name: String(args.name ?? ""),
+              title: args.title ? String(args.title) : undefined,
+              description: args.description ? String(args.description) : undefined,
+              instructions: args.instructions ? String(args.instructions) : undefined,
+              prompt: args.prompt ? String(args.prompt) : undefined,
+            });
+            if ("error" in spawned) return finish(spawned);
+            await finish(spawned);
+            try {
+              await publishMessage(deps, run, "bot", [
+                {
+                  kind: "child_bot",
+                  botId: spawned.botId,
+                  name: spawned.name,
+                  title: spawned.title,
+                  status: "created",
+                },
+              ]);
+              await deps.events.append({
+                workspaceId: run.workspaceId,
+                threadId: thread.id,
+                botId: bot.id,
+                runId: run.id,
+                type: "bot.spawned",
+                payload: { childBotId: spawned.botId, name: spawned.name },
+              });
+            } catch (error) {
+              console.error("spawned bot notification", error);
+            }
+            return spawned;
+          }
+          if (name === "archive_bot" || name === "delete_bot") {
+            const archived = await archiveSpawnedBot(
+              deps,
+              {
+                spawnedByBotId: bot.id,
+                userId: run.userId,
+                workspaceId: run.workspaceId,
+                confirmName: String(args.confirm_name ?? args.confirmName ?? ""),
+                botId: args.bot_id
+                  ? String(args.bot_id)
+                  : args.botId
+                    ? String(args.botId)
+                    : undefined,
+              },
+              context,
+            );
+            if ("error" in archived) return finish(archived);
+            await finish(archived);
+            try {
+              await publishMessage(deps, run, "bot", [
+                {
+                  kind: "child_bot",
+                  botId: archived.botId,
+                  name: archived.name,
+                  status: "archived",
+                },
+              ]);
+              await deps.events.append({
+                workspaceId: run.workspaceId,
+                threadId: thread.id,
+                botId: bot.id,
+                runId: run.id,
+                type: "bot.archived",
+                payload: { childBotId: archived.botId, name: archived.name },
+              });
+            } catch (error) {
+              console.error("archived bot notification", error);
+            }
+            return archived;
+          }
+          if (isEnterpriseTool(name)) {
+            const result = await executeEnterpriseTool(name, args, context);
+            return finish(result);
+          }
+          if (deps.connector) {
+            let result: unknown = { error: `unknown tool ${name}` };
+            for await (const event of deps.connector.execute(
+              { tool: name, args, executionId },
+              context,
+            )) {
+              if (event.type === "result") {
+                result = event.data;
+                const logIds = collectLogIds(event.data);
+                for (const logId of logIds) {
+                  await deps.events.append({
+                    workspaceId: run.workspaceId,
+                    threadId: thread.id,
+                    botId: bot.id,
+                    runId: run.id,
+                    type: "effect.recorded",
+                    payload: { tool: name, logId },
+                  });
+                }
+              }
+              if (event.type === "error") result = { error: event.message };
+            }
+            return finish(result);
+          }
+          return finish({ error: `unknown tool ${name}` });
+        };
+
+        const applyTool = async (
+          name: string,
+          args: Record<string, unknown>,
+          executionId: string,
+        ) => {
+          try {
+            const result = await rawApplyTool(name, args, executionId);
+            const sanitized = sanitizeToolResult(result);
+            // Déport asynchrone sans perte vers `.rakazo/outputs/<sha256>.txt` pour les gros payloads externes
+            if (sanitized !== null && sanitized !== undefined && name !== "read_file") {
+              try {
+                const serialized =
+                  typeof sanitized === "string" ? sanitized : JSON.stringify(sanitized);
+                if (serialized && serialized.length > 16_000) {
+                  void offloadLargeToolOutputIfNeeded({
+                    sandbox: deps.sandbox,
+                    computer,
+                    computerMode,
+                    botId: bot.id,
+                    context,
+                    compactedText: serialized,
+                  }).catch(() => undefined);
+                }
+              } catch {
+                // Ignore non-serializable payloads
+              }
+            }
+            return sanitized;
+          } catch (error) {
+            const message = sanitizeToolError(
+              error instanceof Error ? error.message : String(error),
+            );
+            if (error instanceof Error) {
+              error.message = message;
+              throw error;
+            }
+            throw new Error(message);
+          }
+        };
+
+        const pluginLine =
+          connectedPlugins.length > 0
+            ? `Connected plugins: ${connectedPlugins.map((row) => `${row.displayName} (${row.provider})`).join(", ")}. Use those plugin tools when the user asks about those apps.`
+            : "No plugins are connected yet.";
+        const taughtSkillIndex = savedSkills.slice(0, 20);
+        const taughtSkillsLine =
+          taughtSkillIndex.length > 0
+            ? `Saved taught skills:\n${taughtSkillIndex
+                .map((skill) => {
+                  const playbook = parsePlaybook(skill.playbook);
+                  const name = skill.name || skill.goal.slice(0, 80);
+                  return `- ${name}: ${playbook.whenToUse || skill.goal}`;
+                })
+                .join(
+                  "\n",
+                )}\nWhen the user asks to run a taught skill by name, follow that skill's playbook exactly. The full playbook is included in the user task when they invoke it.`
+            : undefined;
+        const activeBotSkills: SkillItemLike[] = [];
+        for (const bs of activeBotSkillsRaw ?? []) {
+          const skill =
+            bs && typeof bs === "object" && "skill" in bs
+              ? (bs.skill as Record<string, unknown> | null | undefined)
+              : undefined;
+          if (skill && typeof skill.name === "string" && typeof skill.content === "string") {
+            activeBotSkills.push({
+              id: typeof skill.id === "string" ? skill.id : undefined,
+              workspaceId: typeof skill.workspaceId === "string" ? skill.workspaceId : undefined,
+              name: skill.name,
+              slug: typeof skill.slug === "string" ? skill.slug : "",
+              description: typeof skill.description === "string" ? skill.description : null,
+              content: skill.content,
+              tags: skill.tags,
+              metadata:
+                skill.metadata && typeof skill.metadata === "object"
+                  ? (skill.metadata as Record<string, unknown>)
+                  : undefined,
+              enabled: (bs as { enabled?: boolean })?.enabled !== false,
+            });
+          }
+        }
+        const learnedSkillsDoc = await loadBotLearnedSkillsDocument(deps.memory, bot.id, context);
+        const learnedSkillsPrompt = formatLearnedSkillsIndexPrompt(learnedSkillsDoc);
+        const skillsPrompt = formatSkillsPrompt(activeBotSkills);
+        const taskPrompt = [task.prompt, attachedFilesPrompt].filter(Boolean).join("\n\n");
+        const invokedSkill = savedSkills.find((skill) =>
+          promptInvokesSkill(taskPrompt, skill.name || skill.goal),
+        );
+        const prompt = invokedSkill
+          ? `${formatSkillRunPrompt(
+              invokedSkill.name || invokedSkill.goal.slice(0, 80),
+              parsePlaybook(invokedSkill.playbook),
+            )}\n\n${taskPrompt}`
+          : taskPrompt;
+
+        const botInference = extractBotInferenceConfig(bot);
+        const isFreeMode = options?.inferenceMode === "free" || botInference?.mode === "free";
+
+        let activeRuntime: AgentRuntime = deps.runtime;
+        let runtimeModel = {
+          provider: credential?.provider ?? settings?.defaultModelProvider ?? "scripted",
+          id: credential?.defaultModel ?? settings?.defaultModelId ?? "scripted",
+          apiKey: resolved.oauth ? undefined : resolved.apiKey,
+          oauth: resolved.oauth
+            ? { credential: resolved.oauth, persist: resolved.persistOAuth }
+            : undefined,
+        };
+        let freeRouteDecision: ReturnType<RakazoFreePolicyEngine["resolveRoute"]> | undefined;
+
+        if (isFreeMode) {
+          const policyEngine = new RakazoFreePolicyEngine();
+          const tags = options?.usageTags ?? botInference?.tags ?? [];
+          freeRouteDecision = policyEngine.resolveRoute(tags);
+          activeRuntime = new FreeOmniRouteAdapter({
+            defaultModel: freeRouteDecision.model,
+          });
+          runtimeModel = {
+            provider: freeRouteDecision.provider,
+            id: freeRouteDecision.model,
+            apiKey: process.env.OMNIROUTE_API_KEY,
+            oauth: undefined,
+          };
+        }
+
+        let lastResolvedProvider: string | undefined = isFreeMode
+          ? freeRouteDecision?.provider
+          : runtimeModel.provider;
+        let lastResolvedModel: string | undefined = isFreeMode
+          ? freeRouteDecision?.model
+          : runtimeModel.id;
+
+        try {
+          for await (const event of activeRuntime.run(
+            {
+              botId: bot.id,
+              threadId: thread.id,
+              runId,
+              prompt,
+              instructions: [
+                // BLOC A: Invariant platform guardrails & core execution constraints (Token 0 - 100% cache invariant across bots)
+                "Enterprise integrations: You have direct native tools for GitHub (search, read files, issues, PRs, comments), Notion (search, pages, databases), Postiz (social posts & channels), WordPress/Novamira (posts & abilities), n8n (workflows & webhooks), and Cloudflare (zones, DNS, cache purge). Use them directly when requested.",
+                "Tool Parsimony & Targeting: Call only the tools strictly required to fulfill the user's explicit request. Do not speculatively invoke multiple unrelated connectors or tools in parallel (e.g., do not query GitHub, Notion, or Cloudflare simultaneously unless explicitly requested). If a task targets a specific service or can be answered directly from context, use only the relevant tool and stop calling tools as soon as sufficient data is obtained.",
+                "Anti-Speculation: Do not invent, hallucinate, or pretend tool execution outcomes. Never claim an action succeeded or data was retrieved without actually executing the respective tool. When code or command execution is needed, run the command and inspect the output.",
+                "Code Completeness: When generating, editing, or refactoring code or files, always produce complete, fully realized, and syntactically valid code. Never emit lazy placeholders, ellipsis comments, or truncated snippets (such as '// ... existing code ...', '/* rest of implementation */', or '// TODO'). Output complete code to ensure seamless automated execution.",
+                "A bot and a subagent are different. Never use both for the same request.",
+                "spawn_bot creates a lasting regular bot (own chat, computer, memory) that appears in the user's bot list. If the user asked to create a bot, call spawn_bot once and stop. Do not run_subagent to demo it.",
+                "run_subagent is a short helper inside this turn only. It is not a bot, has no thread, and does not show in the list. Use it for parallel work you will summarize here.",
+                "archive_bot safely archives a bot this bot created, and only that bot. Use it when the user asks to remove that bot or when it is finished and unused. The user can restore it or permanently delete it later. confirm_name must exactly match its name.",
+                "Never print API keys, access tokens, or secret values. Prefer tools over claiming you already did the work.",
+                // BLOC B: Bot Persona & Durable Context
+                runIdentityInstruction(bot, run.trigger ?? "user"),
+                `${computerInstruction} Use remember for durable facts. Use request_takeover when the user must provide protected input or human judgment. Use destination_write only for connected destination records.`,
+                workspaceInstruction,
+                memoryContext ? redactSecrets(memoryContext, runSecrets) : undefined,
+                recalledMemory ? redactSecrets(recalledMemory, runSecrets) : undefined,
+                pluginLine,
+                taughtSkillsLine,
+                learnedSkillsPrompt,
+                skillsPrompt,
+              ]
+                .filter((instruction): instruction is string => Boolean(instruction))
+                .join("\n\n"),
+              history,
+              currentTurnImages,
+              tools,
+              model: runtimeModel,
+              resumeFromCheckpoint: resumeFromTakeover ? "takeover" : undefined,
+              script,
+              executeTool: scripted ? undefined : applyTool,
+            },
+            context,
+          )) {
+            if (!leaseValid) return;
+            const now = Date.now();
+            if (now - lastLeaseCheckAt >= 1_000) {
+              lastLeaseCheckAt = now;
+              const still = await deps.prisma.run.findUnique({
+                where: { id: runId },
+                select: { status: true, leaseOwner: true, leaseFence: true },
+              });
+              if (
+                !still ||
+                still.status === "cancelled" ||
+                still.leaseOwner !== workerId ||
+                still.leaseFence !== fence
+              ) {
+                leaseValid = false;
+                return;
+              }
+            }
+
+            if (event.type === "text") {
+              assembled += event.text;
+              pendingProgress += progressRedactor.push(event.text);
+              const now = Date.now();
+              if (!scripted && pendingProgress && now - lastProgressAt >= 250) {
+                lastProgressAt = now;
+                await deps.events.append({
+                  workspaceId: run.workspaceId,
+                  threadId: thread.id,
+                  botId: bot.id,
+                  type: "thread.progress",
+                  runId,
+                  payload: { delta: pendingProgress, streaming: true },
+                });
+                pendingProgress = "";
+              }
+            } else if (event.type === "progress") {
+              await deps.events.append({
+                workspaceId: run.workspaceId,
+                threadId: thread.id,
+                botId: bot.id,
+                type: "thread.progress",
+                runId,
+                payload: { text: redactSecrets(event.text, runSecrets) },
+              });
+            } else if (event.type === "ask") {
+              if (!(await renewRunLease(deps, runId, workerId, fence))) return;
+              const safeText = redactSecrets(event.text, runSecrets);
+              const safeDetail = event.detail
+                ? redactSecrets(event.detail, runSecrets)
+                : event.detail;
+              await checkpointAndRecordComputerWorkspace(deps, storedComputer, computer, context);
+              const paused = await deps.events.pauseRunForInput({
+                workspaceId: run.workspaceId,
+                threadId: run.threadId,
+                botId: run.botId,
+                runId,
+                attemptId: attempt.id,
+                leaseOwner: workerId,
+                leaseFence: fence,
+                blocks: [{ kind: "ask", text: safeText, detail: safeDetail, status: "pending" }],
+              });
+              if (!paused) return;
+              await notifyRun(deps, run, {
+                kind: "help",
+                title: `${bot.name} needs an answer`,
+                body: safeText,
+                botId: bot.id,
+                threadId: thread.id,
+              });
+              return;
+            } else if (event.type === "takeover") {
+              if (!(await renewRunLease(deps, runId, workerId, fence))) return;
+              const safeReason = redactSecrets(event.reason, runSecrets);
+              if (assembled.trim()) {
+                await publishMessage(deps, run, "bot", [
+                  { kind: "text", text: redactSecrets(assembled, runSecrets) },
+                ]);
+              }
+              await publishMessage(deps, run, "bot", [
+                { kind: "computer", state: "Ready", text: safeReason },
+              ]);
+              await deps.events.append({
+                workspaceId: run.workspaceId,
+                threadId: thread.id,
+                botId: bot.id,
+                type: "computer.takeover.requested",
+                runId,
+                payload: { reason: safeReason },
+              });
+              await deps.prisma.computer.updateMany({
+                where: { id: storedComputer.id },
+                data: {
+                  state: "running",
+                  controlHolder: "none",
+                  controlLeaseId: null,
+                  controlLeaseExpiresAt: null,
+                  controlBotId: null,
+                },
+              });
+              await checkpointAndRecordComputerWorkspace(deps, storedComputer, computer, context);
+              if (!(await holdComputerExecutionLeaseForTakeover(deps.prisma, computerLease))) {
+                throw new Error("Computer lease expired before takeover");
+              }
+              const paused = await deps.prisma.run.updateMany({
+                where: { id: runId, status: "running", leaseOwner: workerId, leaseFence: fence },
+                data: { status: "waiting_takeover", leaseOwner: null, leaseExpiresAt: null },
+              });
+              if (paused.count !== 1) return;
+              retainComputerLease = true;
+              await deps.prisma.attempt.update({
+                where: { id: attempt.id },
+                data: { status: "waiting_takeover", finishedAt: new Date() },
+              });
+              await clearRunProgress(deps, runId);
+              await notifyRun(deps, run, {
+                kind: "takeover",
+                title: `${bot.name} needs you on the screen`,
+                body: safeReason,
+                botId: bot.id,
+                threadId: thread.id,
+              });
+              return;
+            } else if (event.type === "tool") {
+              await deps.events.append({
+                workspaceId: run.workspaceId,
+                threadId: thread.id,
+                botId: bot.id,
+                type: "agent.tool.called",
+                runId,
+                payload: { name: event.name, executionId: event.executionId },
+              });
+              if (scripted) await applyTool(event.name, event.args, event.executionId);
+            } else if (event.type === "subagent") {
+              const safeTask = redactSecrets(event.task, runSecrets);
+              const safeProgress = event.progress
+                ? redactSecrets(event.progress, runSecrets)
+                : undefined;
+              const safeResult = event.result ? redactSecrets(event.result, runSecrets) : undefined;
+              await deps.events.append({
+                workspaceId: run.workspaceId,
+                threadId: thread.id,
+                botId: bot.id,
+                type: "thread.subagent",
+                runId,
+                payload: {
+                  agentId: event.agentId,
+                  name: event.name,
+                  task: safeTask,
+                  status: event.status,
+                  progress: safeProgress,
+                  result: safeResult,
+                },
+              });
+              if (event.status === "completed" || event.status === "failed") {
+                await publishMessage(deps, run, "bot", [
+                  {
+                    kind: "subagent",
+                    agentId: event.agentId,
+                    name: event.name,
+                    task: safeTask,
+                    status: event.status,
+                    progress: safeProgress,
+                    result: safeResult,
+                  },
+                ]);
+              }
+            } else if (event.type === "usage") {
+              const effectiveResolvedProvider =
+                event.resolvedProvider ??
+                (isFreeMode ? (freeRouteDecision?.provider ?? event.provider) : event.provider);
+              const effectiveResolvedModel =
+                event.resolvedModel ??
+                (isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model);
+              lastResolvedProvider = effectiveResolvedProvider;
+              lastResolvedModel = effectiveResolvedModel;
+
+              await deps.prisma.usageRecord.create({
+                data: {
+                  workspaceId: run.workspaceId,
+                  botId: bot.id,
+                  userId: run.userId,
+                  runId,
+                  provider: effectiveResolvedProvider,
+                  model: effectiveResolvedModel,
+                  inputTokens: event.inputTokens,
+                  outputTokens: event.outputTokens,
+                },
+              });
+              const runDurationMs = Math.max(
+                0,
+                Date.now() - (run.startedAt?.getTime() ?? Date.now()),
+              );
+              recordPromptExecutionLogAsync(deps.prisma, {
+                botId: bot.id,
+                executionId: runId,
+                provider: isFreeMode
+                  ? (freeRouteDecision?.provider ?? event.provider)
+                  : event.provider,
+                model: isFreeMode ? (freeRouteDecision?.model ?? event.model) : event.model,
+                levelUsed: isFreeMode ? "omniroute_gateway" : "pi_runtime",
+                promptTokens: event.inputTokens,
+                completionTokens: event.outputTokens,
+                cachedTokens: event.cachedTokens ?? 0,
+                cacheHitRatio: event.cacheHitRatio ?? 0,
+                durationMs: runDurationMs,
+                inferenceMode: isFreeMode ? "free" : "premium",
+                requestedCategory: isFreeMode ? (freeRouteDecision?.category ?? "general") : null,
+                resolvedProvider: effectiveResolvedProvider,
+                resolvedModel: effectiveResolvedModel,
+                isFree: isFreeMode,
+              });
+            } else if (event.type === "done") {
+              assembled = assembled || event.text || assembled;
+            }
+          }
+
+          for (const turn of script ?? []) {
+            for (const file of turn.files ?? []) {
+              await deps.sandbox.writeFile(
+                computer,
+                {
+                  path: resolveBotWorkspacePath(computerMode, bot.id, file.path),
+                  content: new TextEncoder().encode(file.content),
+                },
+                context,
+              );
+            }
+            for (const mem of turn.memory ?? []) {
+              const modelKey =
+                run.modelId ?? (bot as any).modelId ?? (bot as any).model ?? undefined;
+              const sanitizedMemContent = maskSensitiveData(mem.content);
+              const enforcement = enforceMemoryBudget(sanitizedMemContent, modelKey);
+              await deps.memory.commit(
+                {
+                  scope: mem.scope,
+                  botId: mem.scope === "bot" ? bot.id : undefined,
+                  path: mem.path,
+                  content: enforcement.activeContent,
+                  sourceRunId: runId,
+                  sourceThreadId: thread.id,
+                },
+                context,
+              );
+              if (enforcement.evictedLines.length > 0) {
+                await appendBoundedMemoryArchive(
+                  deps.memory,
+                  {
+                    scope: mem.scope,
+                    botId: mem.scope === "bot" ? bot.id : undefined,
+                    evictedLines: enforcement.evictedLines,
+                    runId,
+                    threadId: thread.id,
+                  },
+                  context,
+                ).catch(() => undefined);
+              }
+              await deps.events.append({
+                workspaceId: run.workspaceId,
+                threadId: thread.id,
+                botId: bot.id,
+                type: "memory.revised",
+                runId,
+                payload: { path: mem.path, scope: mem.scope },
+              });
+            }
+          }
+
+          await checkpointAndRecordComputerWorkspace(deps, storedComputer, computer, context);
+          terminalCheckpointComplete = true;
+
+          let text = redactSecrets(assembled || "done.", runSecrets);
+          if (run.trigger === "routine" && !isSilentRoutineOutput(text)) {
+            const parts = extractRoutineParts(task.prompt);
+            if (parts.length >= 2) {
+              const open = identifyOpenRoutineParts(parts, text);
+              if (open.length > 0) {
+                text += `\n\n${buildRoutineChecklistNudgeFr(open)}`;
+              }
+            }
+            if (task.createdAt instanceof Date && run.startedAt instanceof Date) {
+              const runTrackBanner = buildRoutineRunTrackBannerFr({
+                scheduledFor: task.createdAt,
+                startedAt: run.startedAt,
+                timeZone: "Europe/Paris",
+              });
+              if (runTrackBanner) {
+                text = `${runTrackBanner}\n\n${text}`;
+              }
+            }
+          }
+          if (containsSecret(text, runSecrets)) {
+            throw new Error("refusing to persist a secret in the thread");
+          }
+          if (!(await renewRunLease(deps, runId, workerId, fence))) return;
+          const totalTurnDurationMs = Math.max(
+            0,
+            Date.now() - (run.startedAt?.getTime() ?? Date.now()),
+          );
+          const completed = await deps.events.finalizeRun({
+            workspaceId: run.workspaceId,
+            threadId: thread.id,
+            botId: bot.id,
+            runId,
+            taskId: run.taskId,
+            attemptId: attempt.id,
+            leaseOwner: workerId,
+            leaseFence: fence,
+            outcome: "completed",
+            blocks: [{ kind: "text", text }],
+            inferenceMeta: {
+              resolvedProvider: lastResolvedProvider,
+              resolvedModel: lastResolvedModel,
+              isFree: isFreeMode,
+              durationMs: totalTurnDurationMs,
+            },
+          });
+          if (!completed) return;
+          const rawBotMeta =
+            bot.metadata && typeof bot.metadata === "object" && !Array.isArray(bot.metadata)
+              ? (bot.metadata as Record<string, unknown>)
+              : undefined;
+          const quietHoursCfg =
+            rawBotMeta?.quietHours && typeof rawBotMeta.quietHours === "object"
+              ? (rawBotMeta.quietHours as Partial<QuietHoursPolicy>)
+              : undefined;
+          const suppressedByQuietHours = Boolean(
+            run.trigger === "routine" && quietHoursCfg?.enabled && isWithinQuietHours(new Date(), quietHoursCfg),
+          );
+          if (
+            bot.notifyOnFinish &&
+            !(run.trigger === "routine" && isSilentRoutineOutput(text)) &&
+            !suppressedByQuietHours
+          ) {
+            await notifyRun(deps, run, {
+              kind: "completion",
+              title: `${bot.name} finished`,
+              body: text.slice(0, 180),
+              botId: bot.id,
+              threadId: thread.id,
+            });
+          }
+          // Last, and never fatal: the run is already finalized, so a failure here must not reach
+          // the catch block below, where a second finalizeRun would match no rows and silently
+          // skip the completion notification.
+          if (isSupermemoryEnabled(process.env.SUPERMEMORY_API_KEY)) {
+            try {
+              const updatedThread = await deps.prisma.thread.findUniqueOrThrow({
+                where: { id: thread.id },
+                select: { nextMessageSeq: true, historyCompactedUpToSeq: true },
+              });
+              if (
+                shouldEnqueueCompaction(
+                  updatedThread.nextMessageSeq,
+                  updatedThread.historyCompactedUpToSeq,
+                  HISTORY_WINDOW_SIZE,
+                  COMPACTION_BATCH_SIZE,
+                )
+              ) {
+                await deps.jobs.enqueue(historyCompactJob(thread.id));
+              }
+            } catch (error) {
+              console.error("history.compact enqueue failed", error);
+            }
+          }
+        } catch (error) {
+          if (!terminalCheckpointComplete) {
+            await checkpointAndRecordComputerWorkspace(
+              deps,
+              storedComputer,
+              computer,
+              context,
+            ).catch(() => undefined);
+          }
+          const message = redactSecrets(
+            error instanceof Error ? error.message : String(error),
+            runSecrets,
+          );
+          recordDiagnosticIncident({
+            severity: "error",
+            layer: "agent_executor",
+            code: "RUN_EXECUTION_FAILED",
+            title: `Échec d'exécution sur l'agent ${bot.name}`,
+            message,
+            error,
+            dataDir: deps.dataDir,
+            context: {
+              botId: bot.id,
+              runId,
+              model: botModelKey,
+            },
+          });
+          const failed = await deps.events.finalizeRun({
+            workspaceId: run.workspaceId,
+            threadId: thread.id,
+            botId: bot.id,
+            runId,
+            taskId: run.taskId,
+            attemptId: attempt.id,
+            leaseOwner: workerId,
+            leaseFence: fence,
+            outcome: "failed",
+            error: message,
+          });
+          if (!failed) return;
+          if (bot.notifyOnFinish) {
+            await notifyRun(deps, run, {
+              kind: "failure",
+              title: `${bot.name} failed`,
+              body: message.slice(0, 180),
+              botId: bot.id,
+              threadId: thread.id,
+            });
+          }
+        }
+      } catch (setupError) {
+        const computerBusy = setupError instanceof ComputerBusyError;
+        if (!computerBusy) {
+          console.error(
+            "run setup failed",
+            redactSecrets(
+              setupError instanceof Error ? setupError.message : String(setupError),
+              runSecrets,
+            ),
+          );
+        }
+        const released = await deps.prisma.run.updateMany({
+          where: { id: runId, status: "running", leaseOwner: workerId, leaseFence: fence },
+          data: {
+            status: "queued",
+            error: computerBusy ? null : "Run setup failed; retrying",
+            leaseOwner: null,
+            leaseExpiresAt: null,
+          },
+        });
+        if (released.count === 1) {
+          await deps.prisma.attempt.update({
+            where: { id: attempt.id },
+            data: {
+              status: "setup_failed",
+              error: "Run setup failed; retrying",
+              finishedAt: new Date(),
+            },
+          });
+          if (computerBusy) {
+            await deps.jobs.enqueue({
+              ...runContinueJob(runId),
+              availableAt: new Date(Date.now() + computerRetryDelay(fence)),
+            });
+            return;
+          }
+          throw new Error("Run setup failed; retrying");
+        }
+      } finally {
+        clearInterval(heartbeat);
+        clearInterval(cancelPoll);
+        if (!retainComputerLease) {
+          if (screenRelease) {
+            await deps.sandbox
+              .releaseScreen?.(screenRelease.computer, screenRelease.context)
+              .catch(() => undefined);
+          }
+          await releaseComputerExecutionLease(deps.prisma, computerLease).catch(() => undefined);
+        }
+        await deps.prisma.attempt
+          .updateMany({
+            where: { id: attempt.id, status: "running" },
+            data: { status: "interrupted", finishedAt: new Date() },
+          })
+          .catch(() => undefined);
+      }
+    },
+  };
+}
+
+async function computerScreenToolResult(
+  work: () => Promise<unknown>,
+  finish?: (result: unknown) => Promise<unknown>,
+) {
+  const result = await withComputerScreenAvailability(work);
+  return finish ? finish(result) : result;
+}
+
+async function notifyRun(
+  deps: ExecutorDeps,
+  run: { workspaceId: string; userId: string; botId: string; threadId: string },
+  message: NotificationMessage,
+) {
+  if (!deps.notifications) return;
+  await deps.notifications
+    .send(message, {
+      operationId: "notify",
+      traceId: run.botId,
+      workspaceId: run.workspaceId,
+      userId: run.userId,
+      botId: run.botId,
+      signal: new AbortController().signal,
+    })
+    .catch((error) => {
+      console.error("run notification", error);
+    });
+}
+
+async function renewRunLease(
+  deps: ExecutorDeps,
+  runId: string,
+  workerId: string,
+  fence: number,
+): Promise<boolean> {
+  const renewed = await deps.prisma.run.updateMany({
+    where: { id: runId, status: "running", leaseOwner: workerId, leaseFence: fence },
+    data: { leaseExpiresAt: new Date(Date.now() + 5 * 60_000) },
+  });
+  return renewed.count === 1;
+}
+
+function computerRetryDelay(fence: number): number {
+  return Math.min(10_000, 250 * 2 ** Math.min(Math.max(fence - 1, 0), 5));
+}
+
+async function requeueComputerRun(
+  deps: ExecutorDeps,
+  runId: string,
+  workerId: string,
+  fence: number,
+): Promise<void> {
+  const released = await deps.prisma.run.updateMany({
+    where: { id: runId, status: "running", leaseOwner: workerId, leaseFence: fence },
+    data: { status: "queued", error: null, leaseOwner: null, leaseExpiresAt: null },
+  });
+  if (released.count !== 1) return;
+  await deps.jobs.enqueue({
+    ...runContinueJob(runId),
+    availableAt: new Date(Date.now() + computerRetryDelay(fence)),
+  });
+}
+
+async function clearRunProgress(deps: ExecutorDeps, runId: string): Promise<void> {
+  await deps.prisma.event.deleteMany({ where: { runId, type: "thread.progress" } });
+}
+
+async function publishMessage(
+  deps: ExecutorDeps,
+  run: { id: string; workspaceId: string; threadId: string; botId: string },
+  role: "user" | "bot" | "system",
+  blocks: MessageBlock[],
+) {
+  const message = await createThreadMessage(deps.prisma, {
+    threadId: run.threadId,
+    role,
+    blocks,
+    runId: run.id,
+  });
+  await deps.events.append({
+    workspaceId: run.workspaceId,
+    threadId: run.threadId,
+    botId: run.botId,
+    type: "thread.message.created",
+    runId: run.id,
+    payload: { messageId: message.id, role, blocks },
+  });
+  return message;
+}
+
+async function recordEffect(
+  deps: ExecutorDeps,
+  run: { id: string; workspaceId: string; threadId: string; botId: string },
+  kind: string,
+  executionId: string,
+  request: Record<string, unknown>,
+) {
+  const existing = await deps.prisma.externalEffect.findUnique({
+    where: { idempotencyKey: executionId },
+  });
+  if (existing) {
+    await deps.events.append({
+      workspaceId: run.workspaceId,
+      threadId: run.threadId,
+      botId: run.botId,
+      type: "effect.reconciled",
+      runId: run.id,
+      payload: { executionId, kind },
+    });
+    return { duplicate: true, effect: existing };
+  }
+  const effect = await deps.prisma.externalEffect.create({
+    data: {
+      workspaceId: run.workspaceId,
+      runId: run.id,
+      kind,
+      idempotencyKey: executionId,
+      status: "intended",
+      request: request as never,
+    },
+  });
+  return { duplicate: false, effect };
+}
+
+async function completeEffect(deps: ExecutorDeps, effectId: string, result: unknown) {
+  const storedResult =
+    result &&
+    typeof result === "object" &&
+    (result as { kind?: unknown }).kind === "agent_tool_result" &&
+    "details" in result
+      ? (result as { details: unknown }).details
+      : result;
+  await deps.prisma.externalEffect.update({
+    where: { id: effectId },
+    data: { status: "completed", result: storedResult as never },
+  });
+}
+
+async function runSandboxCommand(
+  sandbox: SandboxProvider,
+  computer: ComputerRef,
+  argv: string[],
+  cwd: string | undefined,
+  context: {
+    operationId: string;
+    traceId: string;
+    workspaceId: string;
+    userId: string;
+    botId?: string;
+    runId?: string;
+    signal: AbortSignal;
+  },
+) {
+  let stdout = "";
+  let stderr = "";
+  let code = 0;
+  for await (const event of sandbox.execute(
+    computer,
+    { argv, cwd, timeoutMs: sandboxCommandTimeoutMs() },
+    context,
+  )) {
+    if (event.type === "stdout") stdout += event.data;
+    if (event.type === "stderr") stderr += event.data;
+    if (event.type === "exit") code = event.code;
+  }
+  return { stdout, stderr, code };
+}
+
+async function resolveModelKey(
+  deps: ExecutorDeps,
+  userId: string,
+  workspaceId: string,
+  credential: { secretId: string; provider: string } | null,
+  registerSecrets?: (values: string[]) => void,
+): Promise<{
+  apiKey?: string;
+  oauth?: AgentModelOAuthCredential;
+  persistOAuth?: (credential: AgentModelOAuthCredential) => Promise<void>;
+  redact: string[];
+}> {
+  if (credential && deps.secretStore) {
+    return withModelCredentialLock(credential.secretId, async () => {
+      const row = await deps.prisma.secret.findUnique({ where: { id: credential.secretId } });
+      if (!row) return { apiKey: deps.deploymentModelKey, redact: [] };
+      const plaintext = deps.secretStore!.load(row.ciphertext);
+      registerSecrets?.(secretValuesToRedact(parseModelSecret(plaintext)));
+      const persist = async (next: string) => {
+        const stored = await deps.secretStore!.put(next, {
+          operationId: "cred",
+          traceId: "cred-refresh",
+          workspaceId,
+          userId,
+          signal: new AbortController().signal,
+        });
+        await deps.prisma.secret.update({
+          where: { id: row.id },
+          data: { ciphertext: stored.ciphertext },
+        });
+      };
+      const resolved = await resolveModelAuth(plaintext, credential.provider, {
+        persist,
+      });
+      const oauth = resolved.secret.kind === "oauth" ? resolved.secret.credential : undefined;
+      return {
+        apiKey: resolved.apiKey,
+        oauth,
+        persistOAuth: oauth
+          ? async (next) => {
+              await withModelCredentialLock(credential.secretId, async () => {
+                const currentRow = await deps.prisma.secret.findUnique({
+                  where: { id: credential.secretId },
+                });
+                if (!currentRow) return;
+                const current = parseModelSecret(deps.secretStore!.load(currentRow.ciphertext));
+                if (current.kind === "oauth") {
+                  const stored = current.credential;
+                  if (stored.expires > next.expires) return;
+                  if (
+                    stored.access === next.access &&
+                    stored.refresh === next.refresh &&
+                    stored.expires === next.expires
+                  ) {
+                    return;
+                  }
+                }
+                await persist(
+                  serializeModelSecret({ kind: "oauth", credential: toOAuthCredential(next) }),
+                );
+              });
+            }
+          : undefined,
+        redact: [...secretValuesToRedact(resolved.secret), resolved.apiKey].filter(
+          (value): value is string => Boolean(value),
+        ),
+      };
+    });
+  }
+  return { apiKey: deps.deploymentModelKey, redact: [] };
+}
+
+async function withModelCredentialLock<T>(key: string, fn: () => Promise<T>): Promise<T> {
+  const previous = modelCredentialLocks.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const current = previous.then(
+    () =>
+      new Promise<void>((resolve) => {
+        release = resolve;
+      }),
+  );
+  modelCredentialLocks.set(key, current);
+  await previous;
+  try {
+    return await fn();
+  } finally {
+    release();
+    if (modelCredentialLocks.get(key) === current) modelCredentialLocks.delete(key);
+  }
+}
+
+async function loadCurrentTurnImages(
+  deps: ExecutorDeps,
+  blocks: MessageBlock[] | undefined,
+  context: {
+    operationId: string;
+    traceId: string;
+    workspaceId: string;
+    userId: string;
+    botId: string;
+    runId: string;
+    signal: AbortSignal;
+  },
+) {
+  if (!deps.artifacts || !blocks?.length) return undefined;
+  const imageBlocks = blocks.filter(
+    (block): block is Extract<MessageBlock, { kind: "image" }> => block.kind === "image",
+  );
+  if (!imageBlocks.length) return undefined;
+
+  const rows = await deps.prisma.artifact.findMany({
+    where: {
+      id: { in: imageBlocks.map((block) => block.artifactId) },
+      workspaceId: context.workspaceId,
+      botId: context.botId,
+    },
+  });
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  const images: NonNullable<import("@rakazo/adapter-kit").AgentRunRequest["currentTurnImages"]> =
+    [];
+
+  for (const block of imageBlocks) {
+    const row = byId.get(block.artifactId);
+    if (!row || !isAttachmentImageMimeType(block.mimeType)) continue;
+    const bytes = await deps.artifacts.get(row.storageKey, context);
+    images.push({
+      name: block.name,
+      mimeType: block.mimeType as "image/jpeg" | "image/png" | "image/webp" | "image/gif",
+      data: bytes,
+    });
+  }
+
+  return images.length ? images : undefined;
+}
+
+function sanitizeToolResult<T>(result: T): T {
+  if (!result) return result;
+  if (typeof result === "string") {
+    return sanitizeToolError(result) as unknown as T;
+  }
+  if (typeof result === "object") {
+    if ("error" in result && typeof (result as { error?: unknown }).error === "string") {
+      const record = { ...result } as Record<string, unknown>;
+      record.error = sanitizeToolError((result as { error: string }).error);
+      if ("stderr" in record && typeof record.stderr === "string") {
+        record.stderr = sanitizeToolError(record.stderr);
+      }
+      return record as T;
+    }
+    if ("stderr" in result && typeof (result as { stderr?: unknown }).stderr === "string") {
+      const record = { ...result } as Record<string, unknown>;
+      record.stderr = sanitizeToolError((result as { stderr: string }).stderr);
+      return record as T;
+    }
+  }
+  return result;
+}
+
+/** Name, title, and description, skipping any part that is blank. */
+function publicProfile(
+  name: string,
+  title: string | null | undefined,
+  description: string,
+): string {
+  const trimmedTitle = title?.trim() ?? "";
+  const heading = trimmedTitle ? `${name}: ${trimmedTitle}` : name;
+  return description ? `${heading}\n${description}` : heading;
+}
+
+export const SILENT_ROUTINE_TOKEN = "NO_SIGNAL";
+
+export const SILENT_ROUTINE_DIRECTIVE_FR =
+  "RÈGLE DE SOBRIÉTÉ DES ROUTINES PLANIFIÉES (SILENCE = RÉSULTAT VALIDE) : Si aucune nouveauté, anomalie ou signal pertinent n'est détecté dès ta première vérification, réponds uniquement « NO_SIGNAL — Aucun élément nouveau à signaler aujourd'hui. » et arrête immédiatement ton exécution au tour 1 sans inventer de rapport artificiel ni appeler d'autres outils.";
+
+export function isSilentRoutineOutput(text: string | null | undefined): boolean {
+  if (!text) return false;
+  const trimmed = text.trim();
+  return (
+    trimmed === SILENT_ROUTINE_TOKEN ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN} `) ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN}—`) ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN} —`) ||
+    trimmed.startsWith(`${SILENT_ROUTINE_TOKEN}:`) ||
+    trimmed.includes("NO_SIGNAL — Aucun élément nouveau")
+  );
+}
+
+/**
+ * Keeps a bot's public profile (`name: title\ndescription`) and private operating
+ * instructions distinct (Upstream #1504 / 81640fa3e), and injects the French Silent
+ * Routine Guard (`NO_SIGNAL`) when triggered by a scheduled routine (P4).
+ */
+export function runIdentityInstruction(
+  bot: {
+    name: string;
+    title?: string | null;
+    description?: string | null;
+    instructions?: string | null;
+  },
+  trigger = "user",
+): string {
+  const description = bot.description?.trim() ?? "";
+  const rawInstructions = bot.instructions ?? "";
+  const instructions = rawInstructions.trim();
+  if (trigger !== "created") {
+    const identity = publicProfile(bot.name, bot.title, description);
+    // Older bots saved one text as both fields; do not repeat it.
+    const base =
+      !instructions || instructions === description
+        ? instructions
+          ? rawInstructions
+          : identity
+        : [
+            identity,
+            "Teammates see only the profile above. These instructions are private to you:",
+            instructions,
+          ].join("\n");
+    if (trigger === "routine") {
+      const parts = extractRoutineParts(instructions || "");
+      if (parts.length >= 2) {
+        const partsSummary = parts.map((p, i) => `Étape ${i + 1} : ${p}`).join("\n");
+        return `${base}\n\n${SILENT_ROUTINE_DIRECTIVE_FR}\n\nCHECKLIST MULTI-ÉTAPES OBLIGATOIRE : Cette routine comporte ${parts.length} étapes obligatoires :\n${partsSummary}\nTu dois obligatoirement statuer sur chacune d'entre elles dans ta réponse finale avec la mention explicite « Fait », « Bloqué » (avec le motif) ou « Ignoré » (avec justification).`;
+      }
+      return `${base}\n\n${SILENT_ROUTINE_DIRECTIVE_FR}`;
+    }
+    return base;
+  }
+  return [
+    `Name: ${bot.name.trim() || "(none)"}`,
+    `Title: ${(bot.title ?? "").trim() || "(none)"}`,
+    `Description: ${description || "(none)"}`,
+    instructions ? `Instructions:\n${instructions}` : "Instructions: (none)",
+  ].join("\n");
+}

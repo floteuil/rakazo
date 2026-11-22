@@ -1,0 +1,2 @@
+-- AlterTable
+ALTER TABLE "bots" ADD COLUMN IF NOT EXISTS "metadata" JSONB NOT NULL DEFAULT '{}';
