@@ -161,6 +161,13 @@ export function inferSuspectedFileAndHint(params: {
         "Examiner la trace composant React remontée par le navigateur mobile/desktop et les props nulles éventuelles.",
     };
   }
+  if (layer === "security_perimeter") {
+    return {
+      suspectedFile: "packages/auth/src/intrusion-shield.ts",
+      remediationHintFr:
+        "Tentative d'intrusion bloquée automatiquement (bruteforce IP ou requête CSRF externe). Aucun impact sur vos appareils légitimes.",
+    };
+  }
   if (layer === "database_worker") {
     return {
       suspectedFile: "packages/db/src/repos.ts",
@@ -610,6 +617,40 @@ export async function runDeepSelfDiagnostics(
       forbiddenLeak || n8nStillRegistered
         ? "Violation détectée dans le catalogue MCP souverain !"
         : `${SOVEREIGN_MCP_CONNECTORS.length} connecteurs souverains (${configuredCount} prêts) · 0 connecteur HDS/Stripe/n8n.`,
+  });
+
+  // Probe 7b: Cyber-Perimeter & Single-Owner Auth Sanctuary
+  const isProdHttps =
+    process.env.NODE_ENV === "production" &&
+    Boolean(process.env.WEB_ORIGIN?.trim().toLowerCase().startsWith("https://"));
+  const signupsLocked = process.env.SIGNUPS_ENABLED === "false" || process.env.SIGNUPS_ENABLED === "0";
+  const allowlistCount = (process.env.SIGNUP_ALLOWLIST ?? "")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean).length;
+  const strongSecrets =
+    !isProdHttps ||
+    ((process.env.BETTER_AUTH_SECRET?.length ?? 0) >= 32 &&
+      !process.env.BETTER_AUTH_SECRET?.includes("replace-with") &&
+      (process.env.ENCRYPTION_KEY?.length ?? 0) >= 32 &&
+      !process.env.ENCRYPTION_KEY?.includes("replace-with"));
+  const blockedIntrusions = incidentRingBuffer.filter((i) => i.layer === "security_perimeter").length;
+  const authPerimeterOk = !isProdHttps || (signupsLocked && allowlistCount > 0 && strongSecrets);
+  probes.push({
+    id: "auth_intrusion_perimeter",
+    nameFr: "Bouclier Anti-Intrusion & Périmètre Auth",
+    status: authPerimeterOk ? "pass" : "warn",
+    latencyMs: 0,
+    detailFr: isProdHttps
+      ? `Inscriptions fermées · Propriétaire unique (${allowlistCount} autorisé) · Sessions 30j glissantes · ${blockedIntrusions} intrusion(s) bloquée(s).`
+      : `Bouclier anti-bruteforce IP + CSRF actif (${blockedIntrusions} intrusion(s) bloquée(s)).`,
+    ...(!authPerimeterOk
+      ? {
+          suspectedFile: "packages/auth/src/intrusion-shield.ts",
+          remediationFr:
+            "Vérifier `SIGNUPS_ENABLED=false`, `SIGNUP_ALLOWLIST` et l'entropie de `BETTER_AUTH_SECRET` / `ENCRYPTION_KEY`.",
+        }
+      : {}),
   });
 
   // Probe 8: Memory & Event-Loop Health

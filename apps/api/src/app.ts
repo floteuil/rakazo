@@ -26,7 +26,17 @@ import {
   recordDiagnosticIncident,
   ScriptedAgentRuntime,
 } from "@rakazo/adapters";
-import { blockedAuthPaths, createAuth } from "@rakazo/auth";
+import {
+  blockedAuthPaths,
+  createAuth,
+  evaluateCsrfRequestSafety,
+  extractSpoofProofClientIp,
+  globalAuthIntrusionShield,
+  HARDENED_CSP_HEADER,
+  isHttpsProductionOrigin,
+  isSensitiveAuthMutation,
+  maskIpForAudit,
+} from "@rakazo/auth";
 import { createDb, createThreadEvents, type PrismaClient, requireMembership } from "@rakazo/db";
 import { MarkdownMemoryStore } from "@rakazo/memory";
 import { Hono } from "hono";
@@ -107,21 +117,24 @@ export async function createApp(
   const runtime =
     env.agentRuntime === "scripted" ? new ScriptedAgentRuntime() : new PiAgentRuntime();
   const notifications = new ExpoPushProvider(env.dataDir);
+  const httpsProduction = isHttpsProductionOrigin(env.webOrigin);
   const auth = createAuth(prisma, {
     secret: env.authSecret,
     baseURL: env.authUrl,
     webOrigin: env.webOrigin,
     signupsEnabled: env.signupsEnabled,
     signupAllowlist: env.signupAllowlist,
-    extraOrigins: [
-      "rakazo://",
-      "exp://",
-      "exp://*",
-      "http://localhost:8081",
-      "http://127.0.0.1:8081",
-      "http://localhost:19006",
-      "http://127.0.0.1:19006",
-    ],
+    extraOrigins: httpsProduction
+      ? ["rakazo://"]
+      : [
+          "rakazo://",
+          "exp://",
+          "exp://*",
+          "http://localhost:8081",
+          "http://127.0.0.1:8081",
+          "http://localhost:19006",
+          "http://127.0.0.1:19006",
+        ],
     beforeDeleteUser: async (userId) => {
       const bots = await prisma.bot.findMany({
         where: { userId },
@@ -218,25 +231,102 @@ export async function createApp(
     await next();
     c.header("X-Content-Type-Options", "nosniff");
     c.header("X-Frame-Options", "SAMEORIGIN");
-    c.header("X-XSS-Protection", "1; mode=block");
     c.header("Referrer-Policy", "strict-origin-when-cross-origin");
+    c.header("Permissions-Policy", "camera=(), microphone=(self), geolocation=(), payment=()");
+    c.header("Content-Security-Policy", HARDENED_CSP_HEADER);
+    if (httpsProduction) {
+      c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    }
   });
   app.use(
     "*",
     cors({
       origin: (origin) => {
-        if (!origin) return env.webOrigin;
-        return isTrustedOrigin(origin, env) ? origin : "";
+        if (!origin) return httpsProduction ? "" : env.webOrigin;
+        return isTrustedOrigin(origin, env, httpsProduction) ? origin : "";
       },
       credentials: true,
     }),
   );
+  app.use("*", async (c, next) => {
+    if (!c.req.path.startsWith("/api/auth") && !c.req.path.startsWith("/rpc")) {
+      return next();
+    }
+    const csrf = evaluateCsrfRequestSafety(
+      c.req.raw,
+      (origin) => isTrustedOrigin(origin, env, httpsProduction),
+      httpsProduction,
+    );
+    if (!csrf.allowed) {
+      const maskedIp = maskIpForAudit(extractSpoofProofClientIp(c.req.raw.headers));
+      recordDiagnosticIncident({
+        severity: "warn",
+        layer: "security_perimeter",
+        code: "CSRF_INTRUSION_BLOCKED",
+        title: `Requête inter-origine (CSRF) bloquée depuis ${maskedIp}`,
+        message: `Mutation ${c.req.method} ${c.req.path} rejetée (motif : ${csrf.reason}, origine : ${csrf.origin ?? "inconnue"}).`,
+        dataDir: env.dataDir,
+        context: {
+          route: `${c.req.method} ${c.req.path}`,
+          statusCode: 403,
+          userAgent: c.req.header("user-agent")?.slice(0, 200),
+        },
+      });
+      return c.json({ error: "Cross-origin request rejected by Rakazo security shield" }, 403);
+    }
+    return next();
+  });
   app.on(["GET", "POST"], "/api/auth/*", async (c) => {
     const path = new URL(c.req.url).pathname.replace("/api/auth", "");
     if (blockedAuthPaths.some((blocked) => path.startsWith(blocked))) {
       return c.json({ error: "Not available in version 1" }, 404);
     }
-    return auth.handler(c.req.raw);
+
+    if (!isSensitiveAuthMutation(c.req.method, path)) {
+      return auth.handler(c.req.raw);
+    }
+
+    const clientIp = extractSpoofProofClientIp(c.req.raw.headers);
+    const preVerdict = globalAuthIntrusionShield.evaluatePreAuth(clientIp);
+    if (!preVerdict.allowed) {
+      c.header("Retry-After", String(preVerdict.retryAfterSec));
+      return c.json(
+        {
+          error:
+            "Trop de tentatives d'authentification échouées depuis cette adresse IP. Votre compte reste intact sur vos autres appareils.",
+          retryAfterSec: preVerdict.retryAfterSec,
+        },
+        429,
+      );
+    }
+
+    const response = await auth.handler(c.req.raw);
+    const succeeded = response.status < 400;
+    const postVerdict = globalAuthIntrusionShield.recordAuthOutcome(clientIp, succeeded);
+
+    if (!succeeded) {
+      if (postVerdict.newlyBanned) {
+        const maskedIp = maskIpForAudit(clientIp);
+        recordDiagnosticIncident({
+          severity: "warn",
+          layer: "security_perimeter",
+          code: "AUTH_BRUTEFORCE_IP_BANNED",
+          title: `Tentative de bruteforce neutralisée (${maskedIp})`,
+          message: `L'adresse IP ${maskedIp} a été bannie temporairement pendant ${Math.round(postVerdict.retryAfterSec / 60)} min (palier #${postVerdict.strikeCount}) après échecs répétés sur /api/auth${path}.`,
+          dataDir: env.dataDir,
+          context: {
+            route: `${c.req.method} /api/auth${path}`,
+            statusCode: 429,
+            userAgent: c.req.header("user-agent")?.slice(0, 200),
+          },
+        });
+      }
+      if (httpsProduction) {
+        await new Promise((resolve) => setTimeout(resolve, 180 + Math.floor(Math.random() * 80)));
+      }
+    }
+
+    return response;
   });
   app.onError((err, c) => {
     recordDiagnosticIncident({
@@ -287,8 +377,11 @@ export async function createApp(
     if (!session?.user) return null;
     return requireMembership(prisma, session.user.id).catch(() => null);
   });
-  app.get("/health", (c) =>
-    c.json({
+  app.get("/health", (c) => {
+    if (httpsProduction) {
+      return c.json({ ok: true });
+    }
+    return c.json({
       ok: true,
       runtime: env.agentRuntime,
       sandbox: env.sandboxProvider,
@@ -296,8 +389,8 @@ export async function createApp(
       jobs: jobKind,
       realtime: realtime.describe().id,
       revision: env.gitSha ?? null,
-    }),
-  );
+    });
+  });
 
   return {
     app,
@@ -319,10 +412,14 @@ export async function createApp(
   };
 }
 
-function isTrustedOrigin(origin: string, env: AppEnv) {
+function isTrustedOrigin(origin: string, env: AppEnv, httpsProduction = false) {
   if (!origin) return true;
   if (origin === env.webOrigin || origin === env.apiUrl || origin === env.authUrl) return true;
-  if (origin.startsWith("rakazo://") || origin.startsWith("exp://")) return true;
+  if (origin.startsWith("rakazo://")) return true;
+  if (httpsProduction) {
+    return false;
+  }
+  if (origin.startsWith("exp://")) return true;
   try {
     const host = new URL(origin).hostname;
     return host === "localhost" || host === "127.0.0.1";

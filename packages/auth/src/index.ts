@@ -31,6 +31,10 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
       enabled: true,
       disableSignUp: !signupsOpen(env.signupsEnabled),
     },
+    session: {
+      expiresIn: 60 * 60 * 24 * 30, // 30 jours glissants (confort mobile + desktop)
+      updateAge: 60 * 60 * 24, // Prolongation automatique toutes les 24h d'activité
+    },
     user: {
       deleteUser: {
         enabled: true,
@@ -70,15 +74,31 @@ export function createAuth(prisma: PrismaClient, env: AuthEnv) {
     ],
     hooks: {
       before: async (ctx) => {
-        const path = String((ctx as { path?: string }).path ?? "");
-        if (!path.includes("sign-up")) return;
+        const path = String((ctx as { path?: string }).path ?? "").toLowerCase();
+        const isSignUp = path.includes("sign-up");
+        const isOwnerProtectedMutation =
+          isSignUp ||
+          path.includes("sign-in") ||
+          path.includes("forget-password") ||
+          path.includes("forgot-password") ||
+          path.includes("change-email");
+        if (!isOwnerProtectedMutation) return;
+
         const allowlist = parseAllowlist(env.signupAllowlist);
+        if (allowlist.length === 0) return;
+
         const email =
           typeof ctx.body === "object" && ctx.body && "email" in ctx.body
             ? String((ctx.body as { email?: string }).email ?? "")
-            : "";
+            : typeof ctx.body === "object" && ctx.body && "newEmail" in ctx.body
+              ? String((ctx.body as { newEmail?: string }).newEmail ?? "")
+              : "";
         if (email && !emailAllowed(email, allowlist)) {
-          throw new APIError("BAD_REQUEST", { message: "Email is not allowed to register" });
+          if (isSignUp) {
+            throw new APIError("BAD_REQUEST", { message: "Email is not allowed to register" });
+          }
+          // Message générique sur sign-in / reset pour interdire toute énumération d'email propriétaire
+          throw new APIError("UNAUTHORIZED", { message: "Invalid email or password" });
         }
       },
     },
@@ -149,3 +169,5 @@ export const blockedAuthPaths = [
   "/organization/remove-member",
   "/organization/update-member-role",
 ];
+
+export * from "./intrusion-shield.js";

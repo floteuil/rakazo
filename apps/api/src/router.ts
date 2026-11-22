@@ -200,6 +200,15 @@ export function createRouter(deps: RouterDeps) {
       }),
       update: authed.deployment.update.handler(async ({ context, input }) => {
         if (!context.actor.isDeploymentOwner) throw new ORPCError("FORBIDDEN");
+        if (
+          input.signupsEnabled === true &&
+          (process.env.SIGNUPS_ENABLED === "false" || process.env.SIGNUPS_ENABLED === "0")
+        ) {
+          throw new ORPCError("FORBIDDEN", {
+            message:
+              "Les inscriptions sont verrouillées au niveau serveur (SIGNUPS_ENABLED=false).",
+          });
+        }
         if (input.computerHost === "this-mac" && deps.env.sandboxProvider !== "docker") {
           throw new ORPCError("BAD_REQUEST", {
             message:

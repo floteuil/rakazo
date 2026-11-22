@@ -11,6 +11,7 @@ export const DiagnosticLayerSchema = z.enum([
   "skill_engine",
   "database_worker",
   "web_client",
+  "security_perimeter",
 ]);
 export type DiagnosticLayer = z.infer<typeof DiagnosticLayerSchema>;
 

@@ -54,7 +54,7 @@ Rakazo is an enterprise-grade, sovereign, multi-agent AI orchestration platform 
 | `@rakazo/ui-tokens` / `ui-web` | CSS / Tailwind Tokens | Shared visual tokens, unified red error palette (`--rk-error: #ef4444`, `--rk-error-surface: rgba(239, 68, 68, 0.10)`, `--rk-error-border: rgba(239, 68, 68, 0.25)`, `--rk-error-ink: #fca5a5`, `--destructive: 0 84% 60%`, `tokens.danger = "#EF4444"`, `tokens.error = "#EF4444"`), typography, spacing primitives. |
 | `@rakazo/testkit` | Vitest, Test Containers, Mocks | Monorepo integration harnesses, E2E test suites, OmniRoute mock servers, upstream sync stress tests, adversary fuzzers, UI excellence and robustness test batteries (Tiers 1–4). |
 | `@rakazo/memory` | TypeScript 5.8 | Context management, semantic search, memory persistence. |
-| `@rakazo/auth` | TypeScript 5.8 | Token verification, OAuth flows, user permission gating. |
+| `@rakazo/auth` | TypeScript 5.8, BetterAuth | Token verification, 30-day sliding sessions, pre-hash single-owner `SIGNUP_ALLOWLIST` gating on `sign-up` & `sign-in`, spoof-proof `AuthIntrusionShield` progressive IP brute-force protection, CSRF `Origin`/`Sec-Fetch-Site` guard, calibrated CSP. |
 
 ---
 
